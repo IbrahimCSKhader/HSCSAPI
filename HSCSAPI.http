@@ -1,0 +1,6 @@
+@HSCSAPI_HostAddress = http://localhost:5150
+
+GET {{HSCSAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

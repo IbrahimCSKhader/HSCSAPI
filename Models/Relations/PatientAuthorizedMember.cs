@@ -1,0 +1,15 @@
+using HSCSAPI.Models.Enums;
+using HSCSAPI.Models.Profiles;
+
+namespace HSCSAPI.Models.Relations;
+
+public class PatientAuthorizedMember
+{
+    public int PatientId { get; set; }
+    public int AuthorizedMemberId { get; set; }
+    public RelationshipType RelationshipType { get; set; }
+    public DateTime AuthorizedAt { get; set; }
+
+    public Patient Patient { get; set; } = null!;
+    public AuthorizedMember AuthorizedMember { get; set; } = null!;
+}
