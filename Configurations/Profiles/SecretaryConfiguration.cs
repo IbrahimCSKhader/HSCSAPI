@@ -11,11 +11,16 @@ public class SecretaryConfiguration : IEntityTypeConfiguration<Secretary>
         builder.ToTable("Secretaries");
 
         builder.HasKey(x => x.SecretaryId);
-        builder.Property(x => x.SecretaryId).ValueGeneratedNever();
+        builder.Property(x => x.SecretaryId).ValueGeneratedOnAdd();
 
         builder.HasOne(x => x.User)
             .WithOne(x => x.SecretaryProfile)
             .HasForeignKey<Secretary>(x => x.SecretaryId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        builder.HasOne(x => x.Clinic)
+            .WithMany(x => x.Secretaries)
+            .HasForeignKey(x => x.ClinicId)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.Reports)

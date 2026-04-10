@@ -11,7 +11,7 @@ public class LaboratoryTechnologistConfiguration : IEntityTypeConfiguration<Labo
         builder.ToTable("LaboratoryTechnologists");
 
         builder.HasKey(x => x.LaboratoryTechnologistId);
-        builder.Property(x => x.LaboratoryTechnologistId).ValueGeneratedNever();
+        builder.Property(x => x.LaboratoryTechnologistId).ValueGeneratedOnAdd();
 
         builder.Property(x => x.ProfessionalLicenseNumber)
             .IsRequired()

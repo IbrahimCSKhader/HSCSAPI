@@ -11,7 +11,7 @@ public class AuthorizedMemberConfiguration : IEntityTypeConfiguration<Authorized
         builder.ToTable("AuthorizedMembers");
 
         builder.HasKey(x => x.AuthorizedMemberId);
-        builder.Property(x => x.AuthorizedMemberId).ValueGeneratedNever();
+        builder.Property(x => x.AuthorizedMemberId).ValueGeneratedOnAdd();
 
         builder.HasOne(x => x.User)
             .WithOne(x => x.AuthorizedMemberProfile)

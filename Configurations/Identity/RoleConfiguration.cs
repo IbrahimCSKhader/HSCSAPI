@@ -1,4 +1,5 @@
 using HSCSAPI.Models.Identity;
+using HSCSAPI.Models.Enums;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -18,5 +19,15 @@ public class RoleConfiguration : IEntityTypeConfiguration<Role>
 
         builder.HasIndex(x => x.Name)
             .IsUnique();
+
+        builder.HasData(
+            new Role { RoleId = (int)UserSystemRole.SuperAdmin, Name = nameof(UserSystemRole.SuperAdmin) },
+            new Role { RoleId = (int)UserSystemRole.Patient, Name = nameof(UserSystemRole.Patient) },
+            new Role { RoleId = (int)UserSystemRole.Doctor, Name = nameof(UserSystemRole.Doctor) },
+            new Role { RoleId = (int)UserSystemRole.Secretary, Name = nameof(UserSystemRole.Secretary) },
+            new Role { RoleId = (int)UserSystemRole.AuthorizedMember, Name = nameof(UserSystemRole.AuthorizedMember) },
+            new Role { RoleId = (int)UserSystemRole.LaboratoryTechnologist, Name = nameof(UserSystemRole.LaboratoryTechnologist) },
+            new Role { RoleId = (int)UserSystemRole.RadiologyTechnologist, Name = nameof(UserSystemRole.RadiologyTechnologist) }
+        );
     }
 }

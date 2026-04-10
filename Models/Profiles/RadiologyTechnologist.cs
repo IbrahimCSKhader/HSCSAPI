@@ -5,7 +5,7 @@ namespace HSCSAPI.Models.Profiles;
 
 public class RadiologyTechnologist
 {
-    public int RadiologyTechnologistId { get; set; }
+    public Guid RadiologyTechnologistId { get; set; } = Guid.NewGuid();
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
 
     public User User { get; set; } = null!;

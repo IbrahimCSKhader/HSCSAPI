@@ -1,5 +1,6 @@
 using HSCSAPI.Models.Appointments;
 using HSCSAPI.Models.Identity;
+using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Laboratory;
 using HSCSAPI.Models.MedicalFiles;
 using HSCSAPI.Models.Notifications;
@@ -22,6 +23,7 @@ public class AppDbContext : DbContext
     public DbSet<User> Users => Set<User>();
     public DbSet<Role> Roles => Set<Role>();
     public DbSet<UserRole> UserRoles => Set<UserRole>();
+    public DbSet<Clinic> Clinics => Set<Clinic>();
 
     public DbSet<Patient> Patients => Set<Patient>();
     public DbSet<Doctor> Doctors => Set<Doctor>();

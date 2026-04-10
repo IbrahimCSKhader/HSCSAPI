@@ -5,10 +5,10 @@ namespace HSCSAPI.Models.Laboratory;
 
 public class LabTestRequest
 {
-    public int LabTestRequestId { get; set; }
+    public Guid LabTestRequestId { get; set; } = Guid.NewGuid();
     public string TestName { get; set; } = string.Empty;
-    public int? LaboratoryTechnologistId { get; set; }
-    public int? ResultMedicalFileId { get; set; }
+    public Guid? LaboratoryTechnologistId { get; set; }
+    public Guid? ResultMedicalFileId { get; set; }
 
     public LaboratoryTechnologist? LaboratoryTechnologist { get; set; }
     public MedicalFile? ResultMedicalFile { get; set; }

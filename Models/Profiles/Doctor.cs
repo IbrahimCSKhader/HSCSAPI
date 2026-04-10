@@ -7,7 +7,7 @@ namespace HSCSAPI.Models.Profiles;
 
 public class Doctor
 {
-    public int DoctorId { get; set; }
+    public Guid DoctorId { get; set; } = Guid.NewGuid();
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
 
     public User User { get; set; } = null!;

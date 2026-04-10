@@ -4,10 +4,10 @@ namespace HSCSAPI.Models.Reminders;
 
 public class Reminder
 {
-    public int ReminderId { get; set; }
-    public int PatientId { get; set; }
-    public int DoctorId { get; set; }
-    public int? AuthorizedMemberId { get; set; }
+    public Guid ReminderId { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
+    public Guid DoctorId { get; set; }
+    public Guid? AuthorizedMemberId { get; set; }
     public string ReminderText { get; set; } = string.Empty;
     public DateTime ReminderAt { get; set; }
 

@@ -4,8 +4,8 @@ namespace HSCSAPI.Models.Secretaries;
 
 public class ReportInformation
 {
-    public int ReportInformationId { get; set; }
-    public int ReportId { get; set; }
+    public Guid ReportInformationId { get; set; } = Guid.NewGuid();
+    public Guid ReportId { get; set; }
     public ReportFileFormat FileFormat { get; set; }
     public string FilePath { get; set; } = string.Empty;
     public long FileSizeInBytes { get; set; }

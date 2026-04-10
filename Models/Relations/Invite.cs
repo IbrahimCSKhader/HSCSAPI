@@ -5,9 +5,9 @@ namespace HSCSAPI.Models.Relations;
 
 public class Invite
 {
-    public int InviteId { get; set; }
-    public int PatientId { get; set; }
-    public int AuthorizedMemberId { get; set; }
+    public Guid InviteId { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
+    public Guid AuthorizedMemberId { get; set; }
     public RelationshipType RelationshipType { get; set; }
     public InviteStatus Status { get; set; }
     public DateTime SentAt { get; set; }

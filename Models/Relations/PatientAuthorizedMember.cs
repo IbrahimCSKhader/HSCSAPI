@@ -5,8 +5,8 @@ namespace HSCSAPI.Models.Relations;
 
 public class PatientAuthorizedMember
 {
-    public int PatientId { get; set; }
-    public int AuthorizedMemberId { get; set; }
+    public Guid PatientId { get; set; }
+    public Guid AuthorizedMemberId { get; set; }
     public RelationshipType RelationshipType { get; set; }
     public DateTime AuthorizedAt { get; set; }
 

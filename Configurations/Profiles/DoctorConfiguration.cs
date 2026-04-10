@@ -11,7 +11,7 @@ public class DoctorConfiguration : IEntityTypeConfiguration<Doctor>
         builder.ToTable("Doctors");
 
         builder.HasKey(x => x.DoctorId);
-        builder.Property(x => x.DoctorId).ValueGeneratedNever();
+        builder.Property(x => x.DoctorId).ValueGeneratedOnAdd();
 
         builder.Property(x => x.ProfessionalLicenseNumber)
             .IsRequired()

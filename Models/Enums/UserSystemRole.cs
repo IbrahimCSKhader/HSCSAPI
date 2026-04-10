@@ -2,6 +2,7 @@ namespace HSCSAPI.Models.Enums;
 
 public enum UserSystemRole
 {
+    SuperAdmin = 0,
     Patient = 1,
     Doctor = 2,
     Secretary = 3,

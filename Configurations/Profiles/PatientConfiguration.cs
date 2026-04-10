@@ -11,7 +11,14 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.ToTable("Patients");
 
         builder.HasKey(x => x.PatientId);
-        builder.Property(x => x.PatientId).ValueGeneratedNever();
+            builder.Property(x => x.PatientId).ValueGeneratedOnAdd();
+
+        builder.Property(x => x.UserID)
+            .IsRequired()
+            .HasMaxLength(20);
+
+        builder.HasIndex(x => x.UserID)
+            .IsUnique();
 
         builder.Property(x => x.Gender)
             .HasConversion<string>()

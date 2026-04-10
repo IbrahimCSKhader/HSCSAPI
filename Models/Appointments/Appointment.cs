@@ -5,10 +5,10 @@ namespace HSCSAPI.Models.Appointments;
 
 public class Appointment
 {
-    public int AppointmentId { get; set; }
-    public int DoctorId { get; set; }
-    public int PatientId { get; set; }
-    public int AvailabilitySlotId { get; set; }
+    public Guid AppointmentId { get; set; } = Guid.NewGuid();
+    public Guid DoctorId { get; set; }
+    public Guid PatientId { get; set; }
+    public Guid AvailabilitySlotId { get; set; }
     public DateOnly AppointmentDate { get; set; }
     public TimeOnly AppointmentTime { get; set; }
     public string? Notes { get; set; }

@@ -8,9 +8,9 @@ namespace HSCSAPI.Models.MedicalFiles;
 
 public class MedicalFile
 {
-    public int MedicalFileId { get; set; }
-    public int AppointmentId { get; set; }
-    public int UploadedByDoctorId { get; set; }
+    public Guid MedicalFileId { get; set; } = Guid.NewGuid();
+    public Guid AppointmentId { get; set; }
+    public Guid UploadedByDoctorId { get; set; }
     public MedicalFileType FileType { get; set; }
     public string FilePath { get; set; } = string.Empty;
     public string EncryptedChecksum { get; set; } = string.Empty;

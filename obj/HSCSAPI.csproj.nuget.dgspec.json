@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj": {}
+    "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj": {}
   },
   "projects": {
-    "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj": {
+    "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
+        "projectUniqueName": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
         "projectName": "HSCSAPI",
-        "projectPath": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
+        "projectPath": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
         "packagesPath": "C:\\Users\\wesal\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\obj\\",
+        "outputPath": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -31,6 +31,7 @@
         },
         "frameworks": {
           "net10.0": {
+            "framework": "net10.0",
             "targetAlias": "net10.0",
             "projectReferences": {}
           }
@@ -49,13 +50,24 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "dependencies": {
+            "Microsoft.AspNetCore.Authentication.JwtBearer": {
+              "target": "Package",
+              "version": "[10.0.5, )"
+            },
             "Microsoft.AspNetCore.OpenApi": {
               "target": "Package",
               "version": "[10.0.5, )"
             },
             "Microsoft.EntityFrameworkCore": {
+              "target": "Package",
+              "version": "[10.0.5, )"
+            },
+            "Microsoft.EntityFrameworkCore.Design": {
+              "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+              "suppressParent": "All",
               "target": "Package",
               "version": "[10.0.5, )"
             },
@@ -66,6 +78,14 @@
             "Microsoft.VisualStudio.Azure.Containers.Tools.Targets": {
               "target": "Package",
               "version": "[1.23.0, )"
+            },
+            "Scalar.AspNetCore": {
+              "target": "Package",
+              "version": "[2.13.21, )"
+            },
+            "System.IdentityModel.Tokens.Jwt": {
+              "target": "Package",
+              "version": "[8.17.0, )"
             }
           },
           "imports": [

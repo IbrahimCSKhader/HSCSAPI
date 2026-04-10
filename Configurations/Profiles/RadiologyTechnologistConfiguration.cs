@@ -11,7 +11,7 @@ public class RadiologyTechnologistConfiguration : IEntityTypeConfiguration<Radio
         builder.ToTable("RadiologyTechnologists");
 
         builder.HasKey(x => x.RadiologyTechnologistId);
-        builder.Property(x => x.RadiologyTechnologistId).ValueGeneratedNever();
+        builder.Property(x => x.RadiologyTechnologistId).ValueGeneratedOnAdd();
 
         builder.Property(x => x.ProfessionalLicenseNumber)
             .IsRequired()

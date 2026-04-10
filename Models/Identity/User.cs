@@ -1,11 +1,12 @@
 using HSCSAPI.Models.Notifications;
 using HSCSAPI.Models.Profiles;
+using HSCSAPI.Models.Clinics;
 
 namespace HSCSAPI.Models.Identity;
 
 public class User
 {
-    public int UserId { get; set; }
+    public Guid UserId { get; set; } = Guid.NewGuid();
     public string Name { get; set; } = string.Empty;
     public DateOnly? DateOfBirth { get; set; }
     public string Email { get; set; } = string.Empty;
@@ -22,4 +23,5 @@ public class User
 
     public ICollection<UserRole> UserRoles { get; set; } = new HashSet<UserRole>();
     public ICollection<Notification> Notifications { get; set; } = new HashSet<Notification>();
+    public ICollection<Clinic> CreatedClinics { get; set; } = new HashSet<Clinic>();
 }
