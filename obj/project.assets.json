@@ -635,6 +635,12 @@
           }
         }
       },
+      "Microsoft.EntityFrameworkCore.Tools/10.0.5": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.EntityFrameworkCore.Design": "10.0.5"
+        }
+      },
       "Microsoft.Extensions.DependencyModel/10.0.5": {
         "type": "package",
         "compile": {
@@ -2508,6 +2514,31 @@
         "microsoft.entityframeworkcore.sqlserver.nuspec"
       ]
     },
+    "Microsoft.EntityFrameworkCore.Tools/10.0.5": {
+      "sha512": "maSlvKez/gwy88zoLXCafRh0gEFmakM7fnf6zEi6nyItp7A1Negmp/YBodiuWcxLUguvVkPJZX15MnLeuJwjQA==",
+      "type": "package",
+      "path": "microsoft.entityframeworkcore.tools/10.0.5",
+      "hasTools": true,
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "docs/PACKAGE.md",
+        "microsoft.entityframeworkcore.tools.10.0.5.nupkg.sha512",
+        "microsoft.entityframeworkcore.tools.nuspec",
+        "tools/EntityFrameworkCore.PS2.psd1",
+        "tools/EntityFrameworkCore.PS2.psm1",
+        "tools/EntityFrameworkCore.psd1",
+        "tools/EntityFrameworkCore.psm1",
+        "tools/about_EntityFrameworkCore.help.txt",
+        "tools/init.ps1",
+        "tools/net472/any/ef.exe",
+        "tools/net472/win-arm64/ef.exe",
+        "tools/net472/win-x86/ef.exe",
+        "tools/net8.0/any/ef.dll",
+        "tools/net8.0/any/ef.runtimeconfig.json"
+      ]
+    },
     "Microsoft.Extensions.DependencyModel/10.0.5": {
       "sha512": "xA4kkL+QS6KCAOKz/O0oquHs44Ob8J7zpBCNt3wjkBWDg5aCqfwG8rWWLsg5V86AM0sB849g9JjPjIdksTCIKg==",
       "type": "package",
@@ -3292,6 +3323,7 @@
       "Microsoft.EntityFrameworkCore >= 10.0.5",
       "Microsoft.EntityFrameworkCore.Design >= 10.0.5",
       "Microsoft.EntityFrameworkCore.SqlServer >= 10.0.5",
+      "Microsoft.EntityFrameworkCore.Tools >= 10.0.5",
       "Microsoft.VisualStudio.Azure.Containers.Tools.Targets >= 1.23.0",
       "Scalar.AspNetCore >= 2.13.21",
       "System.IdentityModel.Tokens.Jwt >= 8.17.0"
@@ -3304,11 +3336,11 @@
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
+      "projectUniqueName": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
       "projectName": "HSCSAPI",
-      "projectPath": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
+      "projectPath": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
       "packagesPath": "C:\\Users\\wesal\\.nuget\\packages\\",
-      "outputPath": "c:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\obj\\",
+      "outputPath": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -3328,6 +3360,7 @@
       },
       "frameworks": {
         "net10.0": {
+          "framework": "net10.0",
           "targetAlias": "net10.0",
           "projectReferences": {}
         }
@@ -3346,6 +3379,7 @@
     },
     "frameworks": {
       "net10.0": {
+        "framework": "net10.0",
         "targetAlias": "net10.0",
         "dependencies": {
           "Microsoft.AspNetCore.Authentication.JwtBearer": {
@@ -3367,6 +3401,12 @@
             "version": "[10.0.5, )"
           },
           "Microsoft.EntityFrameworkCore.SqlServer": {
+            "target": "Package",
+            "version": "[10.0.5, )"
+          },
+          "Microsoft.EntityFrameworkCore.Tools": {
+            "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",
+            "suppressParent": "All",
             "target": "Package",
             "version": "[10.0.5, )"
           },

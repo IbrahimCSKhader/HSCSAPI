@@ -1,20 +1,16 @@
 using HSCSAPI.DTOs.Auth;
 using HSCSAPI.Services.Auth;
 using Microsoft.AspNetCore.Mvc;
-
 namespace HSCSAPI.Controllers;
-
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
 {
     private readonly IAuthService _authService;
-
     public AuthController(IAuthService authService)
     {
         _authService = authService;
     }
-
     [HttpPost("login")]
     public async Task<ActionResult<AuthResponse>> Login([FromBody] LoginRequest request, CancellationToken cancellationToken = default)
     {
@@ -43,3 +39,5 @@ public class AuthController : ControllerBase
         return CreatedAtAction(nameof(RegisterPatient), result);
     }
 }
+
+

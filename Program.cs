@@ -14,16 +14,25 @@ namespace HSCSAPI
 {
     public class Program
     {
-        public static void Main(string[] args)
+        public static async Task Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
 
 
             builder.Services.AddControllers();
+            builder.Services.AddEndpointsApiExplorer();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
             builder.Services.AddDbContext<AppDbContext>(options =>
-                options.UseSqlServer(builder.Configuration.GetConnectionString("DefaultConnection")));
+     options.UseSqlServer(
+         builder.Configuration.GetConnectionString("DefaultConnection"),
+         sqlOptions =>
+         {
+             sqlOptions.EnableRetryOnFailure(
+                 maxRetryCount: 5,
+                 maxRetryDelay: TimeSpan.FromSeconds(10),
+                 errorNumbersToAdd: null);
+         }));
             builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
             builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
             builder.Services.Configure<SuperAdminSeedSettings>(builder.Configuration.GetSection("SuperAdminSeed"));
@@ -57,18 +66,25 @@ namespace HSCSAPI
 
             var app = builder.Build();
 
-            // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
-            {
-                app.MapOpenApi();
-                app.MapScalarApiReference();
-                app.MapGet("/", () => Results.Redirect("/scalar/v1"));
-            }
+            var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
-            using (var scope = app.Services.CreateScope())
+            // Configure the HTTP request pipeline.
+            app.MapOpenApi();
+            app.MapScalarApiReference();
+            app.MapGet("/", () => Results.Redirect("/scalar/v1"));
+
+            try
             {
+                await using var scope = app.Services.CreateAsyncScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                await dbContext.Database.MigrateAsync();
+
                 var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeedService>();
-                seeder.SeedSuperAdminAsync().GetAwaiter().GetResult();
+                await seeder.SeedSuperAdminAsync();
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "An error occurred while applying database migrations or seeding the super admin user.");
             }
 
             app.UseHttpsRedirection();
@@ -79,7 +95,7 @@ namespace HSCSAPI
 
             app.MapControllers();
 
-            app.Run();
+            await app.RunAsync();
         }
     }
 }
