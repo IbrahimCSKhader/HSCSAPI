@@ -15,7 +15,7 @@ public class TokenService : ITokenService
         _configuration = configuration;
     }
 
-    public string GenerateToken(Guid userId, string email, List<string> roles)
+    public string GenerateToken(Guid userId, string email, string role)
     {
         var tokenHandler = new JwtSecurityTokenHandler();
         var key = Encoding.ASCII.GetBytes(_configuration["JwtSettings:SecretKey"]!);
@@ -24,13 +24,8 @@ public class TokenService : ITokenService
         {
             new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
             new Claim(ClaimTypes.Email, email),
+            new Claim(ClaimTypes.Role, role)
         };
-
-        // Add role claims
-        foreach (var role in roles)
-        {
-            claims.Add(new Claim(ClaimTypes.Role, role));
-        }
 
         var tokenDescriptor = new SecurityTokenDescriptor
         {

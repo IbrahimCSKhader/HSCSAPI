@@ -38,6 +38,76 @@ public class AuthController : ControllerBase
 
         return CreatedAtAction(nameof(RegisterPatient), result);
     }
+
+    [HttpPost("register-doctor")]
+    public async Task<ActionResult<AuthResponse>> RegisterDoctor([FromBody] RegisterDoctorRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.RegisterDoctorAsync(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterDoctor), result);
+    }
+
+    [HttpPost("register-secretary")]
+    public async Task<ActionResult<AuthResponse>> RegisterSecretary([FromBody] RegisterSecretaryRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.RegisterSecretaryAsync(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterSecretary), result);
+    }
+
+    [HttpPost("register-authorized-member")]
+    public async Task<ActionResult<AuthResponse>> RegisterAuthorizedMember([FromBody] RegisterAuthorizedMemberRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.RegisterAuthorizedMemberAsync(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterAuthorizedMember), result);
+    }
+
+    [HttpPost("register-laboratory-technologist")]
+    public async Task<ActionResult<AuthResponse>> RegisterLaboratoryTechnologist([FromBody] RegisterLaboratoryTechnologistRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.RegisterLaboratoryTechnologistAsync(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterLaboratoryTechnologist), result);
+    }
+
+    [HttpPost("register-radiology-technologist")]
+    public async Task<ActionResult<AuthResponse>> RegisterRadiologyTechnologist([FromBody] RegisterRadiologyTechnologistRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.RegisterRadiologyTechnologistAsync(request, cancellationToken);
+
+        if (!result.Success)
+            return BadRequest(result);
+
+        return CreatedAtAction(nameof(RegisterRadiologyTechnologist), result);
+    }
 }
 
 

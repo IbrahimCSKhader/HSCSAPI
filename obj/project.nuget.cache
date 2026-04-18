@@ -1,11 +1,12 @@
 {
   "version": 2,
-  "dgSpecHash": "poxUvESfqls=",
+  "dgSpecHash": "ZSdU9gtIlwY=",
   "success": true,
   "projectFilePath": "C:\\Users\\wesal\\OneDrive\\سطح المكتب\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\wesal\\.nuget\\packages\\azure.core\\1.47.1\\azure.core.1.47.1.nupkg.sha512",
     "C:\\Users\\wesal\\.nuget\\packages\\azure.identity\\1.14.2\\azure.identity.1.14.2.nupkg.sha512",
+    "C:\\Users\\wesal\\.nuget\\packages\\bcrypt.net-next\\4.0.3\\bcrypt.net-next.4.0.3.nupkg.sha512",
     "C:\\Users\\wesal\\.nuget\\packages\\humanizer.core\\2.14.1\\humanizer.core.2.14.1.nupkg.sha512",
     "C:\\Users\\wesal\\.nuget\\packages\\microsoft.aspnetcore.authentication.jwtbearer\\10.0.5\\microsoft.aspnetcore.authentication.jwtbearer.10.0.5.nupkg.sha512",
     "C:\\Users\\wesal\\.nuget\\packages\\microsoft.aspnetcore.openapi\\10.0.5\\microsoft.aspnetcore.openapi.10.0.5.nupkg.sha512",

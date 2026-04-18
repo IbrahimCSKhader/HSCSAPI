@@ -1,5 +1,4 @@
-using System.Security.Cryptography;
-using System.Text;
+using BCrypt.Net;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Auth;
 using HSCSAPI.Models.Enums;
@@ -26,11 +25,13 @@ public class AuthService : IAuthService
     {
         try
         {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+
             var user = await _context.Users
                 .Include(u => u.UserRoles)
                 .ThenInclude(ur => ur.Role)
                 .Include(u => u.PatientProfile)
-                .FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
+                .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
 
             if (user == null || !VerifyPassword(request.Password, user.PasswordHash))
             {
@@ -38,7 +39,7 @@ public class AuthService : IAuthService
             }
 
             var userDto = MapToUserDto(user);
-            var token = _tokenService.GenerateToken(user.UserId, user.Email, userDto.Roles);
+            var token = _tokenService.GenerateToken(user.UserId, user.Email, userDto.Role);
 
             return new AuthResponse
             {
@@ -58,67 +59,152 @@ public class AuthService : IAuthService
     {
         try
         {
-            // Check if email already exists
-            var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == request.Email, cancellationToken);
-            if (existingUser != null)
-            {
-                return new AuthResponse { Success = false, Message = "Email already registered" };
-            }
+            return await RegisterPatientCoreAsync(request, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
+        }
+    }
 
-            // Verify clinic exists
+    public async Task<AuthResponse> RegisterDoctorAsync(RegisterDoctorRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RegisterProfileUserAsync(
+                request.Email,
+                request.Password,
+                request.Name,
+                request.PhoneNumber,
+                request.Address,
+                request.DateOfBirth,
+                UserSystemRole.Doctor,
+                user =>
+                {
+                    user.DoctorProfile = new Doctor
+                    {
+                        ProfessionalLicenseNumber = request.ProfessionalLicenseNumber,
+                        User = user
+                    };
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<AuthResponse> RegisterSecretaryAsync(RegisterSecretaryRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
             var clinic = await _context.Clinics.FindAsync(new object[] { request.ClinicId }, cancellationToken: cancellationToken);
             if (clinic == null)
             {
                 return new AuthResponse { Success = false, Message = "Clinic not found" };
             }
 
-            // Create new user
-            var user = new User
-            {
-                Name = request.Name,
-                Email = request.Email,
-                PhoneNumber = request.PhoneNumber,
-                Address = request.Address,
-                DateOfBirth = request.DateOfBirth,
-                PasswordHash = HashPassword(request.Password)
-            };
+            return await RegisterProfileUserAsync(
+                request.Email,
+                request.Password,
+                request.Name,
+                request.PhoneNumber,
+                request.Address,
+                request.DateOfBirth,
+                UserSystemRole.Secretary,
+                user =>
+                {
+                    user.SecretaryProfile = new Secretary
+                    {
+                        ClinicId = request.ClinicId,
+                        User = user
+                    };
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
+        }
+    }
 
-            // Generate Patient UserID
-            var userID = await _userIdGenerator.GenerateUserIdAsync(request.ClinicId, UserSystemRole.Patient, cancellationToken);
+    public async Task<AuthResponse> RegisterAuthorizedMemberAsync(RegisterAuthorizedMemberRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RegisterProfileUserAsync(
+                request.Email,
+                request.Password,
+                request.Name,
+                request.PhoneNumber,
+                request.Address,
+                request.DateOfBirth,
+                UserSystemRole.AuthorizedMember,
+                user =>
+                {
+                    user.AuthorizedMemberProfile = new AuthorizedMember
+                    {
+                        User = user
+                    };
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
+        }
+    }
 
-            // Create patient profile
-            var genderEnum = Enum.Parse<Gender>(request.Gender);
-            var patient = new Patient
-            {
-                UserID = userID,
-                Gender = genderEnum,
-                BloodType = !string.IsNullOrEmpty(request.BloodType) ? Enum.Parse<BloodType>(request.BloodType) : null,
-                User = user
-            };
+    public async Task<AuthResponse> RegisterLaboratoryTechnologistAsync(RegisterLaboratoryTechnologistRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RegisterProfileUserAsync(
+                request.Email,
+                request.Password,
+                request.Name,
+                request.PhoneNumber,
+                request.Address,
+                request.DateOfBirth,
+                UserSystemRole.LaboratoryTechnologist,
+                user =>
+                {
+                    user.LaboratoryTechnologistProfile = new LaboratoryTechnologist
+                    {
+                        ProfessionalLicenseNumber = request.ProfessionalLicenseNumber,
+                        User = user
+                    };
+                },
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
+        }
+    }
 
-            user.PatientProfile = patient;
-
-            // Assign Patient role
-            var patientRole = await _context.Roles.FirstOrDefaultAsync(r => r.Name == "Patient", cancellationToken);
-            if (patientRole != null)
-            {
-                var userRole = new UserRole { User = user, Role = patientRole };
-                user.UserRoles.Add(userRole);
-            }
-
-            _context.Users.Add(user);
-            await _context.SaveChangesAsync(cancellationToken);
-
-            var userDto = MapToUserDto(user);
-            var token = _tokenService.GenerateToken(user.UserId, user.Email, userDto.Roles);
-
-            return new AuthResponse
-            {
-                Success = true,
-                Message = "Registration successful",
-                User = userDto,
-                Token = token
-            };
+    public async Task<AuthResponse> RegisterRadiologyTechnologistAsync(RegisterRadiologyTechnologistRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            return await RegisterProfileUserAsync(
+                request.Email,
+                request.Password,
+                request.Name,
+                request.PhoneNumber,
+                request.Address,
+                request.DateOfBirth,
+                UserSystemRole.RadiologyTechnologist,
+                user =>
+                {
+                    user.RadiologyTechnologistProfile = new RadiologyTechnologist
+                    {
+                        ProfessionalLicenseNumber = request.ProfessionalLicenseNumber,
+                        User = user
+                    };
+                },
+                cancellationToken);
         }
         catch (Exception ex)
         {
@@ -128,21 +214,116 @@ public class AuthService : IAuthService
 
     private string HashPassword(string password)
     {
-        using (var sha256 = SHA256.Create())
-        {
-            var hashedBytes = sha256.ComputeHash(Encoding.UTF8.GetBytes(password));
-            return Convert.ToBase64String(hashedBytes);
-        }
+        return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
     }
 
     private bool VerifyPassword(string password, string hash)
     {
-        var hashOfInput = HashPassword(password);
-        return hashOfInput.Equals(hash);
+        return BCrypt.Net.BCrypt.Verify(password, hash);
+    }
+
+    private async Task<AuthResponse> RegisterPatientCoreAsync(RegisterPatientRequest request, CancellationToken cancellationToken)
+    {
+        var clinic = await _context.Clinics.FindAsync(new object[] { request.ClinicId }, cancellationToken: cancellationToken);
+        if (clinic == null)
+        {
+            return new AuthResponse { Success = false, Message = "Clinic not found" };
+        }
+
+        var user = await CreateBaseUserAsync(request.Email, request.Password, request.Name, request.PhoneNumber, request.Address, request.DateOfBirth, cancellationToken);
+        var userID = await _userIdGenerator.GenerateUserIdAsync(request.ClinicId, UserSystemRole.Patient, cancellationToken);
+        var genderEnum = Enum.Parse<Gender>(request.Gender);
+
+        user.PatientProfile = new Patient
+        {
+            UserID = userID,
+            Gender = genderEnum,
+            BloodType = !string.IsNullOrEmpty(request.BloodType) ? Enum.Parse<BloodType>(request.BloodType) : null,
+            User = user
+        };
+
+        return await SaveUserWithRoleAsync(user, UserSystemRole.Patient, cancellationToken, "Registration successful");
+    }
+
+    private async Task<AuthResponse> RegisterProfileUserAsync(
+        string email,
+        string password,
+        string name,
+        string? phoneNumber,
+        string? address,
+        DateOnly? dateOfBirth,
+        UserSystemRole role,
+        Action<User> configureProfile,
+        CancellationToken cancellationToken)
+    {
+        var user = await CreateBaseUserAsync(email, password, name, phoneNumber, address, dateOfBirth, cancellationToken);
+        configureProfile(user);
+        return await SaveUserWithRoleAsync(user, role, cancellationToken, "Registration successful");
+    }
+
+    private async Task<User> CreateBaseUserAsync(
+        string email,
+        string password,
+        string name,
+        string? phoneNumber,
+        string? address,
+        DateOnly? dateOfBirth,
+        CancellationToken cancellationToken)
+    {
+        var normalizedEmail = email.Trim().ToLowerInvariant();
+        var existingUser = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+        if (existingUser != null)
+        {
+            throw new InvalidOperationException("Email already registered");
+        }
+
+        return new User
+        {
+            Name = name,
+            Email = normalizedEmail,
+            PhoneNumber = phoneNumber,
+            Address = address,
+            DateOfBirth = dateOfBirth,
+            PasswordHash = HashPassword(password)
+        };
+    }
+
+    private async Task<AuthResponse> SaveUserWithRoleAsync(User user, UserSystemRole role, CancellationToken cancellationToken, string message)
+    {
+        var roleEntity = await _context.Roles.FirstOrDefaultAsync(r => r.Name == role.ToString(), cancellationToken);
+        if (roleEntity == null)
+        {
+            return new AuthResponse { Success = false, Message = $"Role not found: {role}" };
+        }
+
+        user.UserRoles.Add(new UserRole { User = user, Role = roleEntity });
+
+        _context.Users.Add(user);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        return BuildSuccessResponse(user, message);
+    }
+
+    private AuthResponse BuildSuccessResponse(User user, string message)
+    {
+        var userDto = MapToUserDto(user);
+        var token = _tokenService.GenerateToken(user.UserId, user.Email, userDto.Role);
+
+        return new AuthResponse
+        {
+            Success = true,
+            Message = message,
+            User = userDto,
+            Token = token
+        };
     }
 
     private UserDto MapToUserDto(User user)
     {
+        var primaryRole = user.UserRoles
+            .Select(ur => ur.Role.Name)
+            .FirstOrDefault();
+
         return new UserDto
         {
             UserId = user.UserId,
@@ -151,7 +332,7 @@ public class AuthService : IAuthService
             PhoneNumber = user.PhoneNumber,
             Address = user.Address,
             UserID = user.PatientProfile?.UserID,
-            Roles = user.UserRoles.Select(ur => ur.Role.Name).ToList()
+            Role = primaryRole ?? string.Empty
         };
     }
 }
