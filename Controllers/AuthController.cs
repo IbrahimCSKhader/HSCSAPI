@@ -1,5 +1,8 @@
 using HSCSAPI.DTOs.Auth;
+using HSCSAPI.DTOs.Common;
+using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.Auth;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace HSCSAPI.Controllers;
 [ApiController]
@@ -54,6 +57,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("register-secretary")]
+    [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
     public async Task<ActionResult<AuthResponse>> RegisterSecretary([FromBody] RegisterSecretaryRequest request, CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
@@ -107,6 +111,59 @@ public class AuthController : ControllerBase
             return BadRequest(result);
 
         return CreatedAtAction(nameof(RegisterRadiologyTechnologist), result);
+    }
+
+    [HttpPost("forgot-password")]
+    public async Task<ActionResult<ApiResponse>> ForgotPassword([FromBody] ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.ForgotPasswordAsync(request, cancellationToken);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("reset-password")]
+    public async Task<ActionResult<ApiResponse>> ResetPassword([FromBody] ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.ResetPasswordAsync(request, cancellationToken);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("verify-code")]
+    public async Task<ActionResult<ApiResponse>> VerifyCode([FromBody] VerifyCodeRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        var result = await _authService.VerifyCodeAsync(request, cancellationToken);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
+
+    [HttpPost("verify-login-code")]
+    public async Task<ActionResult<AuthResponse>> VerifyLoginCode([FromBody] VerifyCodeRequest request, CancellationToken cancellationToken = default)
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
+
+        request.Purpose = Models.Enums.VerificationPurpose.Login;
+        var result = await _authService.VerifyLoginCodeAsync(request, cancellationToken);
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
     }
 }
 

@@ -1,9 +1,11 @@
 using BCrypt.Net;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Auth;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Profiles;
+using HSCSAPI.Services.Email;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSCSAPI.Services.Auth;
@@ -13,12 +15,21 @@ public class AuthService : IAuthService
     private readonly AppDbContext _context;
     private readonly UserIdGeneratorService _userIdGenerator;
     private readonly ITokenService _tokenService;
+    private readonly IEmailService _emailService;
+    private readonly ILogger<AuthService> _logger;
 
-    public AuthService(AppDbContext context, UserIdGeneratorService userIdGenerator, ITokenService tokenService)
+    public AuthService(
+        AppDbContext context,
+        UserIdGeneratorService userIdGenerator,
+        ITokenService tokenService,
+        IEmailService emailService,
+        ILogger<AuthService> logger)
     {
         _context = context;
         _userIdGenerator = userIdGenerator;
         _tokenService = tokenService;
+        _emailService = emailService;
+        _logger = logger;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
@@ -38,15 +49,25 @@ public class AuthService : IAuthService
                 return new AuthResponse { Success = false, Message = "Invalid email or password" };
             }
 
-            var userDto = MapToUserDto(user);
-            var token = _tokenService.GenerateToken(user.UserId, user.Email, userDto.Role);
+            var verificationCode = new UserVerificationCode
+            {
+                UserId = user.UserId,
+                Code = GenerateVerificationCode(),
+                Purpose = VerificationPurpose.Login,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                IsUsed = false
+            };
+
+            _context.Add(verificationCode);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await TrySendLoginVerificationEmailAsync(user, verificationCode.Code, cancellationToken);
 
             return new AuthResponse
             {
                 Success = true,
-                Message = "Login successful",
-                User = userDto,
-                Token = token
+                Message = "Verification code sent to your email.",
+                User = MapToUserDto(user)
             };
         }
         catch (Exception ex)
@@ -99,12 +120,6 @@ public class AuthService : IAuthService
     {
         try
         {
-            var clinic = await _context.Clinics.FindAsync(new object[] { request.ClinicId }, cancellationToken: cancellationToken);
-            if (clinic == null)
-            {
-                return new AuthResponse { Success = false, Message = "Clinic not found" };
-            }
-
             return await RegisterProfileUserAsync(
                 request.Email,
                 request.Password,
@@ -117,7 +132,7 @@ public class AuthService : IAuthService
                 {
                     user.SecretaryProfile = new Secretary
                     {
-                        ClinicId = request.ClinicId,
+                        ClinicId = null,
                         User = user
                     };
                 },
@@ -212,6 +227,157 @@ public class AuthService : IAuthService
         }
     }
 
+    public async Task<ApiResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+            if (user == null)
+            {
+                return new ApiResponse
+                {
+                    Success = true,
+                    Message = "If the email exists, a password reset code has been sent."
+                };
+            }
+
+            var verificationCode = new UserVerificationCode
+            {
+                UserId = user.UserId,
+                Code = GenerateVerificationCode(),
+                Purpose = VerificationPurpose.PasswordReset,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                IsUsed = false
+            };
+
+            _context.Add(verificationCode);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await TrySendPasswordResetEmailAsync(user, verificationCode.Code, cancellationToken);
+
+            return new ApiResponse
+            {
+                Success = true,
+                Message = "If the email exists, a password reset code has been sent."
+            };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse { Success = false, Message = $"Password reset request failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<ApiResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+            if (user == null)
+            {
+                return new ApiResponse { Success = false, Message = "Invalid email or code." };
+            }
+
+            var verificationCode = await _context.Set<UserVerificationCode>()
+                .FirstOrDefaultAsync(vc => vc.UserId == user.UserId
+                    && vc.Code == request.VerificationCode
+                    && vc.Purpose == VerificationPurpose.PasswordReset
+                    && !vc.IsUsed
+                    && vc.ExpiresAt > DateTime.UtcNow,
+                    cancellationToken);
+
+            if (verificationCode == null)
+            {
+                return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
+            }
+
+            user.PasswordHash = HashPassword(request.NewPassword);
+            verificationCode.IsUsed = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            await TrySendPasswordResetConfirmationEmailAsync(user, cancellationToken);
+
+            return new ApiResponse { Success = true, Message = "Password successfully reset." };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse { Success = false, Message = $"Password reset failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<ApiResponse> VerifyCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+            if (user == null)
+            {
+                return new ApiResponse { Success = false, Message = "Invalid email or verification code." };
+            }
+
+            var verificationCode = await _context.Set<UserVerificationCode>()
+                .FirstOrDefaultAsync(vc => vc.UserId == user.UserId
+                    && vc.Code == request.VerificationCode
+                    && vc.Purpose == request.Purpose
+                    && !vc.IsUsed
+                    && vc.ExpiresAt > DateTime.UtcNow,
+                    cancellationToken);
+
+            if (verificationCode == null)
+            {
+                return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
+            }
+
+            return new ApiResponse { Success = true, Message = "Verification code is valid." };
+        }
+        catch (Exception ex)
+        {
+            return new ApiResponse { Success = false, Message = $"Code verification failed: {ex.Message}" };
+        }
+    }
+
+    public async Task<AuthResponse> VerifyLoginCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedEmail = request.Email.Trim().ToLowerInvariant();
+            var user = await _context.Users
+                .Include(u => u.UserRoles)
+                .ThenInclude(ur => ur.Role)
+                .Include(u => u.PatientProfile)
+                .FirstOrDefaultAsync(u => u.Email == normalizedEmail, cancellationToken);
+
+            if (user == null)
+            {
+                return new AuthResponse { Success = false, Message = "Invalid email or verification code." };
+            }
+
+            var verificationCode = await _context.Set<UserVerificationCode>()
+                .FirstOrDefaultAsync(vc => vc.UserId == user.UserId
+                    && vc.Code == request.VerificationCode
+                    && vc.Purpose == VerificationPurpose.Login
+                    && !vc.IsUsed
+                    && vc.ExpiresAt > DateTime.UtcNow,
+                    cancellationToken);
+
+            if (verificationCode == null)
+            {
+                return new AuthResponse { Success = false, Message = "Invalid or expired verification code." };
+            }
+
+            verificationCode.IsUsed = true;
+            await _context.SaveChangesAsync(cancellationToken);
+
+            return BuildSuccessResponse(user, "Login successful");
+        }
+        catch (Exception ex)
+        {
+            return new AuthResponse { Success = false, Message = $"Login verification failed: {ex.Message}" };
+        }
+    }
+
     private string HashPassword(string password)
     {
         return BCrypt.Net.BCrypt.HashPassword(password, workFactor: 12);
@@ -301,7 +467,29 @@ public class AuthService : IAuthService
         _context.Users.Add(user);
         await _context.SaveChangesAsync(cancellationToken);
 
+        await TrySendWelcomeEmailAsync(user, role, cancellationToken);
+
         return BuildSuccessResponse(user, message);
+    }
+
+    private async Task TrySendWelcomeEmailAsync(User user, UserSystemRole role, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subject = "Welcome to HSCSAPI";
+            var body = $@"
+<h2>Welcome, {user.Name}</h2>
+<p>Your account has been created successfully.</p>
+<p>Role: {role}</p>
+<p>Email: {user.Email}</p>
+";
+
+            await _emailService.SendEmailAsync(user.Email, subject, body, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send welcome email to {Email}", user.Email);
+        }
     }
 
     private AuthResponse BuildSuccessResponse(User user, string message)
@@ -334,5 +522,70 @@ public class AuthService : IAuthService
             UserID = user.PatientProfile?.UserID,
             Role = primaryRole ?? string.Empty
         };
+    }
+
+    private async Task TrySendLoginVerificationEmailAsync(User user, string verificationCode, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subject = "رمز التحقق لتسجيل الدخول";
+            var body = $@"
+<h2>رمز التحقق لتسجيل الدخول</h2>
+<p>رمز التحقق الخاص بك هو:</p>
+<h3>{verificationCode}</h3>
+<p>هذا الكود صالح لمدة 15 دقيقة فقط.</p>
+";
+            await _emailService.SendEmailAsync(user.Email, subject, body, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send login verification code to {Email}", user.Email);
+        }
+    }
+
+    private async Task TrySendPasswordResetEmailAsync(User user, string verificationCode, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subject = "رمز إعادة تعيين كلمة المرور";
+            var body = $@"
+<h2>أمر إعادة تعيين كلمة المرور</h2>
+<p>رمز التحقق الخاص بك هو:</p>
+<h3>{verificationCode}</h3>
+<p>هذا الكود صالح لمدة 15 دقيقة فقط.</p>
+";
+            await _emailService.SendEmailAsync(user.Email, subject, body, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send password reset code to {Email}", user.Email);
+        }
+    }
+
+    private async Task TrySendPasswordResetConfirmationEmailAsync(User user, CancellationToken cancellationToken)
+    {
+        try
+        {
+            var subject = "تم تغيير كلمة المرور بنجاح";
+            var body = $@"
+<h2>تغيير كلمة المرور</h2>
+<p>تم تغيير كلمة المرور لحسابك بنجاح.</p>
+<p>إن لم تكن هذه العملية منك، الرجاء التواصل مع الدعم أو تغيير كلمة المرور مرة أخرى.</p>
+";
+            await _emailService.SendEmailAsync(user.Email, subject, body, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to send password reset confirmation to {Email}", user.Email);
+        }
+    }
+
+    private static string GenerateVerificationCode()
+    {
+        var buffer = new byte[4];
+        using var rng = System.Security.Cryptography.RandomNumberGenerator.Create();
+        rng.GetBytes(buffer);
+        var code = BitConverter.ToUInt32(buffer, 0) % 1000000;
+        return code.ToString("D6");
     }
 }

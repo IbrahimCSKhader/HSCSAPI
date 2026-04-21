@@ -159,4 +159,5 @@ C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\re
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\HSCSAPI.pdb
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\HSCSAPI.genruntimeconfig.cache
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\ref\HSCSAPI.dll
+c:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Debug\net10.0\BCrypt.Net-Next.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\staticwebassets.upToDateCheck.txt

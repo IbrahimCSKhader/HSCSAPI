@@ -1,4 +1,5 @@
 using HSCSAPI.DTOs.Auth;
+using HSCSAPI.DTOs.Common;
 
 namespace HSCSAPI.Services.Auth;
 
@@ -11,4 +12,8 @@ public interface IAuthService
     Task<AuthResponse> RegisterAuthorizedMemberAsync(RegisterAuthorizedMemberRequest request, CancellationToken cancellationToken = default);
     Task<AuthResponse> RegisterLaboratoryTechnologistAsync(RegisterLaboratoryTechnologistRequest request, CancellationToken cancellationToken = default);
     Task<AuthResponse> RegisterRadiologyTechnologistAsync(RegisterRadiologyTechnologistRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> VerifyCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default);
+    Task<AuthResponse> VerifyLoginCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default);
 }

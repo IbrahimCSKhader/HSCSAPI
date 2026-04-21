@@ -21,6 +21,7 @@ public class SecretaryConfiguration : IEntityTypeConfiguration<Secretary>
         builder.HasOne(x => x.Clinic)
             .WithMany(x => x.Secretaries)
             .HasForeignKey(x => x.ClinicId)
+            .IsRequired(false)
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.Reports)

@@ -100,7 +100,7 @@ namespace HSCSAPI.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<Guid>("AdminSecretaryId")
+                    b.Property<Guid?>("AdminSecretaryId")
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<Guid>("CreatedBySuperAdminUserId")
@@ -114,7 +114,8 @@ namespace HSCSAPI.Migrations
                     b.HasKey("ClinicId");
 
                     b.HasIndex("AdminSecretaryId")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("[AdminSecretaryId] IS NOT NULL");
 
                     b.HasIndex("CreatedBySuperAdminUserId");
 
@@ -231,6 +232,36 @@ namespace HSCSAPI.Migrations
                     b.HasIndex("RoleId");
 
                     b.ToTable("UserRoles", (string)null);
+                });
+
+            modelBuilder.Entity("HSCSAPI.Models.Identity.UserVerificationCode", b =>
+                {
+                    b.Property<Guid>("UserVerificationCodeId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(10)
+                        .HasColumnType("nvarchar(10)");
+
+                    b.Property<DateTime>("ExpiresAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<bool>("IsUsed")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("int");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("UserVerificationCodeId");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserVerificationCodes", (string)null);
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Laboratory.LabTestRequest", b =>
@@ -485,7 +516,7 @@ namespace HSCSAPI.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<Guid>("ClinicId")
+                    b.Property<Guid?>("ClinicId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("SecretaryId");
@@ -706,8 +737,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Profiles.Secretary", "AdminSecretary")
                         .WithOne("ManagedClinic")
                         .HasForeignKey("HSCSAPI.Models.Clinics.Clinic", "AdminSecretaryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HSCSAPI.Models.Identity.User", "CreatedBySuperAdminUser")
                         .WithMany("CreatedClinics")
@@ -735,6 +765,17 @@ namespace HSCSAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("Role");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("HSCSAPI.Models.Identity.UserVerificationCode", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Identity.User", "User")
+                        .WithMany("VerificationCodes")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
 
                     b.Navigation("User");
                 });
@@ -872,8 +913,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Clinics.Clinic", "Clinic")
                         .WithMany("Secretaries")
                         .HasForeignKey("ClinicId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("SecretaryProfile")
@@ -1028,6 +1068,8 @@ namespace HSCSAPI.Migrations
                     b.Navigation("SecretaryProfile");
 
                     b.Navigation("UserRoles");
+
+                    b.Navigation("VerificationCodes");
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.MedicalFiles.MedicalFile", b =>

@@ -10,9 +10,9 @@ public class Clinic
         public string? Address { get; set; }
 
         public Guid CreatedBySuperAdminUserId { get; set; }
-        public Guid AdminSecretaryId { get; set; }
+        public Guid? AdminSecretaryId { get; set; }
 
     public User CreatedBySuperAdminUser { get; set; } = null!;
-    public Secretary AdminSecretary { get; set; } = null!;
+    public Secretary? AdminSecretary { get; set; }
     public ICollection<Secretary> Secretaries { get; set; } = new HashSet<Secretary>();
 }

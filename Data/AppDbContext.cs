@@ -31,6 +31,7 @@ public class AppDbContext : DbContext
     public DbSet<AuthorizedMember> AuthorizedMembers => Set<AuthorizedMember>();
     public DbSet<LaboratoryTechnologist> LaboratoryTechnologists => Set<LaboratoryTechnologist>();
     public DbSet<RadiologyTechnologist> RadiologyTechnologists => Set<RadiologyTechnologist>();
+    public DbSet<UserVerificationCode> UserVerificationCodes => Set<UserVerificationCode>();
 
     public DbSet<PatientAuthorizedMember> PatientAuthorizedMembers => Set<PatientAuthorizedMember>();
     public DbSet<Invite> Invites => Set<Invite>();

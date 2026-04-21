@@ -15,7 +15,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("HSCSAPI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Release")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+7778d28ed7d0234ebf54658a937f1e62d0e7f700")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0e5587359a4e35d7823c6a3a4837cc65230efed6")]
 [assembly: System.Reflection.AssemblyProductAttribute("HSCSAPI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("HSCSAPI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

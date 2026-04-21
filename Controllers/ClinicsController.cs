@@ -21,7 +21,7 @@ public class ClinicsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
+    // [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
     public async Task<ActionResult<List<ClinicResponse>>> GetAll(CancellationToken cancellationToken)
     {
         var clinics = await _dbContext.Clinics
@@ -49,12 +49,15 @@ public class ClinicsController : ControllerBase
             return Unauthorized("Invalid token.");
         }
 
-        var secretaryExists = await _dbContext.Secretaries
-            .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId, cancellationToken);
-
-        if (!secretaryExists)
+        if (request.AdminSecretaryId.HasValue)
         {
-            return BadRequest("Admin secretary not found.");
+            var secretaryExists = await _dbContext.Secretaries
+                .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId.Value, cancellationToken);
+
+            if (!secretaryExists)
+            {
+                return BadRequest("Admin secretary not found.");
+            }
         }
 
         var clinic = new Clinic
@@ -81,12 +84,15 @@ public class ClinicsController : ControllerBase
             return NotFound("Clinic not found.");
         }
 
-        var secretaryExists = await _dbContext.Secretaries
-            .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId, cancellationToken);
-
-        if (!secretaryExists)
+        if (request.AdminSecretaryId.HasValue)
         {
-            return BadRequest("Admin secretary not found.");
+            var secretaryExists = await _dbContext.Secretaries
+                .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId.Value, cancellationToken);
+
+            if (!secretaryExists)
+            {
+                return BadRequest("Admin secretary not found.");
+            }
         }
 
         clinic.Name = request.Name;

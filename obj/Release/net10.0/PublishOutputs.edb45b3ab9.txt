@@ -6,6 +6,7 @@ C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\HSCSAPI.pdb
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\Azure.Core.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\Azure.Identity.dll
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\BCrypt.Net-Next.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\Microsoft.AspNetCore.Authentication.JwtBearer.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\Microsoft.AspNetCore.OpenApi.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\Microsoft.Bcl.AsyncInterfaces.dll

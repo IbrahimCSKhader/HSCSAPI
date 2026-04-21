@@ -24,4 +24,5 @@ public class User
     public ICollection<UserRole> UserRoles { get; set; } = new HashSet<UserRole>();
     public ICollection<Notification> Notifications { get; set; } = new HashSet<Notification>();
     public ICollection<Clinic> CreatedClinics { get; set; } = new HashSet<Clinic>();
+    public ICollection<UserVerificationCode> VerificationCodes { get; set; } = new HashSet<UserVerificationCode>();
 }
