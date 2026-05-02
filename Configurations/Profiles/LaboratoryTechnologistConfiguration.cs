@@ -23,7 +23,7 @@ public class LaboratoryTechnologistConfiguration : IEntityTypeConfiguration<Labo
         builder.HasOne(x => x.User)
             .WithOne(x => x.LaboratoryTechnologistProfile)
             .HasForeignKey<LaboratoryTechnologist>(x => x.LaboratoryTechnologistId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.LabTestRequests)
             .WithOne(x => x.LaboratoryTechnologist)

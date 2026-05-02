@@ -1,8 +1,10 @@
 
 using HSCSAPI.Data;
 using HSCSAPI.Services.Auth;
+using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.Secretaries;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -62,6 +64,8 @@ namespace HSCSAPI
             builder.Services.AddScoped<UserIdGeneratorService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
+            builder.Services.AddScoped<IClinicsService, ClinicsService>();
+            builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
 
             var app = builder.Build();

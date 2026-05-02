@@ -1,6 +1,11 @@
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\HSCSAPI.exe
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\appsettings.Development.json
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\appsettings.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\_build_temp\appsettings.Development.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\_build_temp\appsettings.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\_build_temp\HSCSAPI.deps.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\_build_temp\HSCSAPI.runtimeconfig.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\_build_temp\HSCSAPI.staticwebassets.endpoints.json
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\HSCSAPI.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\HSCSAPI.runtimeconfig.json
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\PubTmp\Out\HSCSAPI.pdb

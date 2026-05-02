@@ -16,12 +16,12 @@ public class AuthorizedMemberConfiguration : IEntityTypeConfiguration<Authorized
         builder.HasOne(x => x.User)
             .WithOne(x => x.AuthorizedMemberProfile)
             .HasForeignKey<AuthorizedMember>(x => x.AuthorizedMemberId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Patients)
             .WithOne(x => x.AuthorizedMember)
             .HasForeignKey(x => x.AuthorizedMemberId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.ReceivedInvites)
             .WithOne(x => x.AuthorizedMember)

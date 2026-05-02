@@ -43,31 +43,31 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.HasOne(x => x.PatientProfile)
             .WithOne(x => x.User)
             .HasForeignKey<Patient>(x => x.PatientId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.DoctorProfile)
             .WithOne(x => x.User)
             .HasForeignKey<Doctor>(x => x.DoctorId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.SecretaryProfile)
             .WithOne(x => x.User)
             .HasForeignKey<Secretary>(x => x.SecretaryId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.AuthorizedMemberProfile)
             .WithOne(x => x.User)
             .HasForeignKey<AuthorizedMember>(x => x.AuthorizedMemberId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.LaboratoryTechnologistProfile)
             .WithOne(x => x.User)
             .HasForeignKey<LaboratoryTechnologist>(x => x.LaboratoryTechnologistId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.RadiologyTechnologistProfile)
             .WithOne(x => x.User)
             .HasForeignKey<RadiologyTechnologist>(x => x.RadiologyTechnologistId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
     }
 }

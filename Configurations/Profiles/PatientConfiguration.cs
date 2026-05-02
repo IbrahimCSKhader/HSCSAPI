@@ -32,7 +32,7 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.HasOne(x => x.User)
             .WithOne(x => x.PatientProfile)
             .HasForeignKey<Patient>(x => x.PatientId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.Appointments)
             .WithOne(x => x.Patient)
@@ -47,7 +47,7 @@ public class PatientConfiguration : IEntityTypeConfiguration<Patient>
         builder.HasMany(x => x.AuthorizedMembers)
             .WithOne(x => x.Patient)
             .HasForeignKey(x => x.PatientId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.SentInvites)
             .WithOne(x => x.Patient)

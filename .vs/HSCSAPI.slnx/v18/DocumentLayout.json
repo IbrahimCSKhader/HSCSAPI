@@ -3,32 +3,16 @@
   "WorkspaceRootPath": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\",
   "Documents": [
     {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421232249_email-varification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Migrations\\20260421232249_email-varification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421231113_remove-clicn-id1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Migrations\\20260421231113_remove-clicn-id1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421230613_remove-clicn-id.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Migrations\\20260421230613_remove-clicn-id.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
-      "AbsoluteMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421225316_add-new-super-admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
-      "RelativeMoniker": "D:0:0:{A2FE74E1-B743-11D0-AE1A-00A0C90FFFC3}|\u003CMiscFiles\u003E|solutionrelative:Migrations\\20260421225316_add-new-super-admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:program.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     },
     {
-      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
-      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
-    },
-    {
       "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
       "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:appsettings.development.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:appsettings.json||{90A6B3A7-C1A3-4009-A288-E2FF89E96FA0}"
     },
     {
       "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\controllers\\authcontroller.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
@@ -57,6 +41,38 @@
     {
       "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260411103708_first-database-push.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
       "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260411103708_first-database-push.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260421232249_email-varification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260421232249_email-varification.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260421231113_remove-clicn-id1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260421231113_remove-clicn-id1.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260421230613_remove-clicn-id.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260421230613_remove-clicn-id.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260421225316_add-new-super-admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260421225316_add-new-super-admin.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260429145514_chang-to-cascateeee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260429145514_chang-to-cascateeee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260429143837_chang-to-cascateee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260429143837_chang-to-cascateee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260429143514_chang-to-cascatee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260429143514_chang-to-cascatee.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
+    },
+    {
+      "AbsoluteMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|c:\\users\\wesal\\onedrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\hscsapi\\hscsapi\\migrations\\20260429142821_chang-to-cascate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}",
+      "RelativeMoniker": "D:0:0:{EB7B4984-4482-ABAE-138D-5FF78136D15B}|HSCSAPI.csproj|solutionrelative:migrations\\20260429142821_chang-to-cascate.cs||{A6C744A8-0E4A-4FC6-886A-064283054674}"
     }
   ],
   "DocumentGroupContainers": [
@@ -66,7 +82,7 @@
       "DocumentGroups": [
         {
           "DockedHeight": 17,
-          "SelectedChildIndex": 5,
+          "SelectedChildIndex": 2,
           "Children": [
             {
               "$type": "Bookmark",
@@ -74,19 +90,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 5,
-              "Title": "appsettings.json",
-              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.json",
-              "RelativeDocumentMoniker": "appsettings.json",
-              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.json",
-              "RelativeToolTip": "appsettings.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-04-11T10:34:56.425Z"
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 7,
+              "DocumentIndex": 3,
               "Title": "AuthController.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Controllers\\AuthController.cs",
               "RelativeDocumentMoniker": "Controllers\\AuthController.cs",
@@ -98,7 +102,32 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 8,
+              "DocumentIndex": 0,
+              "Title": "Program.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Program.cs",
+              "RelativeDocumentMoniker": "Program.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Program.cs",
+              "RelativeToolTip": "Program.cs",
+              "ViewState": "AgIAABoAAAAAAAAAAAAQwCAAAAAtAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-06T09:48:19.366Z",
+              "EditorCaption": ""
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 2,
+              "Title": "appsettings.json",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.json",
+              "RelativeDocumentMoniker": "appsettings.json",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.json",
+              "RelativeToolTip": "appsettings.json",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
+              "WhenOpened": "2026-04-11T10:34:56.425Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 4,
               "Title": "HSCSAPI.csproj",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\HSCSAPI.csproj",
               "RelativeDocumentMoniker": "HSCSAPI.csproj",
@@ -110,7 +139,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 10,
+              "DocumentIndex": 6,
               "Title": "HSCSAPI.http",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\HSCSAPI.http",
               "RelativeDocumentMoniker": "HSCSAPI.http",
@@ -122,20 +151,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 4,
-              "Title": "Program.cs",
-              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Program.cs",
-              "RelativeDocumentMoniker": "Program.cs",
-              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Program.cs",
-              "RelativeToolTip": "Program.cs",
-              "ViewState": "AgIAABYAAAAAAAAAAAAAABsAAABIAAAAAAAAAA==",
-              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-06T09:48:19.366Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Document",
-              "DocumentIndex": 9,
+              "DocumentIndex": 5,
               "Title": "AppDbContext.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Data\\AppDbContext.cs",
               "RelativeDocumentMoniker": "Data\\AppDbContext.cs",
@@ -149,37 +165,60 @@
         },
         {
           "DockedHeight": 26,
-          "SelectedChildIndex": 0,
+          "SelectedChildIndex": 6,
           "Children": [
             {
               "$type": "Document",
-              "DocumentIndex": 0,
-              "Title": "20260421232249_email-varification.cs",
-              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421232249_email-varification.cs",
-              "RelativeDocumentMoniker": "Migrations\\20260421232249_email-varification.cs",
-              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421232249_email-varification.cs",
-              "RelativeToolTip": "Migrations\\20260421232249_email-varification.cs",
+              "DocumentIndex": 14,
+              "Title": "20260429145514_chang-to-cascateeee.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429145514_chang-to-cascateeee.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260429145514_chang-to-cascateeee.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429145514_chang-to-cascateeee.cs",
+              "RelativeToolTip": "Migrations\\20260429145514_chang-to-cascateeee.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-21T23:22:49.69Z",
+              "WhenOpened": "2026-04-29T14:55:14.808Z",
               "EditorCaption": ""
             },
             {
               "$type": "Document",
-              "DocumentIndex": 1,
-              "Title": "20260421231113_remove-clicn-id1.cs",
-              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421231113_remove-clicn-id1.cs",
-              "RelativeDocumentMoniker": "Migrations\\20260421231113_remove-clicn-id1.cs",
-              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421231113_remove-clicn-id1.cs",
-              "RelativeToolTip": "Migrations\\20260421231113_remove-clicn-id1.cs",
+              "DocumentIndex": 15,
+              "Title": "20260429143837_chang-to-cascateee.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429143837_chang-to-cascateee.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260429143837_chang-to-cascateee.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429143837_chang-to-cascateee.cs",
+              "RelativeToolTip": "Migrations\\20260429143837_chang-to-cascateee.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-21T23:11:13.498Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-29T14:38:37.829Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 2,
+              "DocumentIndex": 16,
+              "Title": "20260429143514_chang-to-cascatee.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429143514_chang-to-cascatee.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260429143514_chang-to-cascatee.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429143514_chang-to-cascatee.cs",
+              "RelativeToolTip": "Migrations\\20260429143514_chang-to-cascatee.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-29T14:35:14.466Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 17,
+              "Title": "20260429142821_chang-to-cascate.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429142821_chang-to-cascate.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260429142821_chang-to-cascate.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260429142821_chang-to-cascate.cs",
+              "RelativeToolTip": "Migrations\\20260429142821_chang-to-cascate.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-29T14:28:22.135Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 12,
               "Title": "20260421230613_remove-clicn-id.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421230613_remove-clicn-id.cs",
               "RelativeDocumentMoniker": "Migrations\\20260421230613_remove-clicn-id.cs",
@@ -187,12 +226,11 @@
               "RelativeToolTip": "Migrations\\20260421230613_remove-clicn-id.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-21T23:06:13.609Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-21T23:06:13.609Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 3,
+              "DocumentIndex": 13,
               "Title": "20260421225316_add-new-super-admin.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421225316_add-new-super-admin.cs",
               "RelativeDocumentMoniker": "Migrations\\20260421225316_add-new-super-admin.cs",
@@ -200,33 +238,47 @@
               "RelativeToolTip": "Migrations\\20260421225316_add-new-super-admin.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-21T22:53:17.044Z",
-              "EditorCaption": ""
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
-            },
-            {
-              "$type": "Bookmark",
-              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
+              "WhenOpened": "2026-04-21T22:53:17.044Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 6,
+              "DocumentIndex": 1,
               "Title": "appsettings.Development.json",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.Development.json",
               "RelativeDocumentMoniker": "appsettings.Development.json",
               "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\appsettings.Development.json",
               "RelativeToolTip": "appsettings.Development.json",
-              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAMAAAAAAAAAAAAAAA==",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAUAAAARAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.001642|",
-              "WhenOpened": "2026-04-11T10:38:37.94Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-11T10:38:37.94Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 13,
+              "DocumentIndex": 11,
+              "Title": "20260421231113_remove-clicn-id1.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421231113_remove-clicn-id1.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260421231113_remove-clicn-id1.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421231113_remove-clicn-id1.cs",
+              "RelativeToolTip": "Migrations\\20260421231113_remove-clicn-id1.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-21T23:11:13.498Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 10,
+              "Title": "20260421232249_email-varification.cs",
+              "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421232249_email-varification.cs",
+              "RelativeDocumentMoniker": "Migrations\\20260421232249_email-varification.cs",
+              "ToolTip": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260421232249_email-varification.cs",
+              "RelativeToolTip": "Migrations\\20260421232249_email-varification.cs",
+              "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
+              "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
+              "WhenOpened": "2026-04-21T23:22:49.69Z"
+            },
+            {
+              "$type": "Document",
+              "DocumentIndex": 9,
               "Title": "20260411103708_first-database-push.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260411103708_first-database-push.cs",
               "RelativeDocumentMoniker": "Migrations\\20260411103708_first-database-push.cs",
@@ -234,12 +286,11 @@
               "RelativeToolTip": "Migrations\\20260411103708_first-database-push.cs",
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
-              "WhenOpened": "2026-04-11T10:37:09.243Z",
-              "EditorCaption": ""
+              "WhenOpened": "2026-04-11T10:37:09.243Z"
             },
             {
               "$type": "Document",
-              "DocumentIndex": 12,
+              "DocumentIndex": 8,
               "Title": "20260411104605_first-database-push2.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260411104605_first-database-push2.cs",
               "RelativeDocumentMoniker": "Migrations\\20260411104605_first-database-push2.cs",
@@ -251,7 +302,7 @@
             },
             {
               "$type": "Document",
-              "DocumentIndex": 11,
+              "DocumentIndex": 7,
               "Title": "20260411104914_first-database-push22.cs",
               "DocumentMoniker": "C:\\Users\\wesal\\OneDrive\\\u0633\u0637\u062D \u0627\u0644\u0645\u0643\u062A\u0628\\HSCSAPI\\HSCSAPI\\Migrations\\20260411104914_first-database-push22.cs",
               "RelativeDocumentMoniker": "Migrations\\20260411104914_first-database-push22.cs",
@@ -260,6 +311,14 @@
               "ViewState": "AgIAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA==",
               "Icon": "ae27a6b0-e345-4288-96df-5eaf394ee369.000738|",
               "WhenOpened": "2026-04-11T10:49:15.116Z"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{0ad07096-bba9-4900-a651-0598d26f6d24}"
+            },
+            {
+              "$type": "Bookmark",
+              "Name": "ST:0:0:{34e76e81-ee4a-11d0-ae2e-00a0c90fffc3}"
             },
             {
               "$type": "Bookmark",

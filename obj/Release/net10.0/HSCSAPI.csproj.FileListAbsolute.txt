@@ -161,3 +161,8 @@ C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\ref\HSCSAPI.dll
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Release\net10.0\staticwebassets.upToDateCheck.txt
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\BCrypt.Net-Next.dll
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\_build_temp\appsettings.Development.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\_build_temp\appsettings.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\_build_temp\HSCSAPI.deps.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\_build_temp\HSCSAPI.runtimeconfig.json
+C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Release\net10.0\_build_temp\HSCSAPI.staticwebassets.endpoints.json

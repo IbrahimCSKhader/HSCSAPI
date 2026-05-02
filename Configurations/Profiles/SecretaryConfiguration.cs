@@ -16,7 +16,7 @@ public class SecretaryConfiguration : IEntityTypeConfiguration<Secretary>
         builder.HasOne(x => x.User)
             .WithOne(x => x.SecretaryProfile)
             .HasForeignKey<Secretary>(x => x.SecretaryId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasOne(x => x.Clinic)
             .WithMany(x => x.Secretaries)

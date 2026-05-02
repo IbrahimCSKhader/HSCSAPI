@@ -23,7 +23,7 @@ public class DoctorConfiguration : IEntityTypeConfiguration<Doctor>
         builder.HasOne(x => x.User)
             .WithOne(x => x.DoctorProfile)
             .HasForeignKey<Doctor>(x => x.DoctorId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.AvailabilitySlots)
             .WithOne(x => x.Doctor)

@@ -28,6 +28,6 @@ public class PatientAuthorizedMemberConfiguration : IEntityTypeConfiguration<Pat
         builder.HasOne(x => x.AuthorizedMember)
             .WithMany(x => x.Patients)
             .HasForeignKey(x => x.AuthorizedMemberId)
-            .OnDelete(DeleteBehavior.Cascade);
+            .OnDelete(DeleteBehavior.Restrict);
     }
 }

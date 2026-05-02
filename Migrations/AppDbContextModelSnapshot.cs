@@ -858,7 +858,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("AuthorizedMemberProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.AuthorizedMember", "AuthorizedMemberId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -869,7 +869,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("DoctorProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.Doctor", "DoctorId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -880,7 +880,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("LaboratoryTechnologistProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.LaboratoryTechnologist", "LaboratoryTechnologistId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -891,7 +891,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("PatientProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.Patient", "PatientId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -902,7 +902,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("RadiologyTechnologistProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.RadiologyTechnologist", "RadiologyTechnologistId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
@@ -918,7 +918,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("SecretaryProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.Secretary", "SecretaryId")
-                        .OnDelete(DeleteBehavior.Restrict)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Clinic");
@@ -967,7 +967,7 @@ namespace HSCSAPI.Migrations
                     b.HasOne("HSCSAPI.Models.Profiles.AuthorizedMember", "AuthorizedMember")
                         .WithMany("Patients")
                         .HasForeignKey("AuthorizedMemberId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("HSCSAPI.Models.Profiles.Patient", "Patient")

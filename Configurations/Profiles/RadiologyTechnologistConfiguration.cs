@@ -23,7 +23,7 @@ public class RadiologyTechnologistConfiguration : IEntityTypeConfiguration<Radio
         builder.HasOne(x => x.User)
             .WithOne(x => x.RadiologyTechnologistProfile)
             .HasForeignKey<RadiologyTechnologist>(x => x.RadiologyTechnologistId)
-            .OnDelete(DeleteBehavior.Restrict);
+            .OnDelete(DeleteBehavior.Cascade);
 
         builder.HasMany(x => x.ImagingTestRequests)
             .WithOne(x => x.RadiologyTechnologist)
