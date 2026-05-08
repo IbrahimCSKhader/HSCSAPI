@@ -322,4 +322,3 @@ C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Debug\net10.0\HS
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Debug\net10.0\HSCSAPI.Tests\bin\Debug\net10.0\_build_temp\HSCSAPI.deps.json
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Debug\net10.0\HSCSAPI.Tests\bin\Debug\net10.0\_build_temp\HSCSAPI.runtimeconfig.json
 C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\bin\Debug\net10.0\HSCSAPI.Tests\bin\Debug\net10.0\_build_temp\HSCSAPI.staticwebassets.endpoints.json
-C:\Users\wesal\OneDrive\سطح المكتب\HSCSAPI\HSCSAPI\obj\Debug\net10.0\staticwebassets.upToDateCheck.txt
