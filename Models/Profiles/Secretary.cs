@@ -7,11 +7,9 @@ namespace HSCSAPI.Models.Profiles;
 
 public class Secretary
 {
-    public Guid SecretaryId { get; set; } = Guid.NewGuid();
-    public Guid? ClinicId { get; set; }
+    public Guid SecretaryId { get; set; }
 
     public User User { get; set; } = null!;
-    public Clinic? Clinic { get; set; }
     public Clinic? ManagedClinic { get; set; }
 
     public ICollection<Report> Reports { get; set; } = new HashSet<Report>();

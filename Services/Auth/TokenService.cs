@@ -1,7 +1,6 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
-using HSCSAPI.Services.Auth;
 using Microsoft.IdentityModel.Tokens;
 
 namespace HSCSAPI.Services.Auth;

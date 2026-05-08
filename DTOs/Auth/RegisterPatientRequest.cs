@@ -10,5 +10,5 @@ public class RegisterPatientRequest
     public DateOnly? DateOfBirth { get; set; }
     public string Gender { get; set; } = string.Empty;
     public string? BloodType { get; set; }
-    public int ClinicId { get; set; }
+    public Guid ClinicId { get; set; }
 }

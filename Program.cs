@@ -1,10 +1,12 @@
 
 using HSCSAPI.Data;
+using HSCSAPI.Models.Identity;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
 using HSCSAPI.Services.Secretaries;
+using Microsoft.AspNetCore.Identity;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -22,19 +24,45 @@ namespace HSCSAPI
 
 
             builder.Services.AddControllers();
+            builder.Services.AddCors(options =>
+            {
+                options.AddPolicy("AllowAll", policy =>
+                {
+                    policy
+                        .AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                });
+            });
             builder.Services.AddEndpointsApiExplorer();
             // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
             builder.Services.AddOpenApi();
             builder.Services.AddDbContext<AppDbContext>(options =>
      options.UseSqlServer(
          builder.Configuration.GetConnectionString("DefaultConnection"),
-         sqlOptions =>
+             sqlOptions =>
          {
              sqlOptions.EnableRetryOnFailure(
                  maxRetryCount: 5,
                  maxRetryDelay: TimeSpan.FromSeconds(10),
                  errorNumbersToAdd: null);
          }));
+            builder.Services
+                .AddIdentityCore<User>(options =>
+                {
+                    options.User.RequireUniqueEmail = true;
+                    options.SignIn.RequireConfirmedEmail = true;
+                    options.Password.RequiredLength = 8;
+                    options.Password.RequireDigit = true;
+                    options.Password.RequireLowercase = true;
+                    options.Password.RequireUppercase = true;
+                    options.Password.RequireNonAlphanumeric = false;
+                })
+                .AddRoles<Role>()
+                .AddEntityFrameworkStores<AppDbContext>()
+                .AddDefaultTokenProviders();
+            builder.Services.AddScoped<IPasswordHasher<User>, LegacyCompatiblePasswordHasher>();
+
             builder.Services.Configure<EmailSettings>(builder.Configuration.GetSection("EmailSettings"));
             builder.Services.Configure<JwtSettings>(builder.Configuration.GetSection("JwtSettings"));
             builder.Services.Configure<SuperAdminSeedSettings>(builder.Configuration.GetSection("SuperAdminSeed"));
@@ -84,14 +112,15 @@ namespace HSCSAPI
                 await dbContext.Database.MigrateAsync();
 
                 var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeedService>();
-                await seeder.SeedSuperAdminAsync();
+                await seeder.SeedAsync();
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "An error occurred while applying database migrations or seeding the super admin user.");
+                logger.LogError(ex, "An error occurred while applying database migrations or seeding application data.");
             }
 
             app.UseHttpsRedirection();
+            app.UseCors("AllowAll");
 
             app.UseAuthentication();
             app.UseAuthorization();

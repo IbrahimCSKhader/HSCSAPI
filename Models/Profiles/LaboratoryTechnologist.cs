@@ -5,7 +5,7 @@ namespace HSCSAPI.Models.Profiles;
 
 public class LaboratoryTechnologist
 {
-    public Guid LaboratoryTechnologistId { get; set; } = Guid.NewGuid();
+    public Guid LaboratoryTechnologistId { get; set; }
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
 
     public User User { get; set; } = null!;

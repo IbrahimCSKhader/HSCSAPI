@@ -14,6 +14,5 @@ public interface IAuthService
     Task<AuthResponse> RegisterRadiologyTechnologistAsync(RegisterRadiologyTechnologistRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
-    Task<ApiResponse> VerifyCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default);
-    Task<AuthResponse> VerifyLoginCodeAsync(VerifyCodeRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> VerifyRegistrationCodeAsync(VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default);
 }

@@ -79,7 +79,7 @@ public class SecretariesService : ISecretariesService
         var myClinicId = await _dbContext.Secretaries
             .AsNoTracking()
             .Where(s => s.SecretaryId == currentUserId.Value)
-            .Select(s => s.ClinicId)
+            .Select(s => s.User.ClinicId)
             .FirstOrDefaultAsync(cancellationToken);
 
         if (myClinicId is null)
@@ -119,6 +119,7 @@ public class SecretariesService : ISecretariesService
         }
 
         var secretary = await _dbContext.Secretaries
+            .Include(s => s.User)
             .Include(s => s.ManagedClinic)
             .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
 
@@ -127,12 +128,17 @@ public class SecretariesService : ISecretariesService
             return new NotFoundObjectResult("Secretary not found.");
         }
 
+        if (secretary.User.ClinicId.HasValue && secretary.User.ClinicId.Value != request.ClinicId)
+        {
+            return new BadRequestObjectResult("Secretary is already assigned to another clinic.");
+        }
+
         if (secretary.ManagedClinic is not null && secretary.ManagedClinic.ClinicId != request.ClinicId)
         {
             return new BadRequestObjectResult("This secretary is assigned as admin to another clinic.");
         }
 
-        secretary.ClinicId = clinic.ClinicId;
+        secretary.User.ClinicId = clinic.ClinicId;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var response = await GetSecretaryResponseAsync(secretaryId, cancellationToken);
@@ -147,6 +153,7 @@ public class SecretariesService : ISecretariesService
         CancellationToken cancellationToken = default)
     {
         var secretary = await _dbContext.Secretaries
+            .Include(s => s.User)
             .Include(s => s.ManagedClinic)
             .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
 
@@ -155,17 +162,17 @@ public class SecretariesService : ISecretariesService
             return new NotFoundObjectResult("Secretary not found.");
         }
 
-        if (secretary.ClinicId is null)
+        if (secretary.User.ClinicId is null)
         {
             return new BadRequestObjectResult("Secretary is not assigned to any clinic.");
         }
 
-        if (!await CanCurrentUserManageClinicAsync(secretary.ClinicId.Value, user, cancellationToken))
+        if (!await CanCurrentUserManageClinicAsync(secretary.User.ClinicId.Value, user, cancellationToken))
         {
             return ForbiddenSingle("You are not allowed to manage this clinic.");
         }
 
-        if (secretary.ManagedClinic is not null && secretary.ManagedClinic.ClinicId != secretary.ClinicId.Value)
+        if (secretary.ManagedClinic is not null && secretary.ManagedClinic.ClinicId != secretary.User.ClinicId.Value)
         {
             return new BadRequestObjectResult("This secretary is the admin of another clinic. Change the clinic admin first.");
         }
@@ -175,7 +182,7 @@ public class SecretariesService : ISecretariesService
             secretary.ManagedClinic.AdminSecretaryId = null;
         }
 
-        secretary.ClinicId = null;
+        secretary.User.ClinicId = null;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var response = await GetSecretaryResponseAsync(secretaryId, cancellationToken);
@@ -192,12 +199,12 @@ public class SecretariesService : ISecretariesService
             {
                 SecretaryId = s.SecretaryId,
                 Name = s.User.Name,
-                Email = s.User.Email,
+                Email = s.User.Email ?? string.Empty,
                 PhoneNumber = s.User.PhoneNumber,
                 Address = s.User.Address,
                 DateOfBirth = s.User.DateOfBirth,
-                ClinicId = s.ClinicId,
-                ClinicName = s.Clinic != null ? s.Clinic.Name : null,
+                ClinicId = s.User.ClinicId,
+                ClinicName = s.User.Clinic != null ? s.User.Clinic.Name : null,
                 ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : null,
                 ManagedClinicName = s.ManagedClinic != null ? s.ManagedClinic.Name : null,
                 IsClinicAdmin = s.ManagedClinic != null

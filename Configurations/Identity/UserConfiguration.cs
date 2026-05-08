@@ -11,14 +11,24 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
     {
         builder.ToTable("Users");
 
-        builder.HasKey(x => x.UserId);
-            builder.Property(x => x.UserId).ValueGeneratedOnAdd();
+        builder.Property(x => x.Id)
+            .HasColumnName("UserId");
+
+        builder.Property(x => x.Name)
+            .IsRequired()
+            .HasMaxLength(200);
+
+        builder.Property(x => x.UserName)
+            .IsRequired()
+            .HasMaxLength(256);
+
         builder.Property(x => x.Email)
             .IsRequired()
             .HasMaxLength(256);
 
-        builder.HasIndex(x => x.Email)
-            .IsUnique();
+        builder.HasIndex(x => x.NormalizedEmail)
+            .IsUnique()
+            .HasDatabaseName("EmailIndex");
 
         builder.Property(x => x.PhoneNumber)
             .HasMaxLength(30);
@@ -26,9 +36,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
         builder.Property(x => x.Address)
             .HasMaxLength(300);
 
-        builder.Property(x => x.PasswordHash)
-            .IsRequired()
-            .HasMaxLength(500);
+        builder.HasOne(x => x.Clinic)
+            .WithMany(x => x.Users)
+            .HasForeignKey(x => x.ClinicId)
+            .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasMany(x => x.UserRoles)
             .WithOne(x => x.User)

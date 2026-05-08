@@ -9,7 +9,7 @@ namespace HSCSAPI.Models.Profiles;
 
 public class Patient
 {
-    public Guid PatientId { get; set; } = Guid.NewGuid();
+    public Guid PatientId { get; set; }
     public string UserID { get; set; } = string.Empty;
     public Gender Gender { get; set; }
     public BloodType? BloodType { get; set; }

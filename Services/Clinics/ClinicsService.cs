@@ -46,12 +46,10 @@ public class ClinicsService : IClinicsService
 
         if (request.AdminSecretaryId.HasValue)
         {
-            var secretaryExists = await _dbContext.Secretaries
-                .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId.Value, cancellationToken);
-
-            if (!secretaryExists)
+            var adminSecretaryValidation = await ValidateAdminSecretaryAsync(request.AdminSecretaryId.Value, cancellationToken);
+            if (!adminSecretaryValidation.Success)
             {
-                return new BadRequestObjectResult("Admin secretary not found.");
+                return new BadRequestObjectResult(adminSecretaryValidation.Message);
             }
         }
 
@@ -65,6 +63,18 @@ public class ClinicsService : IClinicsService
 
         _dbContext.Clinics.Add(clinic);
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (request.AdminSecretaryId.HasValue)
+        {
+            var adminSecretary = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.Id == request.AdminSecretaryId.Value, cancellationToken);
+
+            if (adminSecretary != null)
+            {
+                adminSecretary.ClinicId = clinic.ClinicId;
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         return new OkObjectResult(ToResponse(clinic));
     }
@@ -82,12 +92,14 @@ public class ClinicsService : IClinicsService
 
         if (request.AdminSecretaryId.HasValue)
         {
-            var secretaryExists = await _dbContext.Secretaries
-                .AnyAsync(s => s.SecretaryId == request.AdminSecretaryId.Value, cancellationToken);
+            var adminSecretaryValidation = await ValidateAdminSecretaryForClinicAsync(
+                request.AdminSecretaryId.Value,
+                clinicId,
+                cancellationToken);
 
-            if (!secretaryExists)
+            if (!adminSecretaryValidation.Success)
             {
-                return new BadRequestObjectResult("Admin secretary not found.");
+                return new BadRequestObjectResult(adminSecretaryValidation.Message);
             }
         }
 
@@ -96,6 +108,18 @@ public class ClinicsService : IClinicsService
         clinic.AdminSecretaryId = request.AdminSecretaryId;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        if (request.AdminSecretaryId.HasValue)
+        {
+            var adminSecretary = await _dbContext.Users
+                .FirstOrDefaultAsync(u => u.Id == request.AdminSecretaryId.Value, cancellationToken);
+
+            if (adminSecretary != null && adminSecretary.ClinicId != clinicId)
+            {
+                adminSecretary.ClinicId = clinicId;
+                await _dbContext.SaveChangesAsync(cancellationToken);
+            }
+        }
 
         return new OkObjectResult(ToResponse(clinic));
     }
@@ -106,6 +130,15 @@ public class ClinicsService : IClinicsService
         if (clinic == null)
         {
             return new NotFoundObjectResult("Clinic not found.");
+        }
+
+        var hasAssignedUsers = await _dbContext.Users
+            .AsNoTracking()
+            .AnyAsync(u => u.ClinicId == clinicId, cancellationToken);
+
+        if (hasAssignedUsers)
+        {
+            return new BadRequestObjectResult("Cannot delete a clinic while users are still assigned to it.");
         }
 
         _dbContext.Clinics.Remove(clinic);
@@ -170,5 +203,68 @@ public class ClinicsService : IClinicsService
             CreatedBySuperAdminUserId = clinic.CreatedBySuperAdminUserId,
             AdminSecretaryId = clinic.AdminSecretaryId
         };
+    }
+
+    private async Task<(bool Success, string Message)> ValidateAdminSecretaryAsync(Guid secretaryId, CancellationToken cancellationToken)
+    {
+        var secretaryUser = await _dbContext.Secretaries
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.SecretaryId,
+                s.User.ClinicId,
+                ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : (Guid?)null
+            })
+            .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
+
+        if (secretaryUser == null)
+        {
+            return (false, "Admin secretary not found.");
+        }
+
+        if (secretaryUser.ManagedClinicId.HasValue)
+        {
+            return (false, "This secretary is already assigned as admin to another clinic.");
+        }
+
+        if (secretaryUser.ClinicId.HasValue)
+        {
+            return (false, "Assign only a secretary who is not already attached to another clinic.");
+        }
+
+        return (true, string.Empty);
+    }
+
+    private async Task<(bool Success, string Message)> ValidateAdminSecretaryForClinicAsync(
+        Guid secretaryId,
+        Guid clinicId,
+        CancellationToken cancellationToken)
+    {
+        var secretaryUser = await _dbContext.Secretaries
+            .AsNoTracking()
+            .Select(s => new
+            {
+                s.SecretaryId,
+                s.User.ClinicId,
+                ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : (Guid?)null
+            })
+            .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
+
+        if (secretaryUser == null)
+        {
+            return (false, "Admin secretary not found.");
+        }
+
+        if (secretaryUser.ManagedClinicId.HasValue && secretaryUser.ManagedClinicId != clinicId)
+        {
+            return (false, "This secretary is already assigned as admin to another clinic.");
+        }
+
+        if (secretaryUser.ClinicId.HasValue && secretaryUser.ClinicId != clinicId)
+        {
+            return (false, "Assign the secretary to this clinic first before making them clinic admin.");
+        }
+
+        return (true, string.Empty);
     }
 }

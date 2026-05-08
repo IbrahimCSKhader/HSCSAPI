@@ -39,7 +39,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterPatient), result);
+        return Ok(result);
     }
 
     [HttpPost("register-doctor")]
@@ -53,7 +53,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterDoctor), result);
+        return Ok(result);
     }
 
     [HttpPost("register-secretary")]
@@ -68,7 +68,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterSecretary), result);
+        return Ok(result);
     }
 
     [HttpPost("register-authorized-member")]
@@ -82,7 +82,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterAuthorizedMember), result);
+        return Ok(result);
     }
 
     [HttpPost("register-laboratory-technologist")]
@@ -96,7 +96,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterLaboratoryTechnologist), result);
+        return Ok(result);
     }
 
     [HttpPost("register-radiology-technologist")]
@@ -110,7 +110,7 @@ public class AuthController : ControllerBase
         if (!result.Success)
             return BadRequest(result);
 
-        return CreatedAtAction(nameof(RegisterRadiologyTechnologist), result);
+        return Ok(result);
     }
 
     [HttpPost("forgot-password")]
@@ -139,32 +139,17 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("verify-code")]
-    public async Task<ActionResult<ApiResponse>> VerifyCode([FromBody] VerifyCodeRequest request, CancellationToken cancellationToken = default)
+    [HttpPost("verify-registration-code")]
+    public async Task<ActionResult<ApiResponse>> VerifyRegistrationCode([FromBody] VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
             return BadRequest(ModelState);
 
-        var result = await _authService.VerifyCodeAsync(request, cancellationToken);
-        if (!result.Success)
-            return BadRequest(result);
-
-        return Ok(result);
-    }
-
-    [HttpPost("verify-login-code")]
-    public async Task<ActionResult<AuthResponse>> VerifyLoginCode([FromBody] VerifyCodeRequest request, CancellationToken cancellationToken = default)
-    {
-        if (!ModelState.IsValid)
-            return BadRequest(ModelState);
-
-        request.Purpose = Models.Enums.VerificationPurpose.Login;
-        var result = await _authService.VerifyLoginCodeAsync(request, cancellationToken);
+        var result = await _authService.VerifyRegistrationCodeAsync(request, cancellationToken);
         if (!result.Success)
             return BadRequest(result);
 
         return Ok(result);
     }
 }
-
 

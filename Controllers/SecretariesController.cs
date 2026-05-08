@@ -62,3 +62,4 @@ public class SecretariesController : ControllerBase
         return await _secretariesService.RemoveFromClinicAsync(secretaryId, User, cancellationToken);
     }
 }
+

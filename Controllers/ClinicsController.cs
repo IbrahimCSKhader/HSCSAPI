@@ -18,7 +18,6 @@ public class ClinicsController : ControllerBase
     }
 
     [HttpGet]
-    // [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
     public async Task<ActionResult<List<ClinicResponse>>> GetAll(CancellationToken cancellationToken)
     {
         return await _clinicsService.GetAllAsync(cancellationToken);

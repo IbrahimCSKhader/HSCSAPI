@@ -11,5 +11,8 @@ public class UserDto
     public string? Address { get; set; }
     [JsonPropertyName("patientUserId")]
     public string? UserID { get; set; }
+    public Guid? ClinicId { get; set; }
+    public string? ClinicName { get; set; }
+    public bool EmailConfirmed { get; set; }
     public string Role { get; set; } = string.Empty;
 }

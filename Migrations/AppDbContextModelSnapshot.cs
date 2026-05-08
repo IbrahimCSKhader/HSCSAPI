@@ -124,71 +124,54 @@ namespace HSCSAPI.Migrations
 
             modelBuilder.Entity("HSCSAPI.Models.Identity.Role", b =>
                 {
-                    b.Property<int>("RoleId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("RoleId");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("RoleId"));
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
 
-                    b.HasKey("RoleId");
+                    b.Property<string>("NormalizedName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
-                    b.HasIndex("Name")
-                        .IsUnique();
+                    b.HasKey("Id");
+
+                    b.HasIndex("NormalizedName")
+                        .IsUnique()
+                        .HasDatabaseName("RoleNameIndex")
+                        .HasFilter("[NormalizedName] IS NOT NULL");
 
                     b.ToTable("Roles", (string)null);
-
-                    b.HasData(
-                        new
-                        {
-                            RoleId = 7,
-                            Name = "SuperAdmin"
-                        },
-                        new
-                        {
-                            RoleId = 1,
-                            Name = "Patient"
-                        },
-                        new
-                        {
-                            RoleId = 2,
-                            Name = "Doctor"
-                        },
-                        new
-                        {
-                            RoleId = 3,
-                            Name = "Secretary"
-                        },
-                        new
-                        {
-                            RoleId = 4,
-                            Name = "AuthorizedMember"
-                        },
-                        new
-                        {
-                            RoleId = 5,
-                            Name = "LaboratoryTechnologist"
-                        },
-                        new
-                        {
-                            RoleId = 6,
-                            Name = "RadiologyTechnologist"
-                        });
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Identity.User", b =>
                 {
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
+                        .HasColumnType("uniqueidentifier")
+                        .HasColumnName("UserId");
+
+                    b.Property<int>("AccessFailedCount")
+                        .HasColumnType("int");
 
                     b.Property<string>("Address")
                         .HasMaxLength(300)
                         .HasColumnType("nvarchar(300)");
+
+                    b.Property<Guid?>("ClinicId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("ConcurrencyStamp")
+                        .IsConcurrencyToken()
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateOnly?>("DateOfBirth")
                         .HasColumnType("date");
@@ -198,23 +181,62 @@ namespace HSCSAPI.Migrations
                         .HasMaxLength(256)
                         .HasColumnType("nvarchar(256)");
 
+                    b.Property<bool>("EmailConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<bool>("LockoutEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<DateTimeOffset?>("LockoutEnd")
+                        .HasColumnType("datetimeoffset");
+
                     b.Property<string>("Name")
                         .IsRequired()
-                        .HasColumnType("nvarchar(max)");
+                        .HasMaxLength(200)
+                        .HasColumnType("nvarchar(200)");
+
+                    b.Property<string>("NormalizedEmail")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.Property<string>("NormalizedUserName")
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
 
                     b.Property<string>("PasswordHash")
-                        .IsRequired()
-                        .HasMaxLength(500)
-                        .HasColumnType("nvarchar(500)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
                         .HasMaxLength(30)
                         .HasColumnType("nvarchar(30)");
 
-                    b.HasKey("UserId");
+                    b.Property<bool>("PhoneNumberConfirmed")
+                        .HasColumnType("bit");
 
-                    b.HasIndex("Email")
-                        .IsUnique();
+                    b.Property<string>("SecurityStamp")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<bool>("TwoFactorEnabled")
+                        .HasColumnType("bit");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(256)
+                        .HasColumnType("nvarchar(256)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("ClinicId");
+
+                    b.HasIndex("NormalizedEmail")
+                        .IsUnique()
+                        .HasDatabaseName("EmailIndex")
+                        .HasFilter("[NormalizedEmail] IS NOT NULL");
+
+                    b.HasIndex("NormalizedUserName")
+                        .IsUnique()
+                        .HasDatabaseName("UserNameIndex")
+                        .HasFilter("[NormalizedUserName] IS NOT NULL");
 
                     b.ToTable("Users", (string)null);
                 });
@@ -224,8 +246,8 @@ namespace HSCSAPI.Migrations
                     b.Property<Guid>("UserId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<int>("RoleId")
-                        .HasColumnType("int");
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier");
 
                     b.HasKey("UserId", "RoleId");
 
@@ -417,7 +439,6 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.AuthorizedMember", b =>
                 {
                     b.Property<Guid>("AuthorizedMemberId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("AuthorizedMemberId");
@@ -428,7 +449,6 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.Doctor", b =>
                 {
                     b.Property<Guid>("DoctorId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ProfessionalLicenseNumber")
@@ -447,7 +467,6 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.LaboratoryTechnologist", b =>
                 {
                     b.Property<Guid>("LaboratoryTechnologistId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ProfessionalLicenseNumber")
@@ -466,7 +485,6 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.Patient", b =>
                 {
                     b.Property<Guid>("PatientId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("BloodType")
@@ -494,7 +512,6 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.RadiologyTechnologist", b =>
                 {
                     b.Property<Guid>("RadiologyTechnologistId")
-                        .ValueGeneratedOnAdd()
                         .HasColumnType("uniqueidentifier");
 
                     b.Property<string>("ProfessionalLicenseNumber")
@@ -513,15 +530,9 @@ namespace HSCSAPI.Migrations
             modelBuilder.Entity("HSCSAPI.Models.Profiles.Secretary", b =>
                 {
                     b.Property<Guid>("SecretaryId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<Guid?>("ClinicId")
                         .HasColumnType("uniqueidentifier");
 
                     b.HasKey("SecretaryId");
-
-                    b.HasIndex("ClinicId");
 
                     b.ToTable("Secretaries", (string)null);
                 });
@@ -694,6 +705,94 @@ namespace HSCSAPI.Migrations
                     b.ToTable("ReportInformations", (string)null);
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("RoleId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RoleId");
+
+                    b.ToTable("RoleClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("ClaimType")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<string>("ClaimValue")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserClaims", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProviderKey")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("ProviderDisplayName")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.HasKey("LoginProvider", "ProviderKey");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("UserLogins", (string)null);
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uniqueidentifier");
+
+                    b.Property<string>("LoginProvider")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Name")
+                        .HasColumnType("nvarchar(450)");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("UserId", "LoginProvider", "Name");
+
+                    b.ToTable("UserTokens", (string)null);
+                });
+
             modelBuilder.Entity("HSCSAPI.Models.Appointments.Appointment", b =>
                 {
                     b.HasOne("HSCSAPI.Models.Appointments.AvailabilitySlot", "AvailabilitySlot")
@@ -748,6 +847,16 @@ namespace HSCSAPI.Migrations
                     b.Navigation("AdminSecretary");
 
                     b.Navigation("CreatedBySuperAdminUser");
+                });
+
+            modelBuilder.Entity("HSCSAPI.Models.Identity.User", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Clinics.Clinic", "Clinic")
+                        .WithMany("Users")
+                        .HasForeignKey("ClinicId")
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.Navigation("Clinic");
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Identity.UserRole", b =>
@@ -910,18 +1019,11 @@ namespace HSCSAPI.Migrations
 
             modelBuilder.Entity("HSCSAPI.Models.Profiles.Secretary", b =>
                 {
-                    b.HasOne("HSCSAPI.Models.Clinics.Clinic", "Clinic")
-                        .WithMany("Secretaries")
-                        .HasForeignKey("ClinicId")
-                        .OnDelete(DeleteBehavior.Restrict);
-
                     b.HasOne("HSCSAPI.Models.Identity.User", "User")
                         .WithOne("SecretaryProfile")
                         .HasForeignKey("HSCSAPI.Models.Profiles.Secretary", "SecretaryId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Clinic");
 
                     b.Navigation("User");
                 });
@@ -1029,6 +1131,42 @@ namespace HSCSAPI.Migrations
                     b.Navigation("Report");
                 });
 
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Identity.Role", null)
+                        .WithMany()
+                        .HasForeignKey("RoleId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
+                {
+                    b.HasOne("HSCSAPI.Models.Identity.User", null)
+                        .WithMany()
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+                });
+
             modelBuilder.Entity("HSCSAPI.Models.Appointments.Appointment", b =>
                 {
                     b.Navigation("MedicalFiles");
@@ -1041,7 +1179,7 @@ namespace HSCSAPI.Migrations
 
             modelBuilder.Entity("HSCSAPI.Models.Clinics.Clinic", b =>
                 {
-                    b.Navigation("Secretaries");
+                    b.Navigation("Users");
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Identity.Role", b =>
