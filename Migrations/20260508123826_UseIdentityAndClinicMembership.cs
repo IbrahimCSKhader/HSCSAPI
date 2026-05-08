@@ -167,8 +167,8 @@ namespace HSCSAPI.Migrations
                     U.NormalizedEmail = UPPER(U.Email),
                     U.NormalizedUserName = UPPER(U.Email),
                     U.EmailConfirmed = 1,
-                    U.SecurityStamp = COALESCE(U.SecurityStamp, CONVERT(nvarchar(32), NEWID())),
-                    U.ConcurrencyStamp = COALESCE(U.ConcurrencyStamp, CONVERT(nvarchar(32), NEWID()))
+                    U.SecurityStamp = COALESCE(U.SecurityStamp, CONVERT(nvarchar(36), NEWID())),
+                    U.ConcurrencyStamp = COALESCE(U.ConcurrencyStamp, CONVERT(nvarchar(36), NEWID()))
                 FROM Users U;
 
                 UPDATE U
@@ -192,7 +192,7 @@ namespace HSCSAPI.Migrations
                         WHEN 7 THEN '6D3A8A70-B6D1-4F01-8F10-2F87E65F1007'
                     END,
                     NormalizedName = UPPER(Name),
-                    ConcurrencyStamp = COALESCE(ConcurrencyStamp, CONVERT(nvarchar(32), NEWID()));
+                    ConcurrencyStamp = COALESCE(ConcurrencyStamp, CONVERT(nvarchar(36), NEWID()));
 
                 UPDATE UR
                 SET UR.IdentityRoleId = R.IdentityRoleId
