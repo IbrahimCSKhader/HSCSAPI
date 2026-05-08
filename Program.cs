@@ -6,6 +6,7 @@ using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
 using HSCSAPI.Services.Secretaries;
+using HSCSAPI.Services.Testing;
 using Microsoft.AspNetCore.Identity;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -95,6 +96,7 @@ namespace HSCSAPI
             builder.Services.AddScoped<IClinicsService, ClinicsService>();
             builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
+            builder.Services.AddScoped<OneTimeClinicTestSeedService>();
 
             var app = builder.Build();
 

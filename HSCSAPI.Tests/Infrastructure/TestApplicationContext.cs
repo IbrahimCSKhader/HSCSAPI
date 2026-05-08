@@ -7,6 +7,7 @@ using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
 using HSCSAPI.Services.Secretaries;
+using HSCSAPI.Services.Testing;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -70,6 +71,7 @@ public sealed class TestApplicationContext : IAsyncDisposable
         services.AddScoped<IClinicsService, ClinicsService>();
         services.AddScoped<ISecretariesService, SecretariesService>();
         services.AddScoped<IdentitySeedService>();
+        services.AddScoped<OneTimeClinicTestSeedService>();
 
         services.Configure<SuperAdminSeedSettings>(options =>
         {
