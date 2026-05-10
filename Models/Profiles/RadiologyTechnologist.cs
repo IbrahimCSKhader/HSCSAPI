@@ -12,3 +12,4 @@ public class RadiologyTechnologist
 
     public ICollection<ImagingTestRequest> ImagingTestRequests { get; set; } = new HashSet<ImagingTestRequest>();
 }
+ 

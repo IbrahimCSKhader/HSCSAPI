@@ -1,19 +1,20 @@
-
 using HSCSAPI.Data;
+using HSCSAPI.Extensions;
 using HSCSAPI.Models.Identity;
+using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.Patients;
 using HSCSAPI.Services.Secretaries;
-using HSCSAPI.Services.Testing;
 using Microsoft.AspNetCore.Identity;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
+using Microsoft.EntityFrameworkCore;
 
 namespace HSCSAPI
 {
@@ -91,35 +92,22 @@ namespace HSCSAPI
 
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<UserIdGeneratorService>();
+            builder.Services.AddScoped<IAuthorizedMembersService, AuthorizedMembersService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IClinicsService, ClinicsService>();
+            builder.Services.AddScoped<IPatientsService, PatientsService>();
             builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
-            builder.Services.AddScoped<OneTimeClinicTestSeedService>();
 
             var app = builder.Build();
-
-            var logger = app.Services.GetRequiredService<ILogger<Program>>();
 
             // Configure the HTTP request pipeline.
             app.MapOpenApi();
             app.MapScalarApiReference();
             app.MapGet("/", () => Results.Redirect("/scalar/v1"));
 
-            try
-            {
-                await using var scope = app.Services.CreateAsyncScope();
-                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await dbContext.Database.MigrateAsync();
-
-                var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeedService>();
-                await seeder.SeedAsync();
-            }
-            catch (Exception ex)
-            {
-                logger.LogError(ex, "An error occurred while applying database migrations or seeding application data.");
-            }
+            await app.ApplyMigrationsAndSeedAsync();
 
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");

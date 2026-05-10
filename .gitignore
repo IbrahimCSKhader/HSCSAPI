@@ -1,0 +1,29 @@
+# Build outputs
+bin/
+obj/
+_build_temp/
+TestResults/
+
+# IDE and user-specific files
+.vs/
+.vscode/
+.idea/
+*.user
+*.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
+
+# Publish profiles
+Properties/PublishProfiles/*.pubxml.user
+
+# Local environment and secrets
+.env
+.env.*
+appsettings.Development.json
+appsettings.Local.json
+
+# Packages and coverage artifacts
+*.nupkg
+*.snupkg
+coverage/

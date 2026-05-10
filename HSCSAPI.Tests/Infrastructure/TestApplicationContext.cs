@@ -3,11 +3,12 @@ using HSCSAPI.Data;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Services.Auth;
+using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Clinics;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.Patients;
 using HSCSAPI.Services.Secretaries;
-using HSCSAPI.Services.Testing;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Data.Sqlite;
@@ -66,12 +67,13 @@ public sealed class TestApplicationContext : IAsyncDisposable
         services.AddScoped<IPasswordHasher<User>, LegacyCompatiblePasswordHasher>();
         services.AddScoped<IEmailService, FakeEmailService>();
         services.AddScoped<UserIdGeneratorService>();
+        services.AddScoped<IAuthorizedMembersService, AuthorizedMembersService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicsService, ClinicsService>();
+        services.AddScoped<IPatientsService, PatientsService>();
         services.AddScoped<ISecretariesService, SecretariesService>();
         services.AddScoped<IdentitySeedService>();
-        services.AddScoped<OneTimeClinicTestSeedService>();
 
         services.Configure<SuperAdminSeedSettings>(options =>
         {

@@ -10,6 +10,7 @@ using HSCSAPI.Models.Profiles;
 using HSCSAPI.Models.Radiology;
 using HSCSAPI.Models.Relations;
 using HSCSAPI.Models.Reminders;
+using HSCSAPI.SeedData;
 using HSCSAPI.Models.Secretaries;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Settings;
@@ -21,42 +22,13 @@ namespace HSCSAPI.Services.Identity;
 
 public class IdentitySeedService
 {
-    private const string DefaultSeedPassword = "SeedPassword123";
-    private const string CentralClinicName = "Central Care Clinic";
-    private const string NorthClinicName = "North Family Clinic";
-    private const string AdminSecretaryEmail = "secretary.admin@seed.local";
-    private const string StaffSecretaryEmail = "secretary.staff@seed.local";
-    private const string DoctorEmail = "doctor@seed.local";
-    private const string PatientEmail = "patient@seed.local";
-    private const string AuthorizedMemberEmail = "member@seed.local";
-    private const string LaboratoryTechnologistEmail = "labtech@seed.local";
-    private const string RadiologyTechnologistEmail = "radiology@seed.local";
-    private const string SeedMedicalFilePath = "/seed/medical-files/consultation-summary.pdf";
-    private const string SeedReportFilePath = "/seed/reports/weekly-clinic-report.pdf";
-    private const string SeedPatientNotificationTitle = "Your seeded appointment is ready.";
-    private const string SeedDoctorNotificationTitle = "You have a seeded appointment on Monday.";
-    private const string SeedReminderText = "Take your prescribed medication after breakfast.";
-    private const string SeedFileDownloadReason = "Need a copy for follow-up.";
-    private const string SeedFileDownloadPurpose = "Sharing with another specialist for a second opinion.";
-    private const string SeedLabTestName = "Complete Blood Count";
-    private const string SeedImagingTestName = "Chest X-Ray";
+    private static readonly HashSet<string> SeedClinicNames = ApplicationSeedData.Clinics
+        .Select(clinic => clinic.Name)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
-    private static readonly HashSet<string> SeedClinicNames = new(StringComparer.OrdinalIgnoreCase)
-    {
-        CentralClinicName,
-        NorthClinicName
-    };
-
-    private static readonly HashSet<string> SeedDomainEmails = new(StringComparer.OrdinalIgnoreCase)
-    {
-        AdminSecretaryEmail,
-        StaffSecretaryEmail,
-        DoctorEmail,
-        PatientEmail,
-        AuthorizedMemberEmail,
-        LaboratoryTechnologistEmail,
-        RadiologyTechnologistEmail
-    };
+    private static readonly HashSet<string> SeedDomainEmails = ApplicationSeedData.Users
+        .Select(user => user.Email)
+        .ToHashSet(StringComparer.OrdinalIgnoreCase);
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<User> _userManager;
@@ -109,9 +81,15 @@ public class IdentitySeedService
 
     private async Task<User> EnsureSuperAdminAsync(CancellationToken cancellationToken)
     {
-        var email = NormalizeEmail(string.IsNullOrWhiteSpace(_seedSettings.Email) ? "superadmin@seed.local" : _seedSettings.Email);
-        var password = string.IsNullOrWhiteSpace(_seedSettings.Password) ? DefaultSeedPassword : _seedSettings.Password;
-        var name = string.IsNullOrWhiteSpace(_seedSettings.Name) ? "System Super Admin" : _seedSettings.Name.Trim();
+        var email = NormalizeEmail(string.IsNullOrWhiteSpace(_seedSettings.Email)
+            ? ApplicationSeedData.DefaultSuperAdminEmail
+            : _seedSettings.Email);
+        var password = string.IsNullOrWhiteSpace(_seedSettings.Password)
+            ? ApplicationSeedData.DefaultSeedPassword
+            : _seedSettings.Password;
+        var name = string.IsNullOrWhiteSpace(_seedSettings.Name)
+            ? ApplicationSeedData.DefaultSuperAdminName
+            : _seedSettings.Name.Trim();
 
         var existingUser = await _userManager.Users
             .FirstOrDefaultAsync(u => u.NormalizedEmail == _userManager.NormalizeEmail(email), cancellationToken);
@@ -159,222 +137,173 @@ public class IdentitySeedService
         }
 
         var utcNow = DateTime.UtcNow;
-        var nextMonday = GetNextFutureDate(utcNow, DayOfWeek.Monday);
+        var clinicsByKey = new Dictionary<string, Clinic>(StringComparer.OrdinalIgnoreCase);
+        foreach (var clinicData in ApplicationSeedData.Clinics)
+        {
+            var clinic = await EnsureClinicAsync(
+                clinicData.Name,
+                clinicData.Address,
+                superAdmin.Id,
+                cancellationToken);
 
-        var clinicOne = await EnsureClinicAsync(
-            CentralClinicName,
-            "Hebron - Main Street",
-            superAdmin.Id,
-            cancellationToken);
-
-        await EnsureClinicAsync(
-            NorthClinicName,
-            "Nablus - City Center",
-            superAdmin.Id,
-            cancellationToken);
+            clinicsByKey[clinicData.Key] = clinic;
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
-        var adminSecretary = await EnsureSeedUserAccountAsync(
-            email: AdminSecretaryEmail,
-            name: "Clinic Admin Secretary",
-            role: UserSystemRole.Secretary,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000001",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1992, 4, 10),
-            cancellationToken: cancellationToken);
-        await EnsureSecretaryProfileAsync(adminSecretary.Id, cancellationToken);
+        var usersByKey = new Dictionary<string, User>(StringComparer.OrdinalIgnoreCase);
+        foreach (var userData in ApplicationSeedData.Users)
+        {
+            var clinicId = ResolveClinicId(clinicsByKey, userData.ClinicKey);
 
-        var staffSecretary = await EnsureSeedUserAccountAsync(
-            email: StaffSecretaryEmail,
-            name: "Clinic Staff Secretary",
-            role: UserSystemRole.Secretary,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000002",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1994, 8, 15),
-            cancellationToken: cancellationToken);
-        await EnsureSecretaryProfileAsync(staffSecretary.Id, cancellationToken);
+            var user = await EnsureSeedUserAccountAsync(
+                email: userData.Email,
+                name: userData.Name,
+                role: userData.Role,
+                clinicId: clinicId,
+                phoneNumber: userData.PhoneNumber,
+                address: userData.Address,
+                dateOfBirth: userData.DateOfBirth,
+                cancellationToken: cancellationToken);
 
-        var doctor = await EnsureSeedUserAccountAsync(
-            email: DoctorEmail,
-            name: "Dr. Samer Khalil",
-            role: UserSystemRole.Doctor,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000003",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1985, 1, 20),
-            cancellationToken: cancellationToken);
-        await EnsureDoctorProfileAsync(doctor.Id, "DOC-10001", cancellationToken);
+            await EnsureProfileAsync(userData, user.Id, clinicId, cancellationToken);
+            usersByKey[userData.Key] = user;
+        }
 
-        var patient = await EnsureSeedUserAccountAsync(
-            email: PatientEmail,
-            name: "Alaa Nassar",
-            role: UserSystemRole.Patient,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000004",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1998, 6, 4),
-            cancellationToken: cancellationToken);
-        await EnsurePatientProfileAsync(patient.Id, clinicOne.ClinicId, Gender.Male, BloodType.OPositive, cancellationToken);
-
-        var authorizedMember = await EnsureSeedUserAccountAsync(
-            email: AuthorizedMemberEmail,
-            name: "Mona Nassar",
-            role: UserSystemRole.AuthorizedMember,
-            clinicId: null,
-            phoneNumber: "0599000005",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1990, 11, 2),
-            cancellationToken: cancellationToken);
-        await EnsureAuthorizedMemberProfileAsync(authorizedMember.Id, cancellationToken);
-
-        var laboratoryTechnologist = await EnsureSeedUserAccountAsync(
-            email: LaboratoryTechnologistEmail,
-            name: "Rana Lab",
-            role: UserSystemRole.LaboratoryTechnologist,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000006",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1991, 9, 12),
-            cancellationToken: cancellationToken);
-        await EnsureLaboratoryTechnologistProfileAsync(laboratoryTechnologist.Id, "LAB-10001", cancellationToken);
-
-        var radiologyTechnologist = await EnsureSeedUserAccountAsync(
-            email: RadiologyTechnologistEmail,
-            name: "Yousef Ray",
-            role: UserSystemRole.RadiologyTechnologist,
-            clinicId: clinicOne.ClinicId,
-            phoneNumber: "0599000007",
-            address: "Hebron",
-            dateOfBirth: new DateOnly(1993, 3, 8),
-            cancellationToken: cancellationToken);
-        await EnsureRadiologyTechnologistProfileAsync(radiologyTechnologist.Id, "RAD-10001", cancellationToken);
-
-        clinicOne.AdminSecretaryId = adminSecretary.Id;
+        clinicsByKey[ApplicationSeedData.CentralClinicKey].AdminSecretaryId = usersByKey[ApplicationSeedData.AdminSecretaryKey].Id;
         await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var nextAppointmentDate = GetNextFutureDate(utcNow, ApplicationSeedData.PrimaryAppointment.DayOfWeek);
 
         var slot = await EnsureAvailabilitySlotAsync(
-            doctor.Id,
-            DayOfWeek.Monday,
-            new TimeOnly(9, 0),
-            new TimeOnly(9, 30),
-            isAvailable: false,
+            usersByKey[ApplicationSeedData.PrimaryAvailabilitySlot.DoctorKey].Id,
+            ApplicationSeedData.PrimaryAvailabilitySlot.DayOfWeek,
+            ApplicationSeedData.PrimaryAvailabilitySlot.StartTime,
+            ApplicationSeedData.PrimaryAvailabilitySlot.EndTime,
+            ApplicationSeedData.PrimaryAvailabilitySlot.IsAvailable,
             cancellationToken);
 
         var appointment = await EnsureAppointmentAsync(
-            doctor.Id,
-            patient.Id,
+            usersByKey[ApplicationSeedData.PrimaryAppointment.DoctorKey].Id,
+            usersByKey[ApplicationSeedData.PrimaryAppointment.PatientKey].Id,
             slot.AvailabilitySlotId,
-            nextMonday,
-            new TimeOnly(9, 0),
-            "Initial seeded appointment.",
+            nextAppointmentDate,
+            ApplicationSeedData.PrimaryAppointment.AppointmentTime,
+            ApplicationSeedData.PrimaryAppointment.Notes,
             cancellationToken);
 
         slot.IsAvailable = false;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        var medicalFileData = ApplicationSeedData.PrimaryMedicalFile;
         var medicalFile = await EnsureMedicalFileAsync(
             appointment.AppointmentId,
-            doctor.Id,
-            MedicalFileType.Pdf,
-            SeedMedicalFilePath,
-            "seed-checksum-001",
-            4096,
-            SeverityLevel.Low,
-            utcNow.AddDays(-1),
+            usersByKey[medicalFileData.UploadedByDoctorKey].Id,
+            medicalFileData.FileType,
+            medicalFileData.FilePath,
+            medicalFileData.EncryptedChecksum,
+            medicalFileData.FileSizeInBytes,
+            medicalFileData.SeverityLevel,
+            utcNow.AddDays(medicalFileData.UploadedDaysOffset),
             cancellationToken);
 
+        var authorizationData = ApplicationSeedData.PrimaryPatientAuthorization;
         await EnsurePatientAuthorizedMemberAsync(
-            patient.Id,
-            authorizedMember.Id,
-            RelationshipType.Mother,
-            utcNow.AddDays(-10),
+            usersByKey[authorizationData.PatientKey].Id,
+            usersByKey[authorizationData.AuthorizedMemberKey].Id,
+            authorizationData.RelationshipType,
+            utcNow.AddDays(authorizationData.AuthorizedDaysOffset),
             cancellationToken);
 
+        var inviteData = ApplicationSeedData.PrimaryInvite;
         await EnsureInviteAsync(
-            patient.Id,
-            authorizedMember.Id,
-            RelationshipType.Mother,
-            InviteStatus.Accepted,
-            utcNow.AddDays(-12),
-            utcNow.AddDays(-11),
+            usersByKey[inviteData.PatientKey].Id,
+            usersByKey[inviteData.AuthorizedMemberKey].Id,
+            inviteData.RelationshipType,
+            inviteData.Status,
+            utcNow.AddDays(inviteData.SentDaysOffset),
+            inviteData.RespondedDaysOffset.HasValue ? utcNow.AddDays(inviteData.RespondedDaysOffset.Value) : null,
             cancellationToken);
 
-        await EnsureNotificationAsync(
-            patient.Id,
-            SeedPatientNotificationTitle,
-            isRead: false,
-            cancellationToken);
+        foreach (var notificationData in ApplicationSeedData.Notifications)
+        {
+            await EnsureNotificationAsync(
+                usersByKey[notificationData.UserKey].Id,
+                notificationData.Title,
+                notificationData.IsRead,
+                cancellationToken);
+        }
 
-        await EnsureNotificationAsync(
-            doctor.Id,
-            SeedDoctorNotificationTitle,
-            isRead: true,
-            cancellationToken);
-
+        var reminderData = ApplicationSeedData.PrimaryReminder;
         await EnsureReminderAsync(
-            patient.Id,
-            doctor.Id,
-            authorizedMember.Id,
-            SeedReminderText,
-            utcNow.AddDays(1),
+            usersByKey[reminderData.PatientKey].Id,
+            usersByKey[reminderData.DoctorKey].Id,
+            reminderData.AuthorizedMemberKey is null ? null : usersByKey[reminderData.AuthorizedMemberKey].Id,
+            reminderData.ReminderText,
+            utcNow.AddDays(reminderData.ReminderDaysOffset),
             cancellationToken);
 
+        var fileDownloadRequestData = ApplicationSeedData.PrimaryFileDownloadRequest;
         await EnsureFileDownloadRequestAsync(
-            patient.Id,
+            usersByKey[fileDownloadRequestData.PatientKey].Id,
             medicalFile.MedicalFileId,
-            staffSecretary.Id,
-            SeedFileDownloadReason,
-            SeedFileDownloadPurpose,
-            FileDownloadRequestStatus.Approved,
-            utcNow.AddHours(-12),
-            utcNow.AddHours(-6),
-            rejectionReason: null,
+            fileDownloadRequestData.ReviewedBySecretaryKey is null
+                ? null
+                : usersByKey[fileDownloadRequestData.ReviewedBySecretaryKey].Id,
+            fileDownloadRequestData.Reason,
+            fileDownloadRequestData.PurposeDescription,
+            fileDownloadRequestData.Status,
+            utcNow.AddHours(fileDownloadRequestData.SubmittedHoursOffset),
+            fileDownloadRequestData.ReviewedHoursOffset.HasValue
+                ? utcNow.AddHours(fileDownloadRequestData.ReviewedHoursOffset.Value)
+                : null,
+            fileDownloadRequestData.RejectionReason,
             cancellationToken);
 
+        var labTestRequestData = ApplicationSeedData.PrimaryLabTestRequest;
         await EnsureLabTestRequestAsync(
-            SeedLabTestName,
-            laboratoryTechnologist.Id,
+            labTestRequestData.TestName,
+            labTestRequestData.LaboratoryTechnologistKey is null
+                ? null
+                : usersByKey[labTestRequestData.LaboratoryTechnologistKey].Id,
             medicalFile.MedicalFileId,
             cancellationToken);
 
+        var imagingTestRequestData = ApplicationSeedData.PrimaryImagingTestRequest;
         await EnsureImagingTestRequestAsync(
-            SeedImagingTestName,
-            radiologyTechnologist.Id,
+            imagingTestRequestData.TestName,
+            imagingTestRequestData.RadiologyTechnologistKey is null
+                ? null
+                : usersByKey[imagingTestRequestData.RadiologyTechnologistKey].Id,
             medicalFile.MedicalFileId,
             cancellationToken);
 
+        var reportData = ApplicationSeedData.PrimaryReport;
         var report = await EnsureReportAsync(
-            adminSecretary.Id,
-            utcNow.AddDays(-2),
+            usersByKey[reportData.SecretaryKey].Id,
+            utcNow.AddDays(reportData.GeneratedDaysOffset),
             cancellationToken);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
 
+        var reportInformationData = ApplicationSeedData.PrimaryReportInformation;
         await EnsureReportInformationAsync(
             report.ReportId,
-            ReportFileFormat.Pdf,
-            SeedReportFilePath,
-            2048,
+            reportInformationData.FileFormat,
+            reportInformationData.FilePath,
+            reportInformationData.FileSizeInBytes,
             cancellationToken);
 
-        await EnsureUserVerificationCodeAsync(
-            adminSecretary.Id,
-            "111111",
-            VerificationPurpose.EmailVerification,
-            utcNow.AddDays(-1),
-            isUsed: true,
-            cancellationToken);
-
-        await EnsureUserVerificationCodeAsync(
-            patient.Id,
-            "222222",
-            VerificationPurpose.PasswordReset,
-            utcNow.AddDays(7),
-            isUsed: false,
-            cancellationToken);
+        foreach (var verificationCodeData in ApplicationSeedData.VerificationCodes)
+        {
+            await EnsureUserVerificationCodeAsync(
+                usersByKey[verificationCodeData.UserKey].Id,
+                verificationCodeData.Code,
+                verificationCodeData.Purpose,
+                utcNow.AddDays(verificationCodeData.ExpiresDaysOffset),
+                verificationCodeData.IsUsed,
+                cancellationToken);
+        }
 
         await _dbContext.SaveChangesAsync(cancellationToken);
     }
@@ -478,7 +407,7 @@ public class IdentitySeedService
         IdentityResult persistenceResult;
         if (isNewUser)
         {
-            persistenceResult = await _userManager.CreateAsync(user, DefaultSeedPassword);
+            persistenceResult = await _userManager.CreateAsync(user, ApplicationSeedData.DefaultSeedPassword);
         }
         else
         {
@@ -500,6 +429,56 @@ public class IdentitySeedService
         }
 
         return user;
+    }
+
+    private async Task EnsureProfileAsync(
+        SeedUser userData,
+        Guid userId,
+        Guid? clinicId,
+        CancellationToken cancellationToken)
+    {
+        switch (userData.Role)
+        {
+            case UserSystemRole.Secretary:
+                await EnsureSecretaryProfileAsync(userId, cancellationToken);
+                return;
+            case UserSystemRole.Doctor:
+                await EnsureDoctorProfileAsync(
+                    userId,
+                    RequireSeedValue(userData.ProfessionalLicenseNumber, userData.Key, nameof(userData.ProfessionalLicenseNumber)),
+                    cancellationToken);
+                return;
+            case UserSystemRole.Patient:
+                if (!clinicId.HasValue)
+                {
+                    throw new InvalidOperationException($"Seed patient '{userData.Key}' must belong to a clinic.");
+                }
+
+                await EnsurePatientProfileAsync(
+                    userId,
+                    clinicId.Value,
+                    userData.Gender ?? throw new InvalidOperationException($"Seed patient '{userData.Key}' is missing gender."),
+                    userData.BloodType,
+                    cancellationToken);
+                return;
+            case UserSystemRole.AuthorizedMember:
+                await EnsureAuthorizedMemberProfileAsync(userId, cancellationToken);
+                return;
+            case UserSystemRole.LaboratoryTechnologist:
+                await EnsureLaboratoryTechnologistProfileAsync(
+                    userId,
+                    RequireSeedValue(userData.ProfessionalLicenseNumber, userData.Key, nameof(userData.ProfessionalLicenseNumber)),
+                    cancellationToken);
+                return;
+            case UserSystemRole.RadiologyTechnologist:
+                await EnsureRadiologyTechnologistProfileAsync(
+                    userId,
+                    RequireSeedValue(userData.ProfessionalLicenseNumber, userData.Key, nameof(userData.ProfessionalLicenseNumber)),
+                    cancellationToken);
+                return;
+            default:
+                throw new InvalidOperationException($"Unsupported seed role '{userData.Role}' for '{userData.Key}'.");
+        }
     }
 
     private async Task EnsureSecretaryProfileAsync(Guid secretaryId, CancellationToken cancellationToken)
@@ -964,7 +943,7 @@ public class IdentitySeedService
             .Include(x => x.ReportInformations)
             .FirstOrDefaultAsync(
                 x => x.SecretaryId == secretaryId
-                    && x.ReportInformations.Any(info => info.FilePath == SeedReportFilePath),
+                    && x.ReportInformations.Any(info => info.FilePath == ApplicationSeedData.PrimaryReportInformation.FilePath),
                 cancellationToken);
 
         if (report == null)
@@ -1057,5 +1036,32 @@ public class IdentitySeedService
     private static string NormalizeEmail(string email)
     {
         return email.Trim().ToLowerInvariant();
+    }
+
+    private static Guid? ResolveClinicId(
+        IReadOnlyDictionary<string, Clinic> clinicsByKey,
+        string? clinicKey)
+    {
+        if (string.IsNullOrWhiteSpace(clinicKey))
+        {
+            return null;
+        }
+
+        if (!clinicsByKey.TryGetValue(clinicKey, out var clinic))
+        {
+            throw new InvalidOperationException($"Seed clinic key '{clinicKey}' was not found.");
+        }
+
+        return clinic.ClinicId;
+    }
+
+    private static string RequireSeedValue(string? value, string seedKey, string propertyName)
+    {
+        if (!string.IsNullOrWhiteSpace(value))
+        {
+            return value;
+        }
+
+        throw new InvalidOperationException($"Seed item '{seedKey}' is missing required value '{propertyName}'.");
     }
 }
