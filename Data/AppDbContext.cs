@@ -12,18 +12,19 @@ using HSCSAPI.Models.Secretaries;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using AppIdentityDbContextBase = Microsoft.AspNetCore.Identity.EntityFrameworkCore.IdentityDbContext<
+    HSCSAPI.Models.Identity.User,
+    HSCSAPI.Models.Identity.Role,
+    System.Guid,
+    Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>,
+    HSCSAPI.Models.Identity.UserRole,
+    Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>,
+    Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>,
+    Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>>;
 
 namespace HSCSAPI.Data;
 
-public class AppDbContext : IdentityDbContext<
-    User,
-    Role,
-    Guid,
-    IdentityUserClaim<Guid>,
-    UserRole,
-    IdentityUserLogin<Guid>,
-    IdentityRoleClaim<Guid>,
-    IdentityUserToken<Guid>>
+public class AppDbContext : AppIdentityDbContextBase
 {
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)

@@ -268,34 +268,4 @@ public class AuthorizedMembersService : IAuthorizedMembersService
 
         return Guid.TryParse(claim, out var userId) ? userId : null;
     }
-
-    private sealed class AuthorizedMemberPatientQueryResult
-    {
-        public Guid PatientId { get; init; }
-        public string Name { get; init; } = string.Empty;
-        public string Email { get; init; } = string.Empty;
-        public string? PhoneNumber { get; init; }
-        public string? Address { get; init; }
-        public DateOnly? DateOfBirth { get; init; }
-        public string PatientUserId { get; init; } = string.Empty;
-        public Guid? ClinicId { get; init; }
-        public string? ClinicName { get; init; }
-        public RelationshipType RelationshipType { get; init; }
-        public DateTime AuthorizedAt { get; init; }
-    }
-
-    private sealed class AuthorizedMemberInviteQueryResult
-    {
-        public Guid InviteId { get; init; }
-        public Guid PatientId { get; init; }
-        public string PatientName { get; init; } = string.Empty;
-        public string PatientEmail { get; init; } = string.Empty;
-        public string PatientUserId { get; init; } = string.Empty;
-        public Guid? ClinicId { get; init; }
-        public string? ClinicName { get; init; }
-        public RelationshipType RelationshipType { get; init; }
-        public InviteStatus Status { get; init; }
-        public DateTime SentAt { get; init; }
-        public DateTime? RespondedAt { get; init; }
-    }
 }
