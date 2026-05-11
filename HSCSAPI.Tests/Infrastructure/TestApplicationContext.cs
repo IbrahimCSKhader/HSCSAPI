@@ -5,9 +5,12 @@ using HSCSAPI.Models.Identity;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Clinics;
+using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.LaboratoryTechnologists;
 using HSCSAPI.Services.Patients;
+using HSCSAPI.Services.RadiologyTechnologists;
 using HSCSAPI.Services.Secretaries;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Identity;
@@ -71,7 +74,10 @@ public sealed class TestApplicationContext : IAsyncDisposable
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IClinicsService, ClinicsService>();
+        services.AddScoped<IDoctorsService, DoctorsService>();
+        services.AddScoped<ILaboratoryTechnologistsService, LaboratoryTechnologistsService>();
         services.AddScoped<IPatientsService, PatientsService>();
+        services.AddScoped<IRadiologyTechnologistsService, RadiologyTechnologistsService>();
         services.AddScoped<ISecretariesService, SecretariesService>();
         services.AddScoped<IdentitySeedService>();
 

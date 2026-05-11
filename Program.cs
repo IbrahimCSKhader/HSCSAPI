@@ -4,9 +4,12 @@ using HSCSAPI.Models.Identity;
 using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
+using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.LaboratoryTechnologists;
 using HSCSAPI.Services.Patients;
+using HSCSAPI.Services.RadiologyTechnologists;
 using HSCSAPI.Services.Secretaries;
 using Microsoft.AspNetCore.Identity;
 using HSCSAPI.Settings;
@@ -96,7 +99,10 @@ namespace HSCSAPI
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IClinicsService, ClinicsService>();
+            builder.Services.AddScoped<IDoctorsService, DoctorsService>();
+            builder.Services.AddScoped<ILaboratoryTechnologistsService, LaboratoryTechnologistsService>();
             builder.Services.AddScoped<IPatientsService, PatientsService>();
+            builder.Services.AddScoped<IRadiologyTechnologistsService, RadiologyTechnologistsService>();
             builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
 
