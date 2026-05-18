@@ -139,7 +139,7 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("verify-registration-code")]
+    [HttpPost("verify-registration-code")]   
     public async Task<ActionResult<ApiResponse>> VerifyRegistrationCode([FromBody] VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
@@ -147,7 +147,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.VerifyRegistrationCodeAsync(request, cancellationToken);
         if (!result.Success)
-            return BadRequest(result);
+            return Ok(result); // Return 200 OK with the result, even if the code is invalid, to avoid revealing valid codes
 
         return Ok(result);
     }

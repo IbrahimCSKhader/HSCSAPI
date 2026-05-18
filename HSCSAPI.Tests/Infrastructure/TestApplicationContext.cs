@@ -1,24 +1,5 @@
 using System.Security.Claims;
-using HSCSAPI.Data;
-using HSCSAPI.Models.Enums;
-using HSCSAPI.Models.Identity;
-using HSCSAPI.Services.Auth;
-using HSCSAPI.Services.AuthorizedMembers;
-using HSCSAPI.Services.Clinics;
-using HSCSAPI.Services.Doctors;
-using HSCSAPI.Services.Email;
-using HSCSAPI.Services.Identity;
-using HSCSAPI.Services.LaboratoryTechnologists;
-using HSCSAPI.Services.Patients;
-using HSCSAPI.Services.RadiologyTechnologists;
-using HSCSAPI.Services.Secretaries;
-using HSCSAPI.Settings;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Data.Sqlite;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging;
+
 
 namespace HSCSAPI.Tests.Infrastructure;
 
