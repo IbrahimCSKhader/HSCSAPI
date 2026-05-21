@@ -477,100 +477,114 @@ public class AuthService : IAuthService
         return await SaveUserWithRoleAsync(user, password, role, cancellationToken);
     }
 
-    private async Task<User?> CreateBaseUserAsync(
-        string email,
-        string name,
-        string? phoneNumber,
-        string? address,
-        DateOnly? dateOfBirth,
-        Guid? clinicId,
-        CancellationToken cancellationToken)
+   
+
+   private async Task<User?> CreateBaseUserAsync(
+    string email,
+    string name,
+    string? phoneNumber,
+    string? address,
+    DateOnly? dateOfBirth,
+    Guid? clinicId,
+    CancellationToken cancellationToken)
+{
+    var trimmedEmail = email.Trim();
+    
+    // استخدام طريقة Identity الرسمية للتحقق
+    if (await _userManager.FindByEmailAsync(trimmedEmail) != null)
     {
-        var normalizedEmail = NormalizeEmail(email);
-        if (await _userManager.FindByEmailAsync(normalizedEmail) != null)
-        {
-            return null;
-        }
-
-        if (clinicId.HasValue)
-        {
-            var clinicExists = await _context.Clinics
-                .AsNoTracking()
-                .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
-
-            if (!clinicExists)
-            {
-                throw new InvalidOperationException("Clinic not found.");
-            }
-        }
-
-        return new User
-        {
-            Id = Guid.NewGuid(),
-            Name = name.Trim(),
-            Email = normalizedEmail,
-            UserName = normalizedEmail,
-            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
-            Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
-            DateOfBirth = dateOfBirth,
-            ClinicId = clinicId
-        };
+        return null;
     }
 
-    private async Task<AuthResponse> SaveUserWithRoleAsync(
-        User user,
-        string password,
-        UserSystemRole role,
-        CancellationToken cancellationToken)
+    if (clinicId.HasValue)
     {
-        var roleName = role.ToString();
-        if (!await _roleManager.RoleExistsAsync(roleName))
+        var clinicExists = await _context.Clinics
+            .AsNoTracking()
+            .AsAccessConfirmed() // إن وجدت كـ Global Filter
+            .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
+
+        if (!clinicExists)
         {
-            return new AuthResponse { Success = false, Message = $"Role not found: {roleName}" };
+            throw new InvalidOperationException("Clinic not found.");
         }
+    }
 
-        await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+    return new User
+    {
+        Id = Guid.NewGuid(),
+        Name = name.Trim(),
+        Email = trimmedEmail,
+        UserName = trimmedEmail, // الـ Identity سيتكفل بعمل الـ Normalize تلقائياً عند الحفظ
+        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
+        Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
+        DateOfBirth = dateOfBirth,
+        ClinicId = clinicId
+    };
+}
+private async Task<AuthResponse> SaveUserWithRoleAsync(
+    User user,
+    string password,
+    UserSystemRole role,
+    CancellationToken cancellationToken)
+{
+    var roleName = role.ToString();
+    if (!await _roleManager.RoleExistsAsync(roleName))
+    {
+        return new AuthResponse { Success = false, Message = $"Role not found: {roleName}" };
+    }
 
-        var createResult = await _userManager.CreateAsync(user, password);
-        if (!createResult.Succeeded)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            return new AuthResponse
-            {
-                Success = false,
-                Message = string.Join(" ", createResult.Errors.Select(error => error.Description))
-            };
-        }
-
-        var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
-        if (!addToRoleResult.Succeeded)
-        {
-            await transaction.RollbackAsync(cancellationToken);
-            return new AuthResponse
-            {
-                Success = false,
-                Message = string.Join(" ", addToRoleResult.Errors.Select(error => error.Description))
-            };
-        }
-
-        var verificationCode = await CreateVerificationCodeAsync(
-            user.Id,
-            VerificationPurpose.EmailVerification,
-            cancellationToken);
-
-        await transaction.CommitAsync(cancellationToken);
-
-        var persistedUser = await LoadUserByIdAsync(user.Id, cancellationToken) ?? user;
-        await TrySendWelcomeEmailAsync(persistedUser, role, verificationCode.Code, cancellationToken);
-
+    var createResult = await _userManager.CreateAsync(user, password);
+    if (!createResult.Succeeded)
+    {
         return new AuthResponse
         {
-            Success = true,
-            Message = RegistrationVerificationMessage,
-            User = MapToUserDto(persistedUser, roleName)
+            Success = false,
+            Message = string.Join(" ", createResult.Errors.Select(error => error.Description))
         };
     }
 
+    var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
+    if (!addToRoleResult.Succeeded)
+    {
+        await _userManager.DeleteAsync(user);
+        return new AuthResponse
+        {
+            Success = false,
+            Message = string.Join(" ", addToRoleResult.Errors.Select(error => error.Description))
+        };
+    }
+
+    var verificationCode = new UserVerificationCode
+    {
+        UserId = user.Id,
+        Code = GenerateVerificationCode(),
+        Purpose = VerificationPurpose.EmailVerification,
+        ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+        IsUsed = false
+    };
+
+    var activeCodes = await _context.UserVerificationCodes
+        .Where(vc => vc.UserId == user.Id && vc.Purpose == VerificationPurpose.EmailVerification && !vc.IsUsed)
+        .ToListAsync(cancellationToken);
+
+    foreach (var activeCode in activeCodes)
+    {
+        activeCode.IsUsed = true;
+    }
+
+    _context.UserVerificationCodes.Add(verificationCode);
+    await _context.SaveChangesAsync(cancellationToken);
+
+    var persistedUser = await LoadUserByIdAsync(user.Id, cancellationToken) ?? user;
+    await TrySendWelcomeEmailAsync(persistedUser, role, verificationCode.Code, cancellationToken);
+
+    return new AuthResponse
+    {
+        Success = true,
+        Message = RegistrationVerificationMessage,
+        User = MapToUserDto(persistedUser, roleName)
+    };
+}
     private async Task<UserVerificationCode> CreateVerificationCodeAsync(
         Guid userId,
         VerificationPurpose purpose,

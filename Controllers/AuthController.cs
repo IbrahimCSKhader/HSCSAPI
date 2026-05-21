@@ -147,7 +147,7 @@ public class AuthController : ControllerBase
 
         var result = await _authService.VerifyRegistrationCodeAsync(request, cancellationToken);
         if (!result.Success)
-            return Ok(result); // Return 200 OK with the result, even if the code is invalid, to avoid revealing valid codes
+        return BadRequest(result);
 
         return Ok(result);
     }
