@@ -500,7 +500,6 @@ public class AuthService : IAuthService
     {
         var clinicExists = await _context.Clinics
             .AsNoTracking()
-            .AsAccessConfirmed() // إن وجدت كـ Global Filter
             .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
 
         if (!clinicExists)
