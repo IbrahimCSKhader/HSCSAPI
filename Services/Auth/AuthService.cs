@@ -399,61 +399,89 @@ public class AuthService : IAuthService
         }
     }
 
-    public async Task<ApiResponse> VerifyRegistrationCodeAsync(VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default)
+    public async Task<ApiResponse> VerifyRegistrationCodeAsync(
+    VerifyRegistrationCodeRequest request, 
+    CancellationToken cancellationToken = default)
+{
+    try
     {
-        try
+        var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
+        if (user == null)
         {
-            var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
-            if (user == null)
-            {
-                return new ApiResponse { Success = false, Message = "Invalid email or verification code." };
-            }
+            return new ApiResponse { Success = false, Message = "Invalid email or verification code." };
+        }
 
-            if (user.EmailConfirmed)
-            {
-                return new ApiResponse { Success = true, Message = "Email is already verified." };
-            }
+        if (user.EmailConfirmed)
+        {
+            return new ApiResponse { Success = true, Message = "Email is already verified." };
+        }
 
-            var verificationCode = await _context.UserVerificationCodes
-                .FirstOrDefaultAsync(
-                    vc => vc.UserId == user.Id
-                        && vc.Code == request.VerificationCode
-                        && vc.Purpose == VerificationPurpose.EmailVerification
-                        && !vc.IsUsed
-                        && vc.ExpiresAt > DateTime.UtcNow,
-                    cancellationToken);
+        var verificationCode = await _context.UserVerificationCodes
+            .FirstOrDefaultAsync(
+                vc => vc.UserId == user.Id
+                    && vc.Code == request.VerificationCode
+                    && vc.Purpose == VerificationPurpose.EmailVerification
+                    && !vc.IsUsed
+                    && vc.ExpiresAt > DateTime.UtcNow,
+                cancellationToken);
 
-            if (verificationCode == null)
-            {
-                return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
-            }
+        if (verificationCode == null)
+        {
+            _logger.LogWarning("Invalid or expired verification code attempt for email: {Email}", request.Email);
+            return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
+        }
 
+        var strategy = _context.Database.CreateExecutionStrategy();
+        
+        return await strategy.ExecuteAsync(async () =>
+        {
             await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-
-            user.EmailConfirmed = true;
-            verificationCode.IsUsed = true;
-
-            var updateResult = await _userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
+            
+            try
             {
-                await transaction.RollbackAsync(cancellationToken);
-                return new ApiResponse
+                user.EmailConfirmed = true;
+                verificationCode.IsUsed = true;
+
+                var updateResult = await _userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
                 {
-                    Success = false,
-                    Message = string.Join(" ", updateResult.Errors.Select(error => error.Description))
+                    await transaction.RollbackAsync(cancellationToken);
+                    return new ApiResponse
+                    {
+                        Success = false,
+                        Message = "Failed to verify email. Please try again."
+                    };
+                }
+
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+                
+                _logger.LogInformation("Email verified successfully for user: {Email}", request.Email);
+                
+                return new ApiResponse 
+                { 
+                    Success = true, 
+                    Message = "Email verified successfully." 
                 };
             }
-
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
-
-            return new ApiResponse { Success = true, Message = "Email verified successfully." };
-        }
-        catch (Exception ex)
-        {
-            return new ApiResponse { Success = false, Message = $"Code verification failed: {ex.Message}" };
-        }
+            catch (Exception ex)
+            {
+                await transaction.RollbackAsync(cancellationToken);
+                _logger.LogError(ex, "Error during email verification for {Email}", request.Email);
+                throw; 
+            }
+        });
     }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Unexpected error during email verification for {Email}", request.Email);
+        return new ApiResponse 
+        { 
+            Success = false, 
+            Message = "An error occurred while verifying your email. Please try again later." 
+        };
+    }
+}
 
     private async Task<AuthResponse> RegisterProfileUserAsync(
         string email,
@@ -690,7 +718,7 @@ private async Task<AuthResponse> SaveUserWithRoleAsync(
         {
             var subject = "Welcome to HSCS";
             var body = $@"
-<h2>Welcome, {user.Name}</h2>
+<h2>Welcome, {user.Name} how are you?</h2>
 <p>Your account has been created successfully.</p>
 <p>Role: {role}</p>
 <p>Email: {user.Email}</p>
