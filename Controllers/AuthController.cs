@@ -151,5 +151,20 @@ public class AuthController : ControllerBase
 
         return Ok(result);
     }
+    [HttpPost("resend-verification-code")]
+public async Task<ActionResult<ApiResponse>> ResendVerificationCode(
+    [FromBody] ResendVerificationCodeRequest request, 
+    CancellationToken cancellationToken = default)
+{
+    if (!ModelState.IsValid)
+        return BadRequest(ModelState);
+
+    var result = await _authService.ResendVerificationCodeAsync(request, cancellationToken);
+    
+    if (!result.Success)
+        return BadRequest(result);
+
+    return Ok(result);
+}
 }
 

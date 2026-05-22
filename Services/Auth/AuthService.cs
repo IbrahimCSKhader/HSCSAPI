@@ -786,4 +786,87 @@ private async Task<AuthResponse> SaveUserWithRoleAsync(
         var code = BitConverter.ToUInt32(buffer, 0) % 1000000;
         return code.ToString("D6");
     }
+public async Task<ApiResponse> ResendVerificationCodeAsync(
+    ResendVerificationCodeRequest request, 
+    CancellationToken cancellationToken = default)
+{
+    try
+    {
+        var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
+        
+        if (user == null)
+        {
+            _logger.LogWarning("Resend verification code attempt for non-existent email: {Email}", request.Email);
+            return new ApiResponse 
+            { 
+                Success = true,
+                Message = "If your email is registered and not verified, you will receive a new verification code." 
+            };
+        }
+
+        if (user.EmailConfirmed)
+        {
+            return new ApiResponse 
+            { 
+                Success = false, 
+                Message = "This email is already verified. You can login directly." 
+            };
+        }
+
+        // تعطيل الأكواد القديمة
+        var oldCodes = await _context.UserVerificationCodes
+            .Where(vc => vc.UserId == user.Id 
+                && vc.Purpose == VerificationPurpose.EmailVerification 
+                && !vc.IsUsed)
+            .ToListAsync(cancellationToken);
+
+        foreach (var oldCode in oldCodes)
+        {
+            oldCode.IsUsed = true;
+        }
+
+        var newCode = GenerateVerificationCode();
+        var verificationCode = new UserVerificationCode
+        {
+            UserVerificationCodeId = Guid.NewGuid(),
+            UserId = user.Id,
+            Code = newCode,
+            Purpose = VerificationPurpose.EmailVerification,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false,
+        };
+
+        _context.UserVerificationCodes.Add(verificationCode);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var userRole = await GetPrimaryRoleAsync(user);  
+        
+        if (Enum.TryParse<UserSystemRole>(userRole, true, out var roleEnum))
+        {
+            await TrySendWelcomeEmailAsync(user, roleEnum, newCode, cancellationToken);
+        }
+        else
+        {
+            _logger.LogWarning("Could not parse role '{Role}' for user {Email}, using default Patient role", userRole, user.Email);
+            await TrySendWelcomeEmailAsync(user, UserSystemRole.Patient, newCode, cancellationToken);
+        }
+
+        _logger.LogInformation("New verification code sent to email: {Email}", request.Email);
+
+        return new ApiResponse 
+        { 
+            Success = true, 
+            Message = "A new verification code has been sent to your email. It will expire in 15 minutes." 
+        };
+    }
+    catch (Exception ex)
+    {
+        _logger.LogError(ex, "Error resending verification code to {Email}", request.Email);
+        return new ApiResponse 
+        { 
+            Success = false, 
+            Message = "An error occurred. Please try again later." 
+        };
+    }
+}
 }
