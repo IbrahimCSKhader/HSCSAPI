@@ -369,29 +369,49 @@ public class AuthService : IAuthService
                 };
             }
 
-            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+            var strategy = _context.Database.CreateExecutionStrategy();
 
-            user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.NewPassword);
-            user.SecurityStamp = Guid.NewGuid().ToString("N");
-
-            var updateResult = await _userManager.UpdateAsync(user);
-            if (!updateResult.Succeeded)
+            var resetResult = await strategy.ExecuteAsync(async () =>
             {
-                await transaction.RollbackAsync(cancellationToken);
-                return new ApiResponse
-                {
-                    Success = false,
-                    Message = string.Join(" ", updateResult.Errors.Select(error => error.Description))
-                };
-            }
+                await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
-            verificationCode.IsUsed = true;
-            await _context.SaveChangesAsync(cancellationToken);
-            await transaction.CommitAsync(cancellationToken);
+                try
+                {
+                    user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.NewPassword);
+                    user.SecurityStamp = Guid.NewGuid().ToString("N");
+
+                    var updateResult = await _userManager.UpdateAsync(user);
+                    if (!updateResult.Succeeded)
+                    {
+                        await transaction.RollbackAsync(cancellationToken);
+                        return new ApiResponse
+                        {
+                            Success = false,
+                            Message = string.Join(" ", updateResult.Errors.Select(error => error.Description))
+                        };
+                    }
+
+                    verificationCode.IsUsed = true;
+                    await _context.SaveChangesAsync(cancellationToken);
+                    await transaction.CommitAsync(cancellationToken);
+
+                    return new ApiResponse { Success = true, Message = "Password successfully reset." };
+                }
+                catch
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                    throw;
+                }
+            });
+
+            if (!resetResult.Success)
+            {
+                return resetResult;
+            }
 
             await TrySendPasswordResetConfirmationEmailAsync(user, cancellationToken);
 
-            return new ApiResponse { Success = true, Message = "Password successfully reset." };
+            return resetResult;
         }
         catch (Exception ex)
         {
