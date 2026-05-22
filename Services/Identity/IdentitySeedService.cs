@@ -100,6 +100,7 @@ public class IdentitySeedService
             {
                 Id = Guid.NewGuid(),
                 Name = name,
+                RegisteredAt = DateTime.UtcNow,
                 Email = email,
                 UserName = email,
                 EmailConfirmed = true
@@ -114,6 +115,12 @@ public class IdentitySeedService
         else if (!existingUser.EmailConfirmed)
         {
             existingUser.EmailConfirmed = true;
+            await _userManager.UpdateAsync(existingUser);
+        }
+
+        if (existingUser.RegisteredAt == default)
+        {
+            existingUser.RegisteredAt = DateTime.UtcNow;
             await _userManager.UpdateAsync(existingUser);
         }
 
@@ -398,6 +405,7 @@ public class IdentitySeedService
         user.Name = name;
         user.Email = normalizedEmail;
         user.UserName = normalizedEmail;
+        user.RegisteredAt = user.RegisteredAt == default ? DateTime.UtcNow : user.RegisteredAt;
         user.ClinicId = clinicId;
         user.PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim();
         user.Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim();

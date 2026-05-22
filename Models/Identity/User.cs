@@ -8,6 +8,7 @@ namespace HSCSAPI.Models.Identity;
 public class User : IdentityUser<Guid>
 {
     public string Name { get; set; } = string.Empty;
+    public DateTime RegisteredAt { get; set; }
     public DateOnly? DateOfBirth { get; set; }
     public string? Address { get; set; }
     public Guid? ClinicId { get; set; }

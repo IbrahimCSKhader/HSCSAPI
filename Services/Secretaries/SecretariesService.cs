@@ -10,12 +10,128 @@ namespace HSCSAPI.Services.Secretaries;
 public class SecretariesService : ISecretariesService
 {
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
+    private const int RecentRegistrationsLimit = 10;
 
     private readonly AppDbContext _dbContext;
 
     public SecretariesService(AppDbContext dbContext)
     {
         _dbContext = dbContext;
+    }
+
+    public async Task<ActionResult<SecretaryDashboardResponse>> GetDashboardAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        if (currentUserId is null)
+        {
+            return new UnauthorizedObjectResult("Invalid token.");
+        }
+
+        var secretaryClinic = await _dbContext.Secretaries
+            .AsNoTracking()
+            .Where(secretary => secretary.SecretaryId == currentUserId.Value)
+            .Select(secretary => new
+            {
+                secretary.User.ClinicId,
+                ClinicName = secretary.User.Clinic != null ? secretary.User.Clinic.Name : null
+            })
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (secretaryClinic?.ClinicId is null)
+        {
+            return ForbiddenDashboard("This secretary is not assigned to any clinic.");
+        }
+
+        var clinicId = secretaryClinic.ClinicId.Value;
+        var now = DateTime.Now;
+        var today = DateOnly.FromDateTime(now);
+        var currentTime = TimeOnly.FromDateTime(now);
+        var currentDay = now.DayOfWeek;
+
+        var pendingRequestsCount = await _dbContext.FileDownloadRequests
+            .AsNoTracking()
+            .CountAsync(
+                request => request.Status == FileDownloadRequestStatus.Pending
+                    && request.Patient.User.ClinicId == clinicId,
+                cancellationToken);
+
+        var patientRegistrationsCount = await _dbContext.Patients
+            .AsNoTracking()
+            .CountAsync(patient => patient.User.ClinicId == clinicId, cancellationToken);
+
+        var reportsGeneratedCount = await _dbContext.Reports
+            .AsNoTracking()
+            .CountAsync(report => report.Secretary.User.ClinicId == clinicId, cancellationToken);
+
+        var todayAvailabilitySlotsCount = await _dbContext.AvailabilitySlots
+            .AsNoTracking()
+            .CountAsync(
+                slot => slot.DayOfWeek == currentDay
+                    && slot.Doctor.User.ClinicId == clinicId,
+                cancellationToken);
+
+        var todayAppointments = await _dbContext.Appointments
+            .AsNoTracking()
+            .Where(appointment =>
+                appointment.AppointmentDate == today
+                && appointment.Doctor.User.ClinicId == clinicId)
+            .OrderBy(appointment => appointment.AppointmentTime)
+            .Select(appointment => new SecretaryDashboardAppointmentResponse
+            {
+                AppointmentId = appointment.AppointmentId,
+                DoctorId = appointment.DoctorId,
+                DoctorName = appointment.Doctor.User.Name,
+                PatientId = appointment.PatientId,
+                PatientName = appointment.Patient.User.Name,
+                PatientUserId = appointment.Patient.UserID,
+                AppointmentDate = appointment.AppointmentDate,
+                AppointmentTime = appointment.AppointmentTime,
+                Notes = appointment.Notes,
+                HasReached = false
+            })
+            .ToListAsync(cancellationToken);
+
+        foreach (var appointment in todayAppointments)
+        {
+            appointment.HasReached = appointment.AppointmentTime <= currentTime;
+        }
+
+        var recentRegistrations = await _dbContext.Users
+            .AsNoTracking()
+            .Where(userItem => userItem.ClinicId == clinicId)
+            .OrderByDescending(userItem => userItem.RegisteredAt)
+            .ThenByDescending(userItem => userItem.Id)
+            .Take(RecentRegistrationsLimit)
+            .Select(userItem => new SecretaryRecentRegistrationResponse
+            {
+                UserId = userItem.Id,
+                Name = userItem.Name,
+                Email = userItem.Email ?? string.Empty,
+                Role = userItem.UserRoles
+                    .OrderBy(userRole => userRole.Role.Name)
+                    .Select(userRole => userRole.Role.Name ?? string.Empty)
+                    .FirstOrDefault() ?? string.Empty,
+                RegisteredAt = userItem.RegisteredAt
+            })
+            .ToListAsync(cancellationToken);
+
+        var dashboard = new SecretaryDashboardResponse
+        {
+            ClinicId = clinicId,
+            ClinicName = secretaryClinic.ClinicName ?? string.Empty,
+            PendingRequestsCount = pendingRequestsCount,
+            PatientRegistrationsCount = patientRegistrationsCount,
+            ReportsGeneratedCount = reportsGeneratedCount,
+            TodayAvailabilitySlotsCount = todayAvailabilitySlotsCount,
+            TodayAppointmentsCount = todayAppointments.Count,
+            TodayAppointmentsReachedCount = todayAppointments.Count(appointment => appointment.HasReached),
+            TodayAppointments = todayAppointments,
+            RecentRegistrations = recentRegistrations
+        };
+
+        return new OkObjectResult(dashboard);
     }
 
     public async Task<ActionResult<List<SecretaryResponse>>> GetAllAsync(Guid? clinicId, CancellationToken cancellationToken = default)
@@ -255,6 +371,14 @@ public class SecretariesService : ISecretariesService
     }
 
     private static ActionResult<SecretaryResponse> ForbiddenSingle(string message)
+    {
+        return new ObjectResult(message)
+        {
+            StatusCode = 403
+        };
+    }
+
+    private static ActionResult<SecretaryDashboardResponse> ForbiddenDashboard(string message)
     {
         return new ObjectResult(message)
         {

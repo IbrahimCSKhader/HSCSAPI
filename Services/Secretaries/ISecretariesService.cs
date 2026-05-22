@@ -6,6 +6,7 @@ namespace HSCSAPI.Services.Secretaries;
 
 public interface ISecretariesService
 {
+    Task<ActionResult<SecretaryDashboardResponse>> GetDashboardAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<List<SecretaryResponse>>> GetAllAsync(Guid? clinicId, CancellationToken cancellationToken = default);
     Task<ActionResult<List<SecretaryResponse>>> GetAvailableAsync(CancellationToken cancellationToken = default);
     Task<ActionResult<List<SecretaryResponse>>> GetByClinicAsync(Guid clinicId, ClaimsPrincipal user, CancellationToken cancellationToken = default);

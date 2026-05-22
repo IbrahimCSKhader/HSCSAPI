@@ -560,6 +560,7 @@ public class AuthService : IAuthService
     {
         Id = Guid.NewGuid(),
         Name = name.Trim(),
+        RegisteredAt = DateTime.UtcNow,
         Email = trimmedEmail,
         UserName = trimmedEmail, // الـ Identity سيتكفل بعمل الـ Normalize تلقائياً عند الحفظ
         PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),

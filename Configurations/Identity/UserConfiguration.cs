@@ -18,6 +18,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(x => x.RegisteredAt)
+            .IsRequired()
+            .HasDefaultValueSql("SYSUTCDATETIME()");
+
         builder.Property(x => x.UserName)
             .IsRequired()
             .HasMaxLength(256);
