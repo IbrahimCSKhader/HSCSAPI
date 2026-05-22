@@ -13,4 +13,6 @@ public interface ISecretariesService
     Task<ActionResult<List<SecretaryResponse>>> GetMyClinicSecretariesAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<SecretaryResponse>> AssignToClinicAsync(Guid secretaryId, AssignSecretaryToClinicRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<SecretaryResponse>> RemoveFromClinicAsync(Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<SecretaryResponse>> UpdateInClinicAsync(Guid clinicId, Guid secretaryId, UpdateSecretaryRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<IActionResult> DeleteInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }

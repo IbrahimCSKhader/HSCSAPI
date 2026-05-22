@@ -2,6 +2,8 @@ using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Secretary;
 using HSCSAPI.Models.Enums;
+using HSCSAPI.Models.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -13,10 +15,14 @@ public class SecretariesService : ISecretariesService
     private const int RecentRegistrationsLimit = 10;
 
     private readonly AppDbContext _dbContext;
+    private readonly UserManager<User> _userManager;
 
-    public SecretariesService(AppDbContext dbContext)
+    public SecretariesService(
+        AppDbContext dbContext,
+        UserManager<User> userManager)
     {
         _dbContext = dbContext;
+        _userManager = userManager;
     }
 
     public async Task<ActionResult<SecretaryDashboardResponse>> GetDashboardAsync(
@@ -307,6 +313,144 @@ public class SecretariesService : ISecretariesService
             : new OkObjectResult(response);
     }
 
+    public async Task<ActionResult<SecretaryResponse>> UpdateInClinicAsync(
+        Guid clinicId,
+        Guid secretaryId,
+        UpdateSecretaryRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return new BadRequestObjectResult("Name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return new BadRequestObjectResult("Email is required.");
+        }
+
+        var clinicExists = await _dbContext.Clinics
+            .AsNoTracking()
+            .AnyAsync(clinic => clinic.ClinicId == clinicId, cancellationToken);
+
+        if (!clinicExists)
+        {
+            return new NotFoundObjectResult("Clinic not found.");
+        }
+
+        if (!await CanCurrentUserManageClinicAsync(clinicId, user, cancellationToken))
+        {
+            return ForbiddenSingle("You are not allowed to manage this clinic.");
+        }
+
+        var secretary = await _dbContext.Secretaries
+            .Include(profile => profile.User)
+            .FirstOrDefaultAsync(
+                profile => profile.SecretaryId == secretaryId && profile.User.ClinicId == clinicId,
+                cancellationToken);
+
+        if (secretary is null)
+        {
+            return new NotFoundObjectResult("Secretary not found in this clinic.");
+        }
+
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var normalizedLookup = _userManager.NormalizeEmail(normalizedEmail);
+        var emailAlreadyRegistered = await _userManager.Users
+            .AsNoTracking()
+            .AnyAsync(
+                existingUser => existingUser.Id != secretaryId
+                    && existingUser.NormalizedEmail == normalizedLookup,
+                cancellationToken);
+
+        if (emailAlreadyRegistered)
+        {
+            return new BadRequestObjectResult("Email already registered.");
+        }
+
+        secretary.User.Name = request.Name.Trim();
+        secretary.User.Email = normalizedEmail;
+        secretary.User.UserName = normalizedEmail;
+        secretary.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
+        secretary.User.Address = NormalizeOptional(request.Address);
+        secretary.User.DateOfBirth = request.DateOfBirth;
+
+        var updateResult = await _userManager.UpdateAsync(secretary.User);
+        if (!updateResult.Succeeded)
+        {
+            return new BadRequestObjectResult(string.Join(" ", updateResult.Errors.Select(error => error.Description)));
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = await GetSecretaryResponseAsync(secretaryId, cancellationToken);
+        return response is null
+            ? new NotFoundObjectResult("Secretary not found.")
+            : new OkObjectResult(response);
+    }
+
+    public async Task<IActionResult> DeleteInClinicAsync(
+        Guid clinicId,
+        Guid secretaryId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var clinicExists = await _dbContext.Clinics
+            .AsNoTracking()
+            .AnyAsync(clinic => clinic.ClinicId == clinicId, cancellationToken);
+
+        if (!clinicExists)
+        {
+            return new NotFoundObjectResult("Clinic not found.");
+        }
+
+        if (!await CanCurrentUserManageClinicAsync(clinicId, user, cancellationToken))
+        {
+            return ForbiddenAction("You are not allowed to manage this clinic.");
+        }
+
+        var secretary = await _dbContext.Secretaries
+            .Include(profile => profile.User)
+            .Include(profile => profile.ManagedClinic)
+            .FirstOrDefaultAsync(
+                profile => profile.SecretaryId == secretaryId && profile.User.ClinicId == clinicId,
+                cancellationToken);
+
+        if (secretary is null)
+        {
+            return new NotFoundObjectResult("Secretary not found in this clinic.");
+        }
+
+        var currentUserId = GetCurrentUserId(user);
+        if (!user.IsInRole(nameof(UserSystemRole.SuperAdmin))
+            && currentUserId.HasValue
+            && currentUserId.Value == secretaryId)
+        {
+            return new BadRequestObjectResult("You cannot delete your own secretary account from this endpoint.");
+        }
+
+        var blockers = await GetDeleteBlockersAsync(secretaryId, cancellationToken);
+        if (blockers.Count > 0)
+        {
+            return new BadRequestObjectResult(
+                $"Cannot delete secretary because related {string.Join(", ", blockers)} exist.");
+        }
+
+        if (secretary.ManagedClinic is not null)
+        {
+            secretary.ManagedClinic.AdminSecretaryId = null;
+        }
+
+        var deleteResult = await _userManager.DeleteAsync(secretary.User);
+        if (!deleteResult.Succeeded)
+        {
+            return new BadRequestObjectResult(string.Join(" ", deleteResult.Errors.Select(error => error.Description)));
+        }
+
+        return new NoContentResult();
+    }
+
     private IQueryable<SecretaryResponse> BuildSecretaryResponseQuery()
     {
         return _dbContext.Secretaries
@@ -331,6 +475,18 @@ public class SecretariesService : ISecretariesService
     {
         return await BuildSecretaryResponseQuery()
             .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
+    }
+
+    private async Task<List<string>> GetDeleteBlockersAsync(Guid secretaryId, CancellationToken cancellationToken)
+    {
+        var blockers = new List<string>();
+
+        if (await _dbContext.Reports.AnyAsync(report => report.SecretaryId == secretaryId, cancellationToken))
+        {
+            blockers.Add("reports");
+        }
+
+        return blockers;
     }
 
     private async Task<bool> CanCurrentUserManageClinicAsync(Guid clinicId, ClaimsPrincipal user, CancellationToken cancellationToken)
@@ -362,6 +518,16 @@ public class SecretariesService : ISecretariesService
         return Guid.TryParse(claim, out var userId) ? userId : null;
     }
 
+    private static string NormalizeEmail(string email)
+    {
+        return email.Trim().ToLowerInvariant();
+    }
+
+    private static string? NormalizeOptional(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     private static ActionResult<List<SecretaryResponse>> ForbiddenList(string message)
     {
         return new ObjectResult(message)
@@ -371,6 +537,14 @@ public class SecretariesService : ISecretariesService
     }
 
     private static ActionResult<SecretaryResponse> ForbiddenSingle(string message)
+    {
+        return new ObjectResult(message)
+        {
+            StatusCode = 403
+        };
+    }
+
+    private static IActionResult ForbiddenAction(string message)
     {
         return new ObjectResult(message)
         {
