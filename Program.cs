@@ -2,6 +2,7 @@ using HSCSAPI.Data;
 using HSCSAPI.Extensions;
 using HSCSAPI.Middleware;
 using HSCSAPI.Models.Identity;
+using HSCSAPI.Services.Appointments;
 using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
@@ -97,6 +98,7 @@ namespace HSCSAPI
 
             builder.Services.AddScoped<IEmailService, EmailService>();
             builder.Services.AddScoped<UserIdGeneratorService>();
+            builder.Services.AddScoped<IAppointmentsService, AppointmentsService>();
             builder.Services.AddScoped<IAuthorizedMembersService, AuthorizedMembersService>();
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();

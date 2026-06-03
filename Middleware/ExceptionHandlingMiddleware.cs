@@ -1,5 +1,6 @@
 using System.Net;
 using System.Runtime.ExceptionServices;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Middleware;
@@ -69,8 +70,7 @@ public class ExceptionHandlingMiddleware
 
         context.Response.StatusCode = statusCode;
         context.Response.ContentType = "application/problem+json";
-
-        await context.Response.WriteAsJsonAsync(problem);
+        await JsonSerializer.SerializeAsync(context.Response.Body, problem);
     }
 
     private int GetStatusCode(Exception exception)

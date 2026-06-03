@@ -21,7 +21,10 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         builder.Property(x => x.Notes)
             .HasMaxLength(1000);
 
-        builder.HasIndex(x => x.AvailabilitySlotId)
+        builder.HasIndex(x => new { x.DoctorId, x.AppointmentDate, x.AppointmentTime })
+            .IsUnique();
+
+        builder.HasIndex(x => new { x.PatientId, x.AppointmentDate, x.AppointmentTime })
             .IsUnique();
 
         builder.HasOne(x => x.Doctor)
@@ -35,8 +38,8 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
             .OnDelete(DeleteBehavior.Restrict);
 
         builder.HasOne(x => x.AvailabilitySlot)
-            .WithOne(x => x.Appointment)
-            .HasForeignKey<Appointment>(x => x.AvailabilitySlotId)
+            .WithMany(x => x.Appointments)
+            .HasForeignKey(x => x.AvailabilitySlotId)
             .OnDelete(DeleteBehavior.Restrict);
     }
 }

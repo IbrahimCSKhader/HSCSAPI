@@ -12,5 +12,5 @@ public class AvailabilitySlot
     public bool IsAvailable { get; set; }
 
     public Doctor Doctor { get; set; } = null!;
-    public Appointment? Appointment { get; set; }
+    public ICollection<Appointment> Appointments { get; set; } = new HashSet<Appointment>();
 }
