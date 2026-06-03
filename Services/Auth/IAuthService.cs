@@ -15,5 +15,5 @@ public interface IAuthService
     Task<ApiResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default);
     Task<ApiResponse> VerifyRegistrationCodeAsync(VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default);
-      Task<ApiResponse> ResendVerificationCodeAsync(ResendVerificationCodeRequest request, CancellationToken cancellationToken = default);
+    Task<ApiResponse> ResendVerificationCodeAsync(ResendVerificationCodeRequest request, CancellationToken cancellationToken = default);
 }

@@ -5,6 +5,7 @@ using HSCSAPI.Services.Auth;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 namespace HSCSAPI.Controllers;
+
 [ApiController]
 [Route("api/[controller]")]
 public class AuthController : ControllerBase
@@ -21,7 +22,7 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
 
         var result = await _authService.LoginAsync(request, cancellationToken);
-        
+
         if (!result.Success)
             return Unauthorized(result);
 
@@ -35,7 +36,7 @@ public class AuthController : ControllerBase
             return BadRequest(ModelState);
 
         var result = await _authService.RegisterPatientAsync(request, cancellationToken);
-        
+
         if (!result.Success)
             return BadRequest(result);
 
@@ -139,7 +140,7 @@ public class AuthController : ControllerBase
         return Ok(result);
     }
 
-    [HttpPost("verify-registration-code")]   
+    [HttpPost("verify-registration-code")]
     public async Task<ActionResult<ApiResponse>> VerifyRegistrationCode([FromBody] VerifyRegistrationCodeRequest request, CancellationToken cancellationToken = default)
     {
         if (!ModelState.IsValid)
@@ -147,24 +148,24 @@ public class AuthController : ControllerBase
 
         var result = await _authService.VerifyRegistrationCodeAsync(request, cancellationToken);
         if (!result.Success)
-        return BadRequest(result);
+            return BadRequest(result);
 
         return Ok(result);
     }
     [HttpPost("resend-verification-code")]
-public async Task<ActionResult<ApiResponse>> ResendVerificationCode(
-    [FromBody] ResendVerificationCodeRequest request, 
+    public async Task<ActionResult<ApiResponse>> ResendVerificationCode(
+    [FromBody] ResendVerificationCodeRequest request,
     CancellationToken cancellationToken = default)
-{
-    if (!ModelState.IsValid)
-        return BadRequest(ModelState);
+    {
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-    var result = await _authService.ResendVerificationCodeAsync(request, cancellationToken);
-    
-    if (!result.Success)
-        return BadRequest(result);
+        var result = await _authService.ResendVerificationCodeAsync(request, cancellationToken);
 
-    return Ok(result);
-}
+        if (!result.Success)
+            return BadRequest(result);
+
+        return Ok(result);
+    }
 }
 

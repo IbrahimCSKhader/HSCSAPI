@@ -1,9 +1,11 @@
 using HSCSAPI.Data;
 using HSCSAPI.Extensions;
+using HSCSAPI.Middleware;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
+using HSCSAPI.Services.Common;
 using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
@@ -105,6 +107,7 @@ namespace HSCSAPI
             builder.Services.AddScoped<IRadiologyTechnologistsService, RadiologyTechnologistsService>();
             builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
+            builder.Services.AddScoped<IServiceExceptionHandler, ServiceExceptionHandler>();
 
             var app = builder.Build();
 
@@ -115,6 +118,7 @@ namespace HSCSAPI
 
             await app.ApplyMigrationsAndSeedAsync();
 
+            app.UseMiddleware<ExceptionHandlingMiddleware>();
             app.UseHttpsRedirection();
             app.UseCors("AllowAll");
 

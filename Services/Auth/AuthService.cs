@@ -4,6 +4,7 @@ using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Profiles;
+using HSCSAPI.Services.Common;
 using HSCSAPI.Services.Email;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -21,6 +22,7 @@ public class AuthService : IAuthService
     private readonly UserIdGeneratorService _userIdGenerator;
     private readonly ITokenService _tokenService;
     private readonly IEmailService _emailService;
+    private readonly IServiceExceptionHandler _exceptionHandler;
     private readonly ILogger<AuthService> _logger;
 
     public AuthService(
@@ -30,6 +32,7 @@ public class AuthService : IAuthService
         UserIdGeneratorService userIdGenerator,
         ITokenService tokenService,
         IEmailService emailService,
+        IServiceExceptionHandler exceptionHandler,
         ILogger<AuthService> logger)
     {
         _context = context;
@@ -38,12 +41,13 @@ public class AuthService : IAuthService
         _userIdGenerator = userIdGenerator;
         _tokenService = tokenService;
         _emailService = emailService;
+        _exceptionHandler = exceptionHandler;
         _logger = logger;
     }
 
     public async Task<AuthResponse> LoginAsync(LoginRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
             if (user == null || !await _userManager.CheckPasswordAsync(user, request.Password))
@@ -58,16 +62,12 @@ public class AuthService : IAuthService
 
             var role = await GetPrimaryRoleAsync(user);
             return BuildAuthenticatedResponse(user, role, "Login successful.");
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Login failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Login failed: {ex.Message}" }, nameof(LoginAsync));
     }
 
     public async Task<AuthResponse> RegisterPatientAsync(RegisterPatientRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             if (request.ClinicId == Guid.Empty)
             {
@@ -115,16 +115,12 @@ public class AuthService : IAuthService
             };
 
             return await SaveUserWithRoleAsync(user, request.Password, UserSystemRole.Patient, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterPatientAsync));
     }
 
     public async Task<AuthResponse> RegisterDoctorAsync(RegisterDoctorRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             if (request.ClinicId == Guid.Empty)
             {
@@ -155,16 +151,12 @@ public class AuthService : IAuthService
                     };
                 },
                 cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterDoctorAsync));
     }
 
     public async Task<AuthResponse> RegisterSecretaryAsync(RegisterSecretaryRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             var clinicId = request.ClinicId == Guid.Empty ? null : request.ClinicId;
 
@@ -186,16 +178,12 @@ public class AuthService : IAuthService
                     };
                 },
                 cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterSecretaryAsync));
     }
 
     public async Task<AuthResponse> RegisterAuthorizedMemberAsync(RegisterAuthorizedMemberRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             return await RegisterProfileUserAsync(
                 request.Email,
@@ -215,16 +203,12 @@ public class AuthService : IAuthService
                     };
                 },
                 cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterAuthorizedMemberAsync));
     }
 
     public async Task<AuthResponse> RegisterLaboratoryTechnologistAsync(RegisterLaboratoryTechnologistRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             if (request.ClinicId == Guid.Empty)
             {
@@ -255,16 +239,12 @@ public class AuthService : IAuthService
                     };
                 },
                 cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterLaboratoryTechnologistAsync));
     }
 
     public async Task<AuthResponse> RegisterRadiologyTechnologistAsync(RegisterRadiologyTechnologistRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             if (request.ClinicId == Guid.Empty)
             {
@@ -295,16 +275,12 @@ public class AuthService : IAuthService
                     };
                 },
                 cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            return new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" };
-        }
+        }, ex => new AuthResponse { Success = false, Message = $"Registration failed: {ex.Message}" }, nameof(RegisterRadiologyTechnologistAsync));
     }
 
     public async Task<ApiResponse> ForgotPasswordAsync(ForgotPasswordRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
             if (user == null)
@@ -328,16 +304,12 @@ public class AuthService : IAuthService
                 Success = true,
                 Message = "If the email exists, a password reset code has been sent."
             };
-        }
-        catch (Exception ex)
-        {
-            return new ApiResponse { Success = false, Message = $"Password reset request failed: {ex.Message}" };
-        }
+        }, ex => new ApiResponse { Success = false, Message = $"Password reset request failed: {ex.Message}" }, nameof(ForgotPasswordAsync));
     }
 
     public async Task<ApiResponse> ResetPasswordAsync(ResetPasswordRequest request, CancellationToken cancellationToken = default)
     {
-        try
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
             var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
             if (user == null)
@@ -375,33 +347,25 @@ public class AuthService : IAuthService
             {
                 await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
 
-                try
-                {
-                    user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.NewPassword);
-                    user.SecurityStamp = Guid.NewGuid().ToString("N");
+                user.PasswordHash = _userManager.PasswordHasher.HashPassword(user, request.NewPassword);
+                user.SecurityStamp = Guid.NewGuid().ToString("N");
 
-                    var updateResult = await _userManager.UpdateAsync(user);
-                    if (!updateResult.Succeeded)
-                    {
-                        await transaction.RollbackAsync(cancellationToken);
-                        return new ApiResponse
-                        {
-                            Success = false,
-                            Message = string.Join(" ", updateResult.Errors.Select(error => error.Description))
-                        };
-                    }
-
-                    verificationCode.IsUsed = true;
-                    await _context.SaveChangesAsync(cancellationToken);
-                    await transaction.CommitAsync(cancellationToken);
-
-                    return new ApiResponse { Success = true, Message = "Password successfully reset." };
-                }
-                catch
+                var updateResult = await _userManager.UpdateAsync(user);
+                if (!updateResult.Succeeded)
                 {
                     await transaction.RollbackAsync(cancellationToken);
-                    throw;
+                    return new ApiResponse
+                    {
+                        Success = false,
+                        Message = string.Join(" ", updateResult.Errors.Select(error => error.Description))
+                    };
                 }
+
+                verificationCode.IsUsed = true;
+                await _context.SaveChangesAsync(cancellationToken);
+                await transaction.CommitAsync(cancellationToken);
+
+                return new ApiResponse { Success = true, Message = "Password successfully reset." };
             });
 
             if (!resetResult.Success)
@@ -412,53 +376,47 @@ public class AuthService : IAuthService
             await TrySendPasswordResetConfirmationEmailAsync(user, cancellationToken);
 
             return resetResult;
-        }
-        catch (Exception ex)
-        {
-            return new ApiResponse { Success = false, Message = $"Password reset failed: {ex.Message}" };
-        }
+        }, ex => new ApiResponse { Success = false, Message = $"Password reset failed: {ex.Message}" }, nameof(ResetPasswordAsync));
     }
 
     public async Task<ApiResponse> VerifyRegistrationCodeAsync(
-    VerifyRegistrationCodeRequest request, 
+    VerifyRegistrationCodeRequest request,
     CancellationToken cancellationToken = default)
-{
-    try
     {
-        var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
-        if (user == null)
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
-            return new ApiResponse { Success = false, Message = "Invalid email or verification code." };
-        }
-
-        if (user.EmailConfirmed)
-        {
-            return new ApiResponse { Success = true, Message = "Email is already verified." };
-        }
-
-        var verificationCode = await _context.UserVerificationCodes
-            .FirstOrDefaultAsync(
-                vc => vc.UserId == user.Id
-                    && vc.Code == request.VerificationCode
-                    && vc.Purpose == VerificationPurpose.EmailVerification
-                    && !vc.IsUsed
-                    && vc.ExpiresAt > DateTime.UtcNow,
-                cancellationToken);
-
-        if (verificationCode == null)
-        {
-            _logger.LogWarning("Invalid or expired verification code attempt for email: {Email}", request.Email);
-            return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
-        }
-
-        var strategy = _context.Database.CreateExecutionStrategy();
-        
-        return await strategy.ExecuteAsync(async () =>
-        {
-            await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
-            
-            try
+            var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
+            if (user == null)
             {
+                return new ApiResponse { Success = false, Message = "Invalid email or verification code." };
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return new ApiResponse { Success = true, Message = "Email is already verified." };
+            }
+
+            var verificationCode = await _context.UserVerificationCodes
+                .FirstOrDefaultAsync(
+                    vc => vc.UserId == user.Id
+                        && vc.Code == request.VerificationCode
+                        && vc.Purpose == VerificationPurpose.EmailVerification
+                        && !vc.IsUsed
+                        && vc.ExpiresAt > DateTime.UtcNow,
+                    cancellationToken);
+
+            if (verificationCode == null)
+            {
+                _logger.LogWarning("Invalid or expired verification code attempt for email: {Email}", request.Email);
+                return new ApiResponse { Success = false, Message = "Invalid or expired verification code." };
+            }
+
+            var strategy = _context.Database.CreateExecutionStrategy();
+
+            return await strategy.ExecuteAsync(async () =>
+            {
+                await using var transaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+
                 user.EmailConfirmed = true;
                 verificationCode.IsUsed = true;
 
@@ -475,33 +433,21 @@ public class AuthService : IAuthService
 
                 await _context.SaveChangesAsync(cancellationToken);
                 await transaction.CommitAsync(cancellationToken);
-                
+
                 _logger.LogInformation("Email verified successfully for user: {Email}", request.Email);
-                
-                return new ApiResponse 
-                { 
-                    Success = true, 
-                    Message = "Email verified successfully." 
+
+                return new ApiResponse
+                {
+                    Success = true,
+                    Message = "Email verified successfully."
                 };
-            }
-            catch (Exception ex)
-            {
-                await transaction.RollbackAsync(cancellationToken);
-                _logger.LogError(ex, "Error during email verification for {Email}", request.Email);
-                throw; 
-            }
-        });
+            });
+        }, _ => new ApiResponse
+        {
+            Success = false,
+            Message = "An error occurred while verifying your email. Please try again later."
+        }, nameof(VerifyRegistrationCodeAsync));
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Unexpected error during email verification for {Email}", request.Email);
-        return new ApiResponse 
-        { 
-            Success = false, 
-            Message = "An error occurred while verifying your email. Please try again later." 
-        };
-    }
-}
 
     private async Task<AuthResponse> RegisterProfileUserAsync(
         string email,
@@ -525,114 +471,114 @@ public class AuthService : IAuthService
         return await SaveUserWithRoleAsync(user, password, role, cancellationToken);
     }
 
-   
 
-   private async Task<User?> CreateBaseUserAsync(
-    string email,
-    string name,
-    string? phoneNumber,
-    string? address,
-    DateOnly? dateOfBirth,
-    Guid? clinicId,
-    CancellationToken cancellationToken)
-{
-    var trimmedEmail = email.Trim();
-    
-    // استخدام طريقة Identity الرسمية للتحقق
-    if (await _userManager.FindByEmailAsync(trimmedEmail) != null)
+
+    private async Task<User?> CreateBaseUserAsync(
+     string email,
+     string name,
+     string? phoneNumber,
+     string? address,
+     DateOnly? dateOfBirth,
+     Guid? clinicId,
+     CancellationToken cancellationToken)
     {
-        return null;
-    }
+        var trimmedEmail = email.Trim();
 
-    if (clinicId.HasValue)
-    {
-        var clinicExists = await _context.Clinics
-            .AsNoTracking()
-            .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
-
-        if (!clinicExists)
+        // استخدام طريقة Identity الرسمية للتحقق
+        if (await _userManager.FindByEmailAsync(trimmedEmail) != null)
         {
-            throw new InvalidOperationException("Clinic not found.");
+            return null;
         }
-    }
 
-    return new User
-    {
-        Id = Guid.NewGuid(),
-        Name = name.Trim(),
-        RegisteredAt = DateTime.UtcNow,
-        Email = trimmedEmail,
-        UserName = trimmedEmail, // الـ Identity سيتكفل بعمل الـ Normalize تلقائياً عند الحفظ
-        PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
-        Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
-        DateOfBirth = dateOfBirth,
-        ClinicId = clinicId
-    };
-}
-private async Task<AuthResponse> SaveUserWithRoleAsync(
-    User user,
-    string password,
-    UserSystemRole role,
-    CancellationToken cancellationToken)
-{
-    var roleName = role.ToString();
-    if (!await _roleManager.RoleExistsAsync(roleName))
-    {
-        return new AuthResponse { Success = false, Message = $"Role not found: {roleName}" };
-    }
-
-    var createResult = await _userManager.CreateAsync(user, password);
-    if (!createResult.Succeeded)
-    {
-        return new AuthResponse
+        if (clinicId.HasValue)
         {
-            Success = false,
-            Message = string.Join(" ", createResult.Errors.Select(error => error.Description))
+            var clinicExists = await _context.Clinics
+                .AsNoTracking()
+                .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
+
+            if (!clinicExists)
+            {
+                throw new InvalidOperationException("Clinic not found.");
+            }
+        }
+
+        return new User
+        {
+            Id = Guid.NewGuid(),
+            Name = name.Trim(),
+            RegisteredAt = DateTime.UtcNow,
+            Email = trimmedEmail,
+            UserName = trimmedEmail, // الـ Identity سيتكفل بعمل الـ Normalize تلقائياً عند الحفظ
+            PhoneNumber = string.IsNullOrWhiteSpace(phoneNumber) ? null : phoneNumber.Trim(),
+            Address = string.IsNullOrWhiteSpace(address) ? null : address.Trim(),
+            DateOfBirth = dateOfBirth,
+            ClinicId = clinicId
         };
     }
-
-    var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
-    if (!addToRoleResult.Succeeded)
+    private async Task<AuthResponse> SaveUserWithRoleAsync(
+        User user,
+        string password,
+        UserSystemRole role,
+        CancellationToken cancellationToken)
     {
-        await _userManager.DeleteAsync(user);
+        var roleName = role.ToString();
+        if (!await _roleManager.RoleExistsAsync(roleName))
+        {
+            return new AuthResponse { Success = false, Message = $"Role not found: {roleName}" };
+        }
+
+        var createResult = await _userManager.CreateAsync(user, password);
+        if (!createResult.Succeeded)
+        {
+            return new AuthResponse
+            {
+                Success = false,
+                Message = string.Join(" ", createResult.Errors.Select(error => error.Description))
+            };
+        }
+
+        var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
+        if (!addToRoleResult.Succeeded)
+        {
+            await _userManager.DeleteAsync(user);
+            return new AuthResponse
+            {
+                Success = false,
+                Message = string.Join(" ", addToRoleResult.Errors.Select(error => error.Description))
+            };
+        }
+
+        var verificationCode = new UserVerificationCode
+        {
+            UserId = user.Id,
+            Code = GenerateVerificationCode(),
+            Purpose = VerificationPurpose.EmailVerification,
+            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+            IsUsed = false
+        };
+
+        var activeCodes = await _context.UserVerificationCodes
+            .Where(vc => vc.UserId == user.Id && vc.Purpose == VerificationPurpose.EmailVerification && !vc.IsUsed)
+            .ToListAsync(cancellationToken);
+
+        foreach (var activeCode in activeCodes)
+        {
+            activeCode.IsUsed = true;
+        }
+
+        _context.UserVerificationCodes.Add(verificationCode);
+        await _context.SaveChangesAsync(cancellationToken);
+
+        var persistedUser = await LoadUserByIdAsync(user.Id, cancellationToken) ?? user;
+        await TrySendWelcomeEmailAsync(persistedUser, role, verificationCode.Code, cancellationToken);
+
         return new AuthResponse
         {
-            Success = false,
-            Message = string.Join(" ", addToRoleResult.Errors.Select(error => error.Description))
+            Success = true,
+            Message = RegistrationVerificationMessage,
+            User = MapToUserDto(persistedUser, roleName)
         };
     }
-
-    var verificationCode = new UserVerificationCode
-    {
-        UserId = user.Id,
-        Code = GenerateVerificationCode(),
-        Purpose = VerificationPurpose.EmailVerification,
-        ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-        IsUsed = false
-    };
-
-    var activeCodes = await _context.UserVerificationCodes
-        .Where(vc => vc.UserId == user.Id && vc.Purpose == VerificationPurpose.EmailVerification && !vc.IsUsed)
-        .ToListAsync(cancellationToken);
-
-    foreach (var activeCode in activeCodes)
-    {
-        activeCode.IsUsed = true;
-    }
-
-    _context.UserVerificationCodes.Add(verificationCode);
-    await _context.SaveChangesAsync(cancellationToken);
-
-    var persistedUser = await LoadUserByIdAsync(user.Id, cancellationToken) ?? user;
-    await TrySendWelcomeEmailAsync(persistedUser, role, verificationCode.Code, cancellationToken);
-
-    return new AuthResponse
-    {
-        Success = true,
-        Message = RegistrationVerificationMessage,
-        User = MapToUserDto(persistedUser, roleName)
-    };
-}
     private async Task<UserVerificationCode> CreateVerificationCodeAsync(
         Guid userId,
         VerificationPurpose purpose,
@@ -794,11 +740,6 @@ private async Task<AuthResponse> SaveUserWithRoleAsync(
         }
     }
 
-    private string NormalizeEmail(string email)
-    {
-        return email.Trim().ToLowerInvariant();
-    }
-
     private static string GenerateVerificationCode()
     {
         var buffer = new byte[4];
@@ -807,87 +748,82 @@ private async Task<AuthResponse> SaveUserWithRoleAsync(
         var code = BitConverter.ToUInt32(buffer, 0) % 1000000;
         return code.ToString("D6");
     }
-public async Task<ApiResponse> ResendVerificationCodeAsync(
-    ResendVerificationCodeRequest request, 
-    CancellationToken cancellationToken = default)
-{
-    try
+    public async Task<ApiResponse> ResendVerificationCodeAsync(
+        ResendVerificationCodeRequest request,
+        CancellationToken cancellationToken = default)
     {
-        var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
-        
-        if (user == null)
+        return await _exceptionHandler.ExecuteAsync(async () =>
         {
-            _logger.LogWarning("Resend verification code attempt for non-existent email: {Email}", request.Email);
-            return new ApiResponse 
-            { 
+            var user = await LoadUserByEmailAsync(request.Email, cancellationToken);
+
+            if (user == null)
+            {
+                _logger.LogWarning("Resend verification code attempt for non-existent email: {Email}", request.Email);
+                return new ApiResponse
+                {
+                    Success = true,
+                    Message = "If your email is registered and not verified, you will receive a new verification code."
+                };
+            }
+
+            if (user.EmailConfirmed)
+            {
+                return new ApiResponse
+                {
+                    Success = false,
+                    Message = "This email is already verified. You can login directly."
+                };
+            }
+
+            // تعطيل الأكواد القديمة
+            var oldCodes = await _context.UserVerificationCodes
+                .Where(vc => vc.UserId == user.Id
+                    && vc.Purpose == VerificationPurpose.EmailVerification
+                    && !vc.IsUsed)
+                .ToListAsync(cancellationToken);
+
+            foreach (var oldCode in oldCodes)
+            {
+                oldCode.IsUsed = true;
+            }
+
+            var newCode = GenerateVerificationCode();
+            var verificationCode = new UserVerificationCode
+            {
+                UserVerificationCodeId = Guid.NewGuid(),
+                UserId = user.Id,
+                Code = newCode,
+                Purpose = VerificationPurpose.EmailVerification,
+                ExpiresAt = DateTime.UtcNow.AddMinutes(15),
+                IsUsed = false,
+            };
+
+            _context.UserVerificationCodes.Add(verificationCode);
+            await _context.SaveChangesAsync(cancellationToken);
+
+            var userRole = await GetPrimaryRoleAsync(user);
+
+            if (Enum.TryParse<UserSystemRole>(userRole, true, out var roleEnum))
+            {
+                await TrySendWelcomeEmailAsync(user, roleEnum, newCode, cancellationToken);
+            }
+            else
+            {
+                _logger.LogWarning("Could not parse role '{Role}' for user {Email}, using default Patient role", userRole, user.Email);
+                await TrySendWelcomeEmailAsync(user, UserSystemRole.Patient, newCode, cancellationToken);
+            }
+
+            _logger.LogInformation("New verification code sent to email: {Email}", request.Email);
+
+            return new ApiResponse
+            {
                 Success = true,
-                Message = "If your email is registered and not verified, you will receive a new verification code." 
+                Message = "A new verification code has been sent to your email. It will expire in 15 minutes."
             };
-        }
-
-        if (user.EmailConfirmed)
+        }, _ => new ApiResponse
         {
-            return new ApiResponse 
-            { 
-                Success = false, 
-                Message = "This email is already verified. You can login directly." 
-            };
-        }
-
-        // تعطيل الأكواد القديمة
-        var oldCodes = await _context.UserVerificationCodes
-            .Where(vc => vc.UserId == user.Id 
-                && vc.Purpose == VerificationPurpose.EmailVerification 
-                && !vc.IsUsed)
-            .ToListAsync(cancellationToken);
-
-        foreach (var oldCode in oldCodes)
-        {
-            oldCode.IsUsed = true;
-        }
-
-        var newCode = GenerateVerificationCode();
-        var verificationCode = new UserVerificationCode
-        {
-            UserVerificationCodeId = Guid.NewGuid(),
-            UserId = user.Id,
-            Code = newCode,
-            Purpose = VerificationPurpose.EmailVerification,
-            ExpiresAt = DateTime.UtcNow.AddMinutes(15),
-            IsUsed = false,
-        };
-
-        _context.UserVerificationCodes.Add(verificationCode);
-        await _context.SaveChangesAsync(cancellationToken);
-
-        var userRole = await GetPrimaryRoleAsync(user);  
-        
-        if (Enum.TryParse<UserSystemRole>(userRole, true, out var roleEnum))
-        {
-            await TrySendWelcomeEmailAsync(user, roleEnum, newCode, cancellationToken);
-        }
-        else
-        {
-            _logger.LogWarning("Could not parse role '{Role}' for user {Email}, using default Patient role", userRole, user.Email);
-            await TrySendWelcomeEmailAsync(user, UserSystemRole.Patient, newCode, cancellationToken);
-        }
-
-        _logger.LogInformation("New verification code sent to email: {Email}", request.Email);
-
-        return new ApiResponse 
-        { 
-            Success = true, 
-            Message = "A new verification code has been sent to your email. It will expire in 15 minutes." 
-        };
+            Success = false,
+            Message = "An error occurred. Please try again later."
+        }, nameof(ResendVerificationCodeAsync));
     }
-    catch (Exception ex)
-    {
-        _logger.LogError(ex, "Error resending verification code to {Email}", request.Email);
-        return new ApiResponse 
-        { 
-            Success = false, 
-            Message = "An error occurred. Please try again later." 
-        };
-    }
-}
 }
