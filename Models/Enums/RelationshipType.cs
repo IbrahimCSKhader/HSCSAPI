@@ -11,5 +11,6 @@ public enum RelationshipType
     Husband = 7,
     Wife = 8,
     Guardian = 9,
-    Other = 10
+    Other = 10,
+    Spouse = 11
 }
