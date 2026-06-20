@@ -1,4 +1,5 @@
 using HSCSAPI.Models.Clinics;
+using HSCSAPI.Models.Chats;
 using HSCSAPI.Models.Notifications;
 using HSCSAPI.Models.Profiles;
 using Microsoft.AspNetCore.Identity;
@@ -25,4 +26,7 @@ public class User : IdentityUser<Guid>
     public ICollection<Notification> Notifications { get; set; } = new HashSet<Notification>();
     public ICollection<Clinic> CreatedClinics { get; set; } = new HashSet<Clinic>();
     public ICollection<UserVerificationCode> VerificationCodes { get; set; } = new HashSet<UserVerificationCode>();
+    public ICollection<Chat> ChatsAsUserOne { get; set; } = new HashSet<Chat>();
+    public ICollection<Chat> ChatsAsUserTwo { get; set; } = new HashSet<Chat>();
+    public ICollection<ChatMessage> SentChatMessages { get; set; } = new HashSet<ChatMessage>();
 }

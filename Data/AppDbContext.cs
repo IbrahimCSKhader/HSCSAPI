@@ -1,4 +1,5 @@
 using HSCSAPI.Models.Appointments;
+using HSCSAPI.Models.Chats;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Laboratory;
@@ -57,6 +58,8 @@ public class AppDbContext : AppIdentityDbContextBase
 
     public DbSet<AvailabilitySlot> AvailabilitySlots => Set<AvailabilitySlot>();
     public DbSet<Appointment> Appointments => Set<Appointment>();
+    public DbSet<Chat> Chats => Set<Chat>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {

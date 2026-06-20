@@ -6,6 +6,7 @@ using HSCSAPI.Services.Appointments;
 using HSCSAPI.Services.AuthorizedMembers;
 using HSCSAPI.Services.Auth;
 using HSCSAPI.Services.Clinics;
+using HSCSAPI.Services.Chats;
 using HSCSAPI.Services.Common;
 using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Email;
@@ -22,6 +23,8 @@ using Microsoft.IdentityModel.Tokens;
 using Scalar.AspNetCore;
 using System.Text;
 using Microsoft.EntityFrameworkCore;
+using HSCSAPI.Hub;
+using Microsoft.AspNetCore.SignalR;
 
 namespace HSCSAPI
 {
@@ -33,6 +36,7 @@ namespace HSCSAPI
 
 
             builder.Services.AddControllers();
+            builder.Services.AddSignalR();
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowAll", policy =>
@@ -93,6 +97,21 @@ namespace HSCSAPI
                         ValidAudience = jwtAudience,
                         IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtSecret))
                     };
+                    options.Events = new JwtBearerEvents
+                    {
+                        OnMessageReceived = context =>
+                        {
+                            var accessToken = context.Request.Query["access_token"];
+                            var path = context.HttpContext.Request.Path;
+                            if (!string.IsNullOrEmpty(accessToken)
+                                && path.StartsWithSegments("/hubs"))
+                            {
+                                context.Token = accessToken;
+                            }
+
+                            return Task.CompletedTask;
+                        }
+                    };
                 });
 
             builder.Services.AddAuthorization();
@@ -104,6 +123,9 @@ namespace HSCSAPI
             builder.Services.AddScoped<ITokenService, TokenService>();
             builder.Services.AddScoped<IAuthService, AuthService>();
             builder.Services.AddScoped<IClinicsService, ClinicsService>();
+            builder.Services.AddScoped<IChatFileStorage, ChatFileStorage>();
+            builder.Services.AddScoped<IChatService, ChatService>();
+            builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
             builder.Services.AddScoped<IDoctorsService, DoctorsService>();
             builder.Services.AddScoped<ILaboratoryTechnologistsService, LaboratoryTechnologistsService>();
             builder.Services.AddScoped<IPatientProfileService, PatientProfileService>();
@@ -131,6 +153,8 @@ namespace HSCSAPI
 
 
             app.MapControllers();
+            app.MapHub<ChatHub>("/hubs/chat");
+            app.MapHub<NotificationHub>("/hubs/notifications");
 
             await app.RunAsync();
         }

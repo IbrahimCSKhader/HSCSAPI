@@ -88,6 +88,15 @@ public class PatientProfileService : IPatientProfileService
             .AsNoTracking()
             .CountAsync(notification => notification.UserId == patientId.Value && !notification.IsRead, cancellationToken);
 
+        var unreadMessagesCount = await _dbContext.ChatMessages
+            .AsNoTracking()
+            .CountAsync(
+                message => message.SenderId != patientId.Value
+                    && message.ReadAt == null
+                    && (message.Chat.UserOneId == patientId.Value
+                        || message.Chat.UserTwoId == patientId.Value),
+                cancellationToken);
+
         var medicalRecordsQuery = _dbContext.MedicalFiles
             .AsNoTracking()
             .Where(file => file.Appointment.PatientId == patientId.Value);
@@ -120,7 +129,7 @@ public class PatientProfileService : IPatientProfileService
             PatientId = patient.PatientId,
             PatientName = patient.Name,
             UpcomingAppointmentsCount = upcomingAppointmentsCount,
-            UnreadMessagesCount = 0,
+            UnreadMessagesCount = unreadMessagesCount,
             UnreadNotificationsCount = unreadNotificationsCount,
             UpcomingAppointments = upcomingAppointments,
             HealthOverview = new PatientHealthOverviewResponse

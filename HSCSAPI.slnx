@@ -1,3 +1,4 @@
 <Solution>
   <Project Path="HSCSAPI.csproj" />
+  <Project Path="HSCSAPI.Tests/HSCSAPI.Tests.csproj" />
 </Solution>
