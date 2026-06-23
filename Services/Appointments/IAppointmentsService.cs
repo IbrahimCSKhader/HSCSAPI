@@ -14,6 +14,8 @@ public interface IAppointmentsService
         CancellationToken cancellationToken = default);
 
     Task<ActionResult<List<AppointmentResponse>>> GetMineAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 

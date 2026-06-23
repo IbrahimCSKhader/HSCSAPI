@@ -35,22 +35,9 @@ public class AppointmentsService : IAppointmentsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
     {
-        if (fromDate.HasValue && toDate.HasValue && fromDate.Value > toDate.Value)
-        {
-            throw new ArgumentException("fromDate must be before or equal to toDate.");
-        }
+        ValidateDateRange(fromDate, toDate);
 
-        var query = BuildAppointmentResponseQuery();
-
-        if (fromDate.HasValue)
-        {
-            query = query.Where(appointment => appointment.AppointmentDate >= fromDate.Value);
-        }
-
-        if (toDate.HasValue)
-        {
-            query = query.Where(appointment => appointment.AppointmentDate <= toDate.Value);
-        }
+        var query = ApplyDateRangeFilter(BuildAppointmentResponseQuery(), fromDate, toDate);
 
         if (user.IsInRole(nameof(UserSystemRole.SuperAdmin)))
         {
@@ -101,16 +88,20 @@ public class AppointmentsService : IAppointmentsService
     }
 
     public async Task<ActionResult<List<AppointmentResponse>>> GetMineAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
     {
+        ValidateDateRange(fromDate, toDate);
+
         var currentUserId = GetCurrentUserId(user);
         if (currentUserId is null)
         {
             throw new UnauthorizedAccessException("Invalid token.");
         }
 
-        var query = BuildAppointmentResponseQuery();
+        var query = ApplyDateRangeFilter(BuildAppointmentResponseQuery(), fromDate, toDate);
 
         if (user.IsInRole(nameof(UserSystemRole.Doctor)))
         {
@@ -450,6 +441,32 @@ public class AppointmentsService : IAppointmentsService
     {
         return await BuildAppointmentResponseQuery()
             .FirstOrDefaultAsync(x => x.AppointmentId == appointmentId, cancellationToken);
+    }
+
+    private static void ValidateDateRange(DateOnly? fromDate, DateOnly? toDate)
+    {
+        if (fromDate.HasValue && toDate.HasValue && fromDate.Value > toDate.Value)
+        {
+            throw new ArgumentException("fromDate must be before or equal to toDate.");
+        }
+    }
+
+    private static IQueryable<AppointmentResponse> ApplyDateRangeFilter(
+        IQueryable<AppointmentResponse> query,
+        DateOnly? fromDate,
+        DateOnly? toDate)
+    {
+        if (fromDate.HasValue)
+        {
+            query = query.Where(appointment => appointment.AppointmentDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            query = query.Where(appointment => appointment.AppointmentDate <= toDate.Value);
+        }
+
+        return query;
     }
 
     private static IQueryable<AppointmentResponse> OrderAppointments(IQueryable<AppointmentResponse> query)

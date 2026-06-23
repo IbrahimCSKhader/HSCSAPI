@@ -31,9 +31,12 @@ public class AppointmentsController : ControllerBase
 
     [HttpGet("me")]
     [Authorize(Roles = nameof(UserSystemRole.Patient) + "," + nameof(UserSystemRole.Doctor))]
-    public async Task<ActionResult<List<AppointmentResponse>>> GetMine(CancellationToken cancellationToken)
+    public async Task<ActionResult<List<AppointmentResponse>>> GetMine(
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken cancellationToken)
     {
-        return await _appointmentsService.GetMineAsync(User, cancellationToken);
+        return await _appointmentsService.GetMineAsync(fromDate, toDate, User, cancellationToken);
     }
 
     [HttpGet("{appointmentId:guid}")]
