@@ -83,3 +83,55 @@ public class ChangeDoctorPasswordRequest
 public class ChangeDoctorPasswordResponse : ApiResponse
 {
 }
+
+public class DoctorMedicalRecordsResponse
+{
+    public int Page { get; set; }
+    public int PageSize { get; set; }
+    public int TotalCount { get; set; }
+    public int TotalPages { get; set; }
+    public DoctorMedicalRecordTypeCountsResponse TypeCounts { get; set; } = new();
+    public List<DoctorMedicalRecordResponse> Items { get; set; } = [];
+}
+
+public class DoctorMedicalRecordTypeCountsResponse
+{
+    public int All { get; set; }
+    public int LabTest { get; set; }
+    public int ImagingTest { get; set; }
+    public int Visit { get; set; }
+}
+
+public class DoctorMedicalRecordResponse
+{
+    public Guid MedicalFileId { get; set; }
+    public Guid AppointmentId { get; set; }
+    public string RecordCode { get; set; } = string.Empty;
+    public string RecordType { get; set; } = string.Empty;
+    public string Title { get; set; } = string.Empty;
+    public string? Description { get; set; }
+    public string FileName { get; set; } = string.Empty;
+    public string FileType { get; set; } = string.Empty;
+    public long FileSizeInBytes { get; set; }
+    public string SeverityLevel { get; set; } = string.Empty;
+    public DateTime UploadedAt { get; set; }
+    public Guid PatientId { get; set; }
+    public string PatientUserId { get; set; } = string.Empty;
+    public string PatientName { get; set; } = string.Empty;
+    public Guid? ClinicId { get; set; }
+    public string? ClinicName { get; set; }
+    public Guid RecordedByDoctorId { get; set; }
+    public string RecordedByDoctorName { get; set; } = string.Empty;
+    public DateOnly AppointmentDate { get; set; }
+    public TimeOnly AppointmentTime { get; set; }
+    public string? LabTestName { get; set; }
+    public string? ImagingTestName { get; set; }
+    public string FileUrl { get; set; } = string.Empty;
+}
+
+public class DoctorMedicalRecordDetailResponse : DoctorMedicalRecordResponse
+{
+    public string? AppointmentNotes { get; set; }
+    public string? Summary { get; set; }
+    public string? ClinicalDetails { get; set; }
+}

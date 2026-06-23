@@ -4,6 +4,7 @@ using HSCSAPI.DTOs.Doctor;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Profiles;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -14,16 +15,20 @@ public class DoctorsService : IDoctorsService
 {
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
     public const string SuperAdminOrSecretaryOrDoctorRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Doctor);
+    private const int MaxPageSize = 100;
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<User> _userManager;
+    private readonly IWebHostEnvironment _environment;
 
     public DoctorsService(
         AppDbContext dbContext,
-        UserManager<User> userManager)
+        UserManager<User> userManager,
+        IWebHostEnvironment environment)
     {
         _dbContext = dbContext;
         _userManager = userManager;
+        _environment = environment;
     }
 
     public async Task<ActionResult<List<DoctorResponse>>> GetAllAsync(
@@ -302,6 +307,119 @@ public class DoctorsService : IDoctorsService
         }
 
         return new OkObjectResult(ToDoctorAppointmentDetail(appointment));
+    }
+
+    public async Task<ActionResult<DoctorMedicalRecordsResponse>> GetMyMedicalRecordsAsync(
+        string? patientId,
+        Guid? clinicId,
+        string? type,
+        string? query,
+        int page,
+        int pageSize,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, error) = await GetCurrentDoctorInfoOrErrorAsync(user, cancellationToken);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        NormalizePaging(ref page, ref pageSize);
+
+        var recordsQuery = BuildDoctorMedicalRecordProjectionQuery();
+        recordsQuery = ApplyMedicalRecordScopeFilters(recordsQuery, patientId, clinicId, query);
+
+        var typeCounts = new DoctorMedicalRecordTypeCountsResponse
+        {
+            All = await recordsQuery.CountAsync(cancellationToken),
+            LabTest = await recordsQuery.CountAsync(record => record.HasLabResult, cancellationToken),
+            ImagingTest = await recordsQuery.CountAsync(record => record.HasImagingResult, cancellationToken),
+            Visit = await recordsQuery.CountAsync(
+                record => !record.HasLabResult && !record.HasImagingResult,
+                cancellationToken)
+        };
+
+        if (!ApplyDoctorMedicalRecordTypeFilter(ref recordsQuery, type, out var typeError))
+        {
+            return new BadRequestObjectResult(typeError);
+        }
+
+        var totalCount = await recordsQuery.CountAsync(cancellationToken);
+        var records = await recordsQuery
+            .OrderByDescending(record => record.UploadedAt)
+            .ThenBy(record => record.MedicalFileId)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new OkObjectResult(new DoctorMedicalRecordsResponse
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize),
+            TypeCounts = typeCounts,
+            Items = records.Select(MapDoctorMedicalRecord).ToList()
+        });
+    }
+
+    public async Task<ActionResult<DoctorMedicalRecordDetailResponse>> GetMyMedicalRecordAsync(
+        Guid medicalFileId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, error) = await GetCurrentDoctorInfoOrErrorAsync(user, cancellationToken);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var record = await BuildDoctorMedicalRecordProjectionQuery()
+            .FirstOrDefaultAsync(
+                medicalRecord => medicalRecord.MedicalFileId == medicalFileId,
+                cancellationToken);
+
+        if (record is null)
+        {
+            return new NotFoundObjectResult("Medical record not found.");
+        }
+
+        return new OkObjectResult(MapDoctorMedicalRecordDetail(record));
+    }
+
+    public async Task<IActionResult> DownloadMyMedicalRecordAsync(
+        Guid medicalFileId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var (_, error) = await GetCurrentDoctorInfoOrErrorAsync(user, cancellationToken);
+        if (error is not null)
+        {
+            return error;
+        }
+
+        var record = await BuildDoctorMedicalRecordProjectionQuery()
+            .FirstOrDefaultAsync(
+                medicalRecord => medicalRecord.MedicalFileId == medicalFileId,
+                cancellationToken);
+
+        if (record is null)
+        {
+            return new NotFoundObjectResult("Medical record not found.");
+        }
+
+        var filePath = ResolvePhysicalFilePath(record.FilePath);
+        if (!File.Exists(filePath))
+        {
+            return new NotFoundObjectResult("The medical record exists, but the physical file is not available on this server.");
+        }
+
+        return new PhysicalFileResult(filePath, GetContentType(filePath))
+        {
+            FileDownloadName = Path.GetFileName(filePath),
+            EnableRangeProcessing = true
+        };
     }
 
     public async Task<ActionResult<DoctorResponse>> UpdateAsync(
@@ -605,6 +723,122 @@ public class DoctorsService : IDoctorsService
             });
     }
 
+    private IQueryable<DoctorMedicalRecordProjection> BuildDoctorMedicalRecordProjectionQuery()
+    {
+        return _dbContext.MedicalFiles
+            .AsNoTracking()
+            .Select(file => new DoctorMedicalRecordProjection
+            {
+                MedicalFileId = file.MedicalFileId,
+                AppointmentId = file.AppointmentId,
+                FileType = file.FileType,
+                FilePath = file.FilePath,
+                FileSizeInBytes = file.FileSizeInBytes,
+                SeverityLevel = file.SeverityLevel,
+                UploadedAt = file.UploadedAt,
+                PatientId = file.Appointment.PatientId,
+                PatientName = file.Appointment.Patient.User.Name,
+                PatientUserId = file.Appointment.Patient.UserID,
+                ClinicId = file.Appointment.Doctor.User.ClinicId,
+                ClinicName = file.Appointment.Doctor.User.Clinic != null ? file.Appointment.Doctor.User.Clinic.Name : null,
+                AppointmentDate = file.Appointment.AppointmentDate,
+                AppointmentTime = file.Appointment.AppointmentTime,
+                AppointmentNotes = file.Appointment.Notes,
+                RecordedByDoctorId = file.UploadedByDoctorId,
+                RecordedByDoctorName = file.UploadedByDoctor.User.Name,
+                LabTestName = file.LabTestRequestsAsResult
+                    .OrderBy(test => test.TestName)
+                    .Select(test => test.TestName)
+                    .FirstOrDefault(),
+                ImagingTestName = file.ImagingTestRequestsAsResult
+                    .OrderBy(test => test.TestName)
+                    .Select(test => test.TestName)
+                    .FirstOrDefault(),
+                HasLabResult = file.LabTestRequestsAsResult.Any(),
+                HasImagingResult = file.ImagingTestRequestsAsResult.Any()
+            });
+    }
+
+    private static IQueryable<DoctorMedicalRecordProjection> ApplyMedicalRecordScopeFilters(
+        IQueryable<DoctorMedicalRecordProjection> recordsQuery,
+        string? patientId,
+        Guid? clinicId,
+        string? query)
+    {
+        var normalizedPatientId = NormalizeOptional(patientId);
+        if (normalizedPatientId is not null)
+        {
+            if (Guid.TryParse(normalizedPatientId, out var patientGuid))
+            {
+                recordsQuery = recordsQuery.Where(record => record.PatientId == patientGuid);
+            }
+            else
+            {
+                recordsQuery = recordsQuery.Where(record => record.PatientUserId == normalizedPatientId);
+            }
+        }
+
+        if (clinicId.HasValue)
+        {
+            recordsQuery = recordsQuery.Where(record => record.ClinicId == clinicId.Value);
+        }
+
+        var normalizedQuery = NormalizeOptional(query);
+        if (normalizedQuery is not null)
+        {
+            recordsQuery = recordsQuery.Where(record =>
+                record.PatientName.Contains(normalizedQuery)
+                || record.PatientUserId.Contains(normalizedQuery)
+                || record.RecordedByDoctorName.Contains(normalizedQuery)
+                || (record.ClinicName != null && record.ClinicName.Contains(normalizedQuery))
+                || (record.AppointmentNotes != null && record.AppointmentNotes.Contains(normalizedQuery))
+                || (record.LabTestName != null && record.LabTestName.Contains(normalizedQuery))
+                || (record.ImagingTestName != null && record.ImagingTestName.Contains(normalizedQuery))
+                || record.FilePath.Contains(normalizedQuery));
+        }
+
+        return recordsQuery;
+    }
+
+    private static bool ApplyDoctorMedicalRecordTypeFilter(
+        ref IQueryable<DoctorMedicalRecordProjection> recordsQuery,
+        string? type,
+        out string error)
+    {
+        error = string.Empty;
+        var normalizedType = NormalizeOptional(type)?.ToLowerInvariant() ?? "all";
+
+        switch (normalizedType)
+        {
+            case "all":
+                return true;
+            case "lab":
+            case "labs":
+            case "lab-test":
+            case "lab-tests":
+            case "lab-results":
+                recordsQuery = recordsQuery.Where(record => record.HasLabResult);
+                return true;
+            case "imaging":
+            case "imaging-test":
+            case "imaging-tests":
+            case "imaging-results":
+                recordsQuery = recordsQuery.Where(record => record.HasImagingResult);
+                return true;
+            case "visit":
+            case "visits":
+            case "medical-record":
+            case "medical-records":
+            case "prescription":
+            case "prescriptions":
+                recordsQuery = recordsQuery.Where(record => !record.HasLabResult && !record.HasImagingResult);
+                return true;
+            default:
+                error = "Invalid record type. Use all, lab-test, imaging-test, or visit.";
+                return false;
+        }
+    }
+
     private async Task<int> CountPendingLabRequestsForClinicAsync(
         Guid? clinicId,
         CancellationToken cancellationToken)
@@ -732,10 +966,134 @@ public class DoctorsService : IDoctorsService
         };
     }
 
+    private static DoctorMedicalRecordResponse MapDoctorMedicalRecord(
+        DoctorMedicalRecordProjection record)
+    {
+        return new DoctorMedicalRecordResponse
+        {
+            MedicalFileId = record.MedicalFileId,
+            AppointmentId = record.AppointmentId,
+            RecordCode = BuildDoctorMedicalRecordCode(record),
+            RecordType = GetDoctorMedicalRecordType(record),
+            Title = GetDoctorMedicalRecordTitle(record),
+            Description = record.AppointmentNotes,
+            FileName = Path.GetFileName(record.FilePath),
+            FileType = record.FileType.ToString(),
+            FileSizeInBytes = record.FileSizeInBytes,
+            SeverityLevel = record.SeverityLevel.ToString(),
+            UploadedAt = record.UploadedAt,
+            PatientId = record.PatientId,
+            PatientUserId = record.PatientUserId,
+            PatientName = record.PatientName,
+            ClinicId = record.ClinicId,
+            ClinicName = record.ClinicName,
+            RecordedByDoctorId = record.RecordedByDoctorId,
+            RecordedByDoctorName = record.RecordedByDoctorName,
+            AppointmentDate = record.AppointmentDate,
+            AppointmentTime = record.AppointmentTime,
+            LabTestName = record.LabTestName,
+            ImagingTestName = record.ImagingTestName,
+            FileUrl = $"/api/Doctors/me/medical-records/{record.MedicalFileId}/download"
+        };
+    }
+
+    private static DoctorMedicalRecordDetailResponse MapDoctorMedicalRecordDetail(
+        DoctorMedicalRecordProjection record)
+    {
+        var summary = record.AppointmentNotes
+            ?? $"{GetDoctorMedicalRecordTitle(record)} recorded by {record.RecordedByDoctorName}.";
+
+        return new DoctorMedicalRecordDetailResponse
+        {
+            MedicalFileId = record.MedicalFileId,
+            AppointmentId = record.AppointmentId,
+            RecordCode = BuildDoctorMedicalRecordCode(record),
+            RecordType = GetDoctorMedicalRecordType(record),
+            Title = GetDoctorMedicalRecordTitle(record),
+            Description = record.AppointmentNotes,
+            FileName = Path.GetFileName(record.FilePath),
+            FileType = record.FileType.ToString(),
+            FileSizeInBytes = record.FileSizeInBytes,
+            SeverityLevel = record.SeverityLevel.ToString(),
+            UploadedAt = record.UploadedAt,
+            PatientId = record.PatientId,
+            PatientUserId = record.PatientUserId,
+            PatientName = record.PatientName,
+            ClinicId = record.ClinicId,
+            ClinicName = record.ClinicName,
+            RecordedByDoctorId = record.RecordedByDoctorId,
+            RecordedByDoctorName = record.RecordedByDoctorName,
+            AppointmentDate = record.AppointmentDate,
+            AppointmentTime = record.AppointmentTime,
+            LabTestName = record.LabTestName,
+            ImagingTestName = record.ImagingTestName,
+            FileUrl = $"/api/Doctors/me/medical-records/{record.MedicalFileId}/download",
+            AppointmentNotes = record.AppointmentNotes,
+            Summary = summary,
+            ClinicalDetails = record.AppointmentNotes
+        };
+    }
+
+    private static string GetDoctorMedicalRecordType(DoctorMedicalRecordProjection record)
+    {
+        if (record.HasLabResult)
+        {
+            return "LabTest";
+        }
+
+        if (record.HasImagingResult)
+        {
+            return "ImagingTest";
+        }
+
+        return "Visit";
+    }
+
+    private static string GetDoctorMedicalRecordTitle(DoctorMedicalRecordProjection record)
+    {
+        return record.LabTestName
+            ?? record.ImagingTestName
+            ?? Path.GetFileNameWithoutExtension(record.FilePath)
+            ?? $"{record.FileType} medical record";
+    }
+
+    private static string BuildDoctorMedicalRecordCode(DoctorMedicalRecordProjection record)
+    {
+        return $"MR-{record.UploadedAt:yyyy}-{record.MedicalFileId.ToString("N")[..8].ToUpperInvariant()}";
+    }
+
     private static int CalculateDurationMinutes(TimeOnly startTime, TimeOnly endTime)
     {
         var minutes = (int)(endTime.ToTimeSpan() - startTime.ToTimeSpan()).TotalMinutes;
         return minutes > 0 ? minutes : 45;
+    }
+
+    private string ResolvePhysicalFilePath(string filePath)
+    {
+        if (Path.IsPathRooted(filePath))
+        {
+            return filePath;
+        }
+
+        return Path.GetFullPath(Path.Combine(_environment.ContentRootPath, filePath));
+    }
+
+    private static string GetContentType(string filePath)
+    {
+        return Path.GetExtension(filePath).ToLowerInvariant() switch
+        {
+            ".pdf" => "application/pdf",
+            ".jpg" or ".jpeg" => "image/jpeg",
+            ".png" => "image/png",
+            ".txt" => "text/plain",
+            _ => "application/octet-stream"
+        };
+    }
+
+    private static void NormalizePaging(ref int page, ref int pageSize)
+    {
+        page = page <= 0 ? 1 : page;
+        pageSize = pageSize <= 0 ? 20 : Math.Min(pageSize, MaxPageSize);
     }
 
     private IQueryable<DoctorResponse> BuildDoctorResponseQuery()
@@ -907,5 +1265,30 @@ public class DoctorsService : IDoctorsService
         public TimeOnly SlotStartTime { get; set; }
         public TimeOnly SlotEndTime { get; set; }
         public string? Notes { get; set; }
+    }
+
+    private sealed class DoctorMedicalRecordProjection
+    {
+        public Guid MedicalFileId { get; set; }
+        public Guid AppointmentId { get; set; }
+        public MedicalFileType FileType { get; set; }
+        public string FilePath { get; set; } = string.Empty;
+        public long FileSizeInBytes { get; set; }
+        public SeverityLevel SeverityLevel { get; set; }
+        public DateTime UploadedAt { get; set; }
+        public Guid PatientId { get; set; }
+        public string PatientName { get; set; } = string.Empty;
+        public string PatientUserId { get; set; } = string.Empty;
+        public Guid? ClinicId { get; set; }
+        public string? ClinicName { get; set; }
+        public DateOnly AppointmentDate { get; set; }
+        public TimeOnly AppointmentTime { get; set; }
+        public string? AppointmentNotes { get; set; }
+        public Guid RecordedByDoctorId { get; set; }
+        public string RecordedByDoctorName { get; set; } = string.Empty;
+        public string? LabTestName { get; set; }
+        public string? ImagingTestName { get; set; }
+        public bool HasLabResult { get; set; }
+        public bool HasImagingResult { get; set; }
     }
 }

@@ -64,6 +64,46 @@ public class DoctorsController : ControllerBase
         return await _doctorsService.GetMyAppointmentDetailAsync(appointmentId, User, cancellationToken);
     }
 
+    [HttpGet("me/medical-records")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<DoctorMedicalRecordsResponse>> GetMyMedicalRecords(
+        [FromQuery] string? patientId,
+        [FromQuery] Guid? clinicId,
+        [FromQuery] string? type,
+        [FromQuery] string? query,
+        [FromQuery] int page,
+        [FromQuery] int pageSize,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetMyMedicalRecordsAsync(
+            patientId,
+            clinicId,
+            type,
+            query,
+            page,
+            pageSize,
+            User,
+            cancellationToken);
+    }
+
+    [HttpGet("me/medical-records/{medicalFileId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<DoctorMedicalRecordDetailResponse>> GetMyMedicalRecord(
+        Guid medicalFileId,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetMyMedicalRecordAsync(medicalFileId, User, cancellationToken);
+    }
+
+    [HttpGet("me/medical-records/{medicalFileId:guid}/download")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<IActionResult> DownloadMyMedicalRecord(
+        Guid medicalFileId,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.DownloadMyMedicalRecordAsync(medicalFileId, User, cancellationToken);
+    }
+
     [HttpGet("{doctorId:guid}")]
     [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryOrDoctorRoles)]
     public async Task<ActionResult<DoctorResponse>> GetById(Guid doctorId, CancellationToken cancellationToken)

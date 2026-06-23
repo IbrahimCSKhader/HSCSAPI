@@ -7,6 +7,7 @@ using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Laboratory;
+using HSCSAPI.Models.MedicalFiles;
 using HSCSAPI.Models.Profiles;
 using HSCSAPI.Models.Radiology;
 using HSCSAPI.Services.Auth;
@@ -171,6 +172,176 @@ public class DoctorPortalServiceTests
         Assert.True(await context.UserManager.CheckPasswordAsync(doctor, "OldPass123"));
     }
 
+    [Fact]
+    public async Task GetMyMedicalRecords_FiltersByPatientAndReturnsTypeCounts()
+    {
+        using var context = new DoctorPortalTestContext();
+        var mainClinic = context.AddClinic("SHCS Main Clinic");
+        var eastClinic = context.AddClinic("Eastside Health Center");
+        var doctor = await context.AddDoctorAsync(mainClinic.ClinicId);
+        var eastDoctor = await context.AddDoctorAsync(eastClinic.ClinicId, email: "east.doctor@test.local");
+        var patient = await context.AddPatientAsync(mainClinic.ClinicId, "pat-001", "Sarah Al-Hassan");
+        var otherPatient = await context.AddPatientAsync(eastClinic.ClinicId, "pat-002", "James Mitchell");
+
+        context.AddMedicalRecord(
+            doctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 20),
+            new TimeOnly(10, 30),
+            "medical-files/follow-up-consultation.pdf",
+            notes: "Patient reports improved energy.");
+        context.AddMedicalRecord(
+            doctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 17),
+            new TimeOnly(11, 0),
+            "medical-files/complete-blood-count.pdf",
+            notes: "Hemoglobin 11.2 g/dL.",
+            labTestName: "Complete Blood Count");
+        context.AddMedicalRecord(
+            eastDoctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 14),
+            new TimeOnly(15, 0),
+            "medical-files/abdominal-ultrasound.pdf",
+            notes: "No gallstones identified.",
+            imagingTestName: "Abdominal Ultrasound");
+        context.AddMedicalRecord(
+            eastDoctor.Id,
+            otherPatient.Id,
+            new DateOnly(2026, 6, 18),
+            new TimeOnly(9, 0),
+            "medical-files/lipid-panel.pdf",
+            labTestName: "Lipid Panel");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.GetMyMedicalRecordsAsync(
+            patientId: "pat-001",
+            clinicId: null,
+            type: "all",
+            query: null,
+            page: 1,
+            pageSize: 10,
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var records = OkValue(response);
+        Assert.Equal(3, records.TotalCount);
+        Assert.Equal(3, records.TypeCounts.All);
+        Assert.Equal(1, records.TypeCounts.LabTest);
+        Assert.Equal(1, records.TypeCounts.ImagingTest);
+        Assert.Equal(1, records.TypeCounts.Visit);
+        Assert.All(records.Items, record => Assert.Equal("pat-001", record.PatientUserId));
+    }
+
+    [Fact]
+    public async Task GetMyMedicalRecords_FiltersByTypeAndSearch()
+    {
+        using var context = new DoctorPortalTestContext();
+        var clinic = context.AddClinic("Eastside Health Center");
+        var doctor = await context.AddDoctorAsync(clinic.ClinicId);
+        var patient = await context.AddPatientAsync(clinic.ClinicId, "pat-003", "Fatima Rahman");
+
+        var hba1c = context.AddMedicalRecord(
+            doctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 19),
+            new TimeOnly(13, 0),
+            "medical-files/hba1c-fatima-rahman.pdf",
+            notes: "HbA1c 7.4% glycemic control above target.",
+            labTestName: "HbA1c");
+        context.AddMedicalRecord(
+            doctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 21),
+            new TimeOnly(11, 0),
+            "medical-files/diabetes-management-visit.pdf",
+            notes: "Dietary adherence reviewed.");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.GetMyMedicalRecordsAsync(
+            patientId: null,
+            clinicId: clinic.ClinicId,
+            type: "lab-test",
+            query: "HbA1c",
+            page: 1,
+            pageSize: 10,
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var records = OkValue(response);
+        var record = Assert.Single(records.Items);
+        Assert.Equal(hba1c.MedicalFileId, record.MedicalFileId);
+        Assert.Equal("LabTest", record.RecordType);
+        Assert.Equal("HbA1c", record.Title);
+        Assert.Equal(1, records.TypeCounts.LabTest);
+        Assert.Equal(0, records.TypeCounts.Visit);
+    }
+
+    [Fact]
+    public async Task GetMyMedicalRecord_ReturnsRecordFromAnotherClinic()
+    {
+        using var context = new DoctorPortalTestContext();
+        var mainClinic = context.AddClinic("SHCS Main Clinic");
+        var riversideClinic = context.AddClinic("Riverside Medical Unit");
+        var doctor = await context.AddDoctorAsync(mainClinic.ClinicId);
+        var riversideDoctor = await context.AddDoctorAsync(riversideClinic.ClinicId, email: "riverside.doctor@test.local");
+        var patient = await context.AddPatientAsync(riversideClinic.ClinicId, "pat-004", "David Chen");
+        var record = context.AddMedicalRecord(
+            riversideDoctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 16),
+            new TimeOnly(16, 0),
+            "medical-files/left-knee-mri.pdf",
+            notes: "Partial medial meniscus tear.",
+            imagingTestName: "Left Knee MRI");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.GetMyMedicalRecordAsync(
+            record.MedicalFileId,
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var detail = OkValue(response);
+        Assert.Equal("ImagingTest", detail.RecordType);
+        Assert.Equal("David Chen", detail.PatientName);
+        Assert.Equal("pat-004", detail.PatientUserId);
+        Assert.Equal("Riverside Medical Unit", detail.ClinicName);
+        Assert.Equal("Partial medial meniscus tear.", detail.Summary);
+    }
+
+    [Fact]
+    public async Task DownloadMyMedicalRecord_ReturnsRangeEnabledPhysicalFile()
+    {
+        using var context = new DoctorPortalTestContext();
+        var clinic = context.AddClinic("Eastside Health Center");
+        var doctor = await context.AddDoctorAsync(clinic.ClinicId);
+        var patient = await context.AddPatientAsync(clinic.ClinicId, "pat-005", "Layla Khoury");
+        var relativePath = Path.Combine("medical-files", "post-op-analgesia-plan.pdf");
+        var physicalPath = Path.Combine(context.ContentRootPath, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(physicalPath)!);
+        await File.WriteAllBytesAsync(physicalPath, [0x25, 0x50, 0x44, 0x46]);
+        var record = context.AddMedicalRecord(
+            doctor.Id,
+            patient.Id,
+            new DateOnly(2026, 6, 21),
+            new TimeOnly(15, 0),
+            relativePath,
+            notes: "Paracetamol 500mg PRN.");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.DownloadMyMedicalRecordAsync(
+            record.MedicalFileId,
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var file = Assert.IsType<PhysicalFileResult>(response);
+        Assert.Equal(physicalPath, file.FileName);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.Equal("post-op-analgesia-plan.pdf", file.FileDownloadName);
+        Assert.True(file.EnableRangeProcessing);
+    }
+
     private static T OkValue<T>(ActionResult<T> response)
     {
         var ok = Assert.IsType<OkObjectResult>(response.Result);
@@ -184,6 +355,9 @@ internal sealed class DoctorPortalTestContext : IDisposable
 
     public DoctorPortalTestContext()
     {
+        ContentRootPath = Path.Combine(Path.GetTempPath(), "hscsapi-doctor-portal-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(ContentRootPath);
+
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddDataProtection();
@@ -208,9 +382,10 @@ internal sealed class DoctorPortalTestContext : IDisposable
         _serviceProvider = services.BuildServiceProvider();
         DbContext = _serviceProvider.GetRequiredService<AppDbContext>();
         UserManager = _serviceProvider.GetRequiredService<UserManager<User>>();
-        Service = new DoctorsService(DbContext, UserManager);
+        Service = new DoctorsService(DbContext, UserManager, new TestWebHostEnvironment(ContentRootPath));
     }
 
+    public string ContentRootPath { get; }
     public AppDbContext DbContext { get; }
     public UserManager<User> UserManager { get; }
     public DoctorsService Service { get; }
@@ -289,6 +464,60 @@ internal sealed class DoctorPortalTestContext : IDisposable
         DbContext.AvailabilitySlots.Add(slot);
         DbContext.Appointments.Add(appointment);
         return appointment;
+    }
+
+    public MedicalFile AddMedicalRecord(
+        Guid doctorId,
+        Guid patientId,
+        DateOnly date,
+        TimeOnly time,
+        string filePath,
+        MedicalFileType fileType = MedicalFileType.Pdf,
+        SeverityLevel severityLevel = SeverityLevel.Low,
+        string? notes = "Medical record note",
+        string? labTestName = null,
+        string? imagingTestName = null)
+    {
+        var appointment = AddAppointment(
+            doctorId,
+            patientId,
+            date,
+            time,
+            notes: notes);
+        var medicalFile = new MedicalFile
+        {
+            MedicalFileId = Guid.NewGuid(),
+            AppointmentId = appointment.AppointmentId,
+            UploadedByDoctorId = doctorId,
+            FileType = fileType,
+            FilePath = filePath,
+            EncryptedChecksum = $"checksum-{Guid.NewGuid():N}",
+            FileSizeInBytes = 160 * 1024,
+            SeverityLevel = severityLevel,
+            UploadedAt = date.ToDateTime(time)
+        };
+
+        DbContext.MedicalFiles.Add(medicalFile);
+
+        if (!string.IsNullOrWhiteSpace(labTestName))
+        {
+            DbContext.LabTestRequests.Add(new LabTestRequest
+            {
+                TestName = labTestName,
+                ResultMedicalFileId = medicalFile.MedicalFileId
+            });
+        }
+
+        if (!string.IsNullOrWhiteSpace(imagingTestName))
+        {
+            DbContext.ImagingTestRequests.Add(new ImagingTestRequest
+            {
+                TestName = imagingTestName,
+                ResultMedicalFileId = medicalFile.MedicalFileId
+            });
+        }
+
+        return medicalFile;
     }
 
     public async Task AddPendingClinicalRequestsAsync(Guid clinicId, int labCount, int imagingCount)
@@ -375,6 +604,10 @@ internal sealed class DoctorPortalTestContext : IDisposable
     {
         DbContext.Dispose();
         _serviceProvider.Dispose();
+        if (Directory.Exists(ContentRootPath))
+        {
+            Directory.Delete(ContentRootPath, recursive: true);
+        }
     }
 
     private async Task<User> AddUserAsync(string email, string name, Guid clinicId, string password)

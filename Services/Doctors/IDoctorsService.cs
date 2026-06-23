@@ -40,6 +40,26 @@ public interface IDoctorsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ActionResult<DoctorMedicalRecordsResponse>> GetMyMedicalRecordsAsync(
+        string? patientId,
+        Guid? clinicId,
+        string? type,
+        string? query,
+        int page,
+        int pageSize,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<ActionResult<DoctorMedicalRecordDetailResponse>> GetMyMedicalRecordAsync(
+        Guid medicalFileId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> DownloadMyMedicalRecordAsync(
+        Guid medicalFileId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
     Task<ActionResult<DoctorResponse>> UpdateAsync(
         Guid doctorId,
         UpdateDoctorRequest request,
