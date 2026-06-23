@@ -11,6 +11,9 @@
 
   <ItemGroup>
     <Compile Remove="HSCSAPI.Tests\**\*.cs" />
+    <Content Remove="HSCSAPI.Tests\**\*" />
+    <EmbeddedResource Remove="HSCSAPI.Tests\**\*" />
+    <None Remove="HSCSAPI.Tests\**\*" />
   </ItemGroup>
 
   <ItemGroup>

@@ -10,6 +10,7 @@ using HSCSAPI.Models.Radiology;
 using HSCSAPI.Models.Relations;
 using HSCSAPI.Models.Reminders;
 using HSCSAPI.Models.Secretaries;
+using HSCSAPI.Models.Standards;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -55,6 +56,7 @@ public class AppDbContext : AppIdentityDbContextBase
 
     public DbSet<LabTestRequest> LabTestRequests => Set<LabTestRequest>();
     public DbSet<ImagingTestRequest> ImagingTestRequests => Set<ImagingTestRequest>();
+    public DbSet<LoincCode> LoincCodes => Set<LoincCode>();
 
     public DbSet<AvailabilitySlot> AvailabilitySlots => Set<AvailabilitySlot>();
     public DbSet<Appointment> Appointments => Set<Appointment>();

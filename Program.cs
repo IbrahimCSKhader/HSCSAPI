@@ -11,11 +11,13 @@ using HSCSAPI.Services.Common;
 using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.Laboratory;
 using HSCSAPI.Services.LaboratoryTechnologists;
 using HSCSAPI.Services.PatientProfile;
 using HSCSAPI.Services.Patients;
 using HSCSAPI.Services.RadiologyTechnologists;
 using HSCSAPI.Services.Secretaries;
+using HSCSAPI.Services.Standards;
 using Microsoft.AspNetCore.Identity;
 using HSCSAPI.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
@@ -127,6 +129,13 @@ namespace HSCSAPI
             builder.Services.AddScoped<IChatService, ChatService>();
             builder.Services.AddSingleton<IUserIdProvider, NameIdentifierUserIdProvider>();
             builder.Services.AddScoped<IDoctorsService, DoctorsService>();
+            builder.Services.AddScoped<IStandardsService, StandardsService>();
+            builder.Services.AddScoped<ILabTestRequestsService, LabTestRequestsService>();
+            builder.Services.AddHttpClient<IRxNormService, RxNormService>(client =>
+            {
+                client.BaseAddress = new Uri("https://rxnav.nlm.nih.gov/REST/");
+                client.Timeout = TimeSpan.FromSeconds(10);
+            });
             builder.Services.AddScoped<ILaboratoryTechnologistsService, LaboratoryTechnologistsService>();
             builder.Services.AddScoped<IPatientProfileService, PatientProfileService>();
             builder.Services.AddScoped<IPatientsService, PatientsService>();
