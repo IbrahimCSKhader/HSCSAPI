@@ -38,6 +38,32 @@ public class DoctorsController : ControllerBase
         return await _doctorsService.GetMyProfileAsync(User, cancellationToken);
     }
 
+    [HttpGet("me/dashboard")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<DoctorDashboardResponse>> GetMyDashboard(CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetMyDashboardAsync(User, cancellationToken);
+    }
+
+    [HttpGet("me/appointments")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<DoctorAppointmentsScheduleResponse>> GetMyAppointments(
+        [FromQuery] DateOnly? fromDate,
+        [FromQuery] DateOnly? toDate,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetMyAppointmentsScheduleAsync(fromDate, toDate, User, cancellationToken);
+    }
+
+    [HttpGet("me/appointments/{appointmentId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<DoctorAppointmentDetailResponse>> GetMyAppointmentDetail(
+        Guid appointmentId,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetMyAppointmentDetailAsync(appointmentId, User, cancellationToken);
+    }
+
     [HttpGet("{doctorId:guid}")]
     [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryOrDoctorRoles)]
     public async Task<ActionResult<DoctorResponse>> GetById(Guid doctorId, CancellationToken cancellationToken)
@@ -62,6 +88,15 @@ public class DoctorsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await _doctorsService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    [HttpPut("me/password")]
+    [Authorize(Roles = nameof(UserSystemRole.Doctor))]
+    public async Task<ActionResult<ChangeDoctorPasswordResponse>> ChangeMyPassword(
+        [FromBody] ChangeDoctorPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpDelete("{doctorId:guid}")]

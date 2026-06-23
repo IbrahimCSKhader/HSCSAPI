@@ -25,6 +25,21 @@ public interface IDoctorsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ActionResult<DoctorDashboardResponse>> GetMyDashboardAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<ActionResult<DoctorAppointmentsScheduleResponse>> GetMyAppointmentsScheduleAsync(
+        DateOnly? fromDate,
+        DateOnly? toDate,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<ActionResult<DoctorAppointmentDetailResponse>> GetMyAppointmentDetailAsync(
+        Guid appointmentId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
     Task<ActionResult<DoctorResponse>> UpdateAsync(
         Guid doctorId,
         UpdateDoctorRequest request,
@@ -33,6 +48,11 @@ public interface IDoctorsService
 
     Task<ActionResult<DoctorResponse>> UpdateMyProfileAsync(
         UpdateMyDoctorProfileRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<ActionResult<ChangeDoctorPasswordResponse>> ChangeMyPasswordAsync(
+        ChangeDoctorPasswordRequest request,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
