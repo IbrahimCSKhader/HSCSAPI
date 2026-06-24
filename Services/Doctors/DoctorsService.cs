@@ -871,8 +871,9 @@ public class DoctorsService : IDoctorsService
             .AsNoTracking()
             .CountAsync(
                 request => request.ResultMedicalFileId == null
-                    && request.RadiologyTechnologist != null
-                    && request.RadiologyTechnologist.User.ClinicId == clinicId.Value,
+                    && (request.RadiologyClinicId == clinicId.Value
+                        || (request.RadiologyTechnologist != null
+                            && request.RadiologyTechnologist.User.ClinicId == clinicId.Value)),
                 cancellationToken);
     }
 

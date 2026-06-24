@@ -54,3 +54,10 @@ public class RadiologyPlaybookResponse
     public string? Laterality { get; set; }
     public string? ReasonForExam { get; set; }
 }
+
+public class ImagingTypeResponse
+{
+    public string Code { get; set; } = string.Empty;
+    public string Display { get; set; } = string.Empty;
+    public string Modality { get; set; } = string.Empty;
+}

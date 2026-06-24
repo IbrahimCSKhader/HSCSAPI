@@ -88,6 +88,14 @@ public class StandardsController : ControllerBase
         return result is null ? NotFound("Radiology playbook code not found.") : Ok(result);
     }
 
+    [HttpGet("imaging-types")]
+    public async Task<ActionResult<List<ImagingTypeResponse>>> GetImagingTypes(
+        [FromQuery] string? query,
+        CancellationToken cancellationToken)
+    {
+        return await _standardsService.GetImagingTypesAsync(query, cancellationToken);
+    }
+
     [HttpGet("search")]
     public async Task<ActionResult<StandardPagedResponse<StandardSearchItemResponse>>> SearchAll(
         [FromQuery] string? query,

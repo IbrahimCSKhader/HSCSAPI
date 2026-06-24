@@ -35,6 +35,10 @@ public interface IStandardsService
         string rpid,
         CancellationToken cancellationToken = default);
 
+    Task<List<ImagingTypeResponse>> GetImagingTypesAsync(
+        string? query,
+        CancellationToken cancellationToken = default);
+
     Task<StandardPagedResponse<StandardSearchItemResponse>> SearchAllAsync(
         string? query,
         int page,

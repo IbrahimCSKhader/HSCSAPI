@@ -22,6 +22,15 @@ public class StandardsService : IStandardsService
         "24356-8"
     ];
 
+    private static readonly IReadOnlyList<ImagingTypeResponse> ImagingTypes =
+    [
+        new ImagingTypeResponse { Code = "XRAY", Display = "XRAY - X-Ray", Modality = "XR" },
+        new ImagingTypeResponse { Code = "MRI", Display = "MRI - MRI", Modality = "MR" },
+        new ImagingTypeResponse { Code = "CT", Display = "CT - CT Scan", Modality = "CT" },
+        new ImagingTypeResponse { Code = "US", Display = "US - Ultrasound", Modality = "US" },
+        new ImagingTypeResponse { Code = "MAMMO", Display = "MAMMO - Mammography", Modality = "MG" }
+    ];
+
     private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<LoincCodeResponse>>> LoincCache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<Icd10CodeResponse>>> Icd10Cache = new(StringComparer.OrdinalIgnoreCase);
     private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<RadiologyPlaybookResponse>>> RadiologyCache = new(StringComparer.OrdinalIgnoreCase);
@@ -169,6 +178,24 @@ public class StandardsService : IStandardsService
             .FirstOrDefault(item => item.Rpid.Equals(normalizedRpid, StringComparison.OrdinalIgnoreCase));
 
         return Task.FromResult(record);
+    }
+
+    public Task<List<ImagingTypeResponse>> GetImagingTypesAsync(
+        string? query,
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        var trimmedQuery = NormalizeQuery(query);
+        var records = ImagingTypes
+            .Where(item => Matches(item.Code, trimmedQuery)
+                || Matches(item.Display, trimmedQuery)
+                || Matches(item.Modality, trimmedQuery))
+            .OrderBy(item => ExactOrPrefixRank(item.Code, item.Display, trimmedQuery))
+            .ThenBy(item => item.Display)
+            .ToList();
+
+        return Task.FromResult(records);
     }
 
     public async Task<StandardPagedResponse<StandardSearchItemResponse>> SearchAllAsync(

@@ -3,12 +3,17 @@ using System.Security.Claims;
 using System.Text;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Laboratory;
+using HSCSAPI.DTOs.Radiology;
+using HSCSAPI.Models.Appointments;
 using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
+using HSCSAPI.Models.MedicalFiles;
 using HSCSAPI.Models.Profiles;
+using HSCSAPI.Models.Radiology;
 using HSCSAPI.Models.Standards;
 using HSCSAPI.Services.Laboratory;
+using HSCSAPI.Services.Radiology;
 using HSCSAPI.Services.Standards;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -31,6 +36,19 @@ public class StandardsAndLabRequestTests
         Assert.Equal("24331-1", Assert.Single(loinc.Items).Code);
         Assert.Equal("A00", Assert.Single(icd10.Items).Code);
         Assert.Equal("RPID2", Assert.Single(radiology.Items).Rpid);
+    }
+
+    [Fact]
+    public async Task StandardsService_ReturnsImagingTypesForDropdown()
+    {
+        using var context = new StandardsTestContext();
+        var service = new StandardsService(context.DbContext, new TestWebHostEnvironment(context.ContentRootPath));
+
+        var imagingTypes = await service.GetImagingTypesAsync("xray");
+
+        var xray = Assert.Single(imagingTypes);
+        Assert.Equal("XRAY", xray.Code);
+        Assert.Equal("XRAY - X-Ray", xray.Display);
     }
 
     [Fact]
@@ -129,6 +147,104 @@ public class StandardsAndLabRequestTests
 
         Assert.IsType<BadRequestObjectResult>(response.Result);
         Assert.Empty(context.DbContext.LabTestRequests);
+    }
+
+    [Fact]
+    public async Task CreateMyImagingRequestAsync_StoresImagingRequestAndListsIt()
+    {
+        using var context = new ImagingRequestTestContext();
+        var clinic = context.AddClinic("Advanced Imaging Center");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Lina Haddad");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-004", "David Chen");
+        var technologist = context.AddRadiologyTechnologist(clinic.ClinicId, "Omar Haddad");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.CreateMyRequestAsync(
+            new CreateImagingRequestRequest
+            {
+                PatientId = patient.UserID,
+                RadiologyClinicId = clinic.ClinicId,
+                ImagingCode = "MRI",
+                BodyRegion = "Left knee",
+                Priority = "Urgent",
+                ClinicalNotes = "Assess ligament involvement."
+            },
+            ImagingRequestTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        var created = OkValue(response);
+        Assert.Equal("MRI", created.ImagingCode);
+        Assert.Equal("MRI - MRI", created.TestName);
+        Assert.Equal("Left knee", created.BodyRegion);
+        Assert.Equal("Urgent", created.Priority);
+        Assert.Equal("Pending", created.Status);
+        Assert.Equal(patient.PatientId, created.PatientId);
+        Assert.Equal(technologist.RadiologyTechnologistId, created.RadiologyTechnologistId);
+
+        var listResponse = await context.Service.GetMyRequestsAsync(
+            status: "pending",
+            patientId: patient.UserID,
+            page: 1,
+            pageSize: 10,
+            ImagingRequestTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        var list = OkValue(listResponse);
+        Assert.Equal(created.ImagingTestRequestId, Assert.Single(list.Items).ImagingTestRequestId);
+    }
+
+    [Fact]
+    public async Task CreateMyImagingRequestAsync_RejectsUnknownImagingType()
+    {
+        using var context = new ImagingRequestTestContext();
+        var clinic = context.AddClinic("Advanced Imaging Center");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Lina Haddad");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-004", "David Chen");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.CreateMyRequestAsync(
+            new CreateImagingRequestRequest
+            {
+                PatientId = patient.UserID,
+                RadiologyClinicId = clinic.ClinicId,
+                ImagingCode = "unknown",
+                Priority = "Routine"
+            },
+            ImagingRequestTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(response.Result);
+        Assert.Empty(context.DbContext.ImagingTestRequests);
+    }
+
+    [Fact]
+    public async Task DownloadMyImagingResultFileAsync_ReturnsRangeEnabledPhysicalFile()
+    {
+        using var context = new ImagingRequestTestContext();
+        var clinic = context.AddClinic("SHCS Main Clinic");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Lina Haddad");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-005", "Layla Khoury");
+        var relativePath = Path.Combine("medical-files", "chest-xray-layla-khoury.png");
+        var physicalPath = Path.Combine(context.ContentRootPath, relativePath);
+        Directory.CreateDirectory(Path.GetDirectoryName(physicalPath)!);
+        await File.WriteAllBytesAsync(physicalPath, [0x89, 0x50, 0x4E, 0x47]);
+        var request = context.AddImagingResult(
+            doctor.DoctorId,
+            patient.PatientId,
+            clinic.ClinicId,
+            relativePath);
+        await context.DbContext.SaveChangesAsync();
+
+        var result = await context.Service.DownloadMyResultFileAsync(
+            request.ImagingTestRequestId,
+            ImagingRequestTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        var file = Assert.IsType<PhysicalFileResult>(result);
+        Assert.Equal(physicalPath, file.FileName);
+        Assert.Equal("image/png", file.ContentType);
+        Assert.Equal("chest-xray-layla-khoury.png", file.FileDownloadName);
+        Assert.True(file.EnableRangeProcessing);
     }
 
     private static T OkValue<T>(ActionResult<T> response)
@@ -273,6 +389,182 @@ internal sealed class LabRequestTestContext : IDisposable
             LongCommonName = display,
             Status = "ACTIVE"
         });
+    }
+
+    public static ClaimsPrincipal Principal(Guid userId)
+    {
+        return new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, nameof(UserSystemRole.Doctor))
+            ],
+            "Test"));
+    }
+
+    public void Dispose()
+    {
+        DbContext.Dispose();
+        if (Directory.Exists(ContentRootPath))
+        {
+            Directory.Delete(ContentRootPath, recursive: true);
+        }
+    }
+
+    private User AddUser(string name, Guid clinicId)
+    {
+        var id = Guid.NewGuid();
+        var email = $"{id:N}@test.local";
+        var user = new User
+        {
+            Id = id,
+            Name = name,
+            UserName = email,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            EmailConfirmed = true,
+            RegisteredAt = DateTime.UtcNow,
+            ClinicId = clinicId
+        };
+        DbContext.Users.Add(user);
+        return user;
+    }
+}
+
+internal sealed class ImagingRequestTestContext : IDisposable
+{
+    public ImagingRequestTestContext()
+    {
+        ContentRootPath = Path.Combine(Path.GetTempPath(), "hscsapi-imaging-request-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(ContentRootPath);
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        DbContext = new AppDbContext(options);
+        DbContext.Database.EnsureCreated();
+        StandardsService = new StandardsService(DbContext, new TestWebHostEnvironment(ContentRootPath));
+        Service = new ImagingRequestsService(DbContext, StandardsService, new TestWebHostEnvironment(ContentRootPath));
+    }
+
+    public string ContentRootPath { get; }
+    public AppDbContext DbContext { get; }
+    public StandardsService StandardsService { get; }
+    public ImagingRequestsService Service { get; }
+
+    public Clinic AddClinic(string name)
+    {
+        var clinic = new Clinic
+        {
+            ClinicId = Guid.NewGuid(),
+            Name = name,
+            CreatedBySuperAdminUserId = Guid.NewGuid()
+        };
+        DbContext.Clinics.Add(clinic);
+        return clinic;
+    }
+
+    public Doctor AddDoctor(Guid clinicId, string name)
+    {
+        var user = AddUser(name, clinicId);
+        var doctor = new Doctor
+        {
+            DoctorId = user.Id,
+            ProfessionalLicenseNumber = $"DOC-{Guid.NewGuid():N}",
+            User = user
+        };
+        DbContext.Doctors.Add(doctor);
+        return doctor;
+    }
+
+    public Patient AddPatient(Guid clinicId, string userId, string name)
+    {
+        var user = AddUser(name, clinicId);
+        var patient = new Patient
+        {
+            PatientId = user.Id,
+            UserID = userId,
+            Gender = Gender.Female,
+            BloodType = BloodType.OPositive,
+            User = user
+        };
+        DbContext.Patients.Add(patient);
+        return patient;
+    }
+
+    public RadiologyTechnologist AddRadiologyTechnologist(Guid clinicId, string name)
+    {
+        var user = AddUser(name, clinicId);
+        var technologist = new RadiologyTechnologist
+        {
+            RadiologyTechnologistId = user.Id,
+            ProfessionalLicenseNumber = $"RAD-{Guid.NewGuid():N}",
+            User = user
+        };
+        DbContext.RadiologyTechnologists.Add(technologist);
+        return technologist;
+    }
+
+    public ImagingTestRequest AddImagingResult(
+        Guid doctorId,
+        Guid patientId,
+        Guid clinicId,
+        string relativePath)
+    {
+        var date = new DateOnly(2026, 6, 19);
+        var time = new TimeOnly(11, 0);
+        var slot = new AvailabilitySlot
+        {
+            AvailabilitySlotId = Guid.NewGuid(),
+            DoctorId = doctorId,
+            DayOfWeek = date.DayOfWeek,
+            StartTime = time,
+            EndTime = time.AddMinutes(45),
+            IsAvailable = false
+        };
+        var appointment = new Appointment
+        {
+            AppointmentId = Guid.NewGuid(),
+            DoctorId = doctorId,
+            PatientId = patientId,
+            AvailabilitySlotId = slot.AvailabilitySlotId,
+            AppointmentDate = date,
+            AppointmentTime = time,
+            Notes = "Clear lung fields."
+        };
+        var medicalFile = new MedicalFile
+        {
+            MedicalFileId = Guid.NewGuid(),
+            AppointmentId = appointment.AppointmentId,
+            UploadedByDoctorId = doctorId,
+            FileType = MedicalFileType.Png,
+            FilePath = relativePath,
+            EncryptedChecksum = $"checksum-{Guid.NewGuid():N}",
+            FileSizeInBytes = 1400 * 1024,
+            SeverityLevel = SeverityLevel.Low,
+            UploadedAt = date.ToDateTime(time)
+        };
+        var request = new ImagingTestRequest
+        {
+            ImagingTestRequestId = Guid.NewGuid(),
+            TestName = "XRAY - X-Ray",
+            ImagingCode = "XRAY",
+            BodyRegion = "Chest",
+            PatientId = patientId,
+            RequestedByDoctorId = doctorId,
+            RadiologyClinicId = clinicId,
+            Priority = "Routine",
+            ClinicalNotes = "Pre-operative chest radiograph.",
+            RequestedAt = date.ToDateTime(new TimeOnly(8, 45)),
+            ResultMedicalFileId = medicalFile.MedicalFileId
+        };
+
+        DbContext.AvailabilitySlots.Add(slot);
+        DbContext.Appointments.Add(appointment);
+        DbContext.MedicalFiles.Add(medicalFile);
+        DbContext.ImagingTestRequests.Add(request);
+        return request;
     }
 
     public static ClaimsPrincipal Principal(Guid userId)
