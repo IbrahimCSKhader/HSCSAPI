@@ -1,0 +1,1111 @@
+دليل تكامل الفرونت إند مع جميع APIs الحالية - HSCSAPI
+=====================================================
+
+هذا الملف مبني من Controllers وDTOs وServices الموجودة فعلياً في المشروع.
+آخر مراجعة: 20 يونيو 2026
+
+عدد HTTP endpoints الموثقة: 96
+SignalR Hubs: ChatHub وNotificationHub
+
+
+1) إعداد الاتصال العام
+=====================
+
+عناوين التطوير الموجودة في launchSettings:
+- HTTP:  http://localhost:5150
+- HTTPS: https://localhost:7118
+
+لا تكتب العنوان مباشرة داخل Components. ضعه في متغير بيئة، مثلاً:
+VITE_API_BASE_URL=https://localhost:7118
+
+كل JSON يرسل بهذه الرؤوس:
+Accept: application/json
+Content-Type: application/json
+
+كل endpoint محمي يرسل أيضاً:
+Authorization: Bearer {token}
+
+الـtoken يؤخذ من POST /api/Auth/login فقط. عمليات التسجيل لا تعيد token؛ بعد التسجيل يجب تأكيد البريد ثم تسجيل الدخول.
+
+
+2) قواعد JSON والتواريخ والقيم
+==============================
+
+- أسماء خصائص JSON تظهر camelCase، مثال: PatientId في C# تصبح patientId.
+- GUID يرسل كنص بالشكل: "xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx".
+- DateOnly يرسل "YYYY-MM-DD"، مثال: "2026-06-20".
+- TimeOnly يفضل إرساله "HH:mm:ss"، مثال: "09:30:00".
+- DateTime يرجع بصيغة ISO-8601. لا تفترض أنه توقيت محلي؛ اعرضه بعد تحويل واضح حسب منطقة المستخدم.
+- القيم النصية الاختيارية يمكن أن تكون null.
+- أغلب القوائم الفارغة ترجع [] وليس null.
+
+قيم Gender المقبولة كنص، دون حساسية لحالة الأحرف:
+Male, Female, PreferNotToSay, Other
+
+قيم BloodType المقبولة كنص:
+APositive, ANegative, BPositive, BNegative, ABPositive, ABNegative, OPositive, ONegative
+
+قيم RelationshipType المقبولة كنص:
+Father, Mother, Brother, Sister, Son, Daughter, Husband, Wife, Guardian, Other, Spouse
+
+قيم أدوار المستخدم:
+Patient, Doctor, Secretary, AuthorizedMember, LaboratoryTechnologist, RadiologyTechnologist, SuperAdmin
+
+مهم بخصوص enum في JSON:
+- ChatMessageType في الاستجابات يرجع حالياً رقماً لأن JsonStringEnumConverter غير مضاف:
+  0=Text, 1=Image, 2=Audio.
+- AppointmentResponse.dayOfWeek يرجع رقماً:
+  0=Sunday, 1=Monday, 2=Tuesday, 3=Wednesday, 4=Thursday, 5=Friday, 6=Saturday.
+- Gender وBloodType وRelationshipType وحالات الدعوات والتنزيل في DTOs ترجع غالباً كنص لأن الخدمة تحولها إلى string.
+
+
+3) سياسة كلمة المرور
+====================
+
+كلمة المرور يجب أن:
+- لا تقل عن 8 أحرف.
+- تحتوي رقماً واحداً على الأقل.
+- تحتوي حرفاً صغيراً واحداً على الأقل.
+- تحتوي حرفاً كبيراً واحداً على الأقل.
+- الرمز الخاص غير مطلوب حالياً.
+
+
+4) التعامل الموحد مع النجاح والفشل
+==================================
+
+أنواع الفشل الحالية ليست بشكل واحد، لذلك يجب أن يكون error parser مرناً:
+
+A) خطأ ProblemDetails من ExceptionHandlingMiddleware:
+Content-Type: application/problem+json
+{
+  "type": "... optional ...",
+  "title": "Bad request | Forbidden | Not found | Internal server error",
+  "status": 400 | 403 | 404 | 500,
+  "detail": "رسالة الخطأ",
+  "instance": "/api/...",
+  "traceId": "..."
+}
+
+B) خطأ ValidationProblemDetails التلقائي من [ApiController]:
+Status: 400
+{
+  "title": "One or more validation errors occurred.",
+  "status": 400,
+  "errors": {
+    "fieldName": ["error message"]
+  }
+}
+
+C) بعض الخدمات ترجع JSON string فقط، مثال:
+Status: 404
+"Patient not found."
+
+D) Auth يرجع object يحتوي success وmessage:
+{
+  "success": false,
+  "message": "Invalid email or password.",
+  "user": null,
+  "token": null
+}
+
+قواعد الفرونت إند:
+- 200/201: اقرأ body واعرض البيانات.
+- 204: نجاح بلا body؛ لا تحاول تنفيذ response.json().
+- 400: اعرض validation/business error ولا تسجل خروج المستخدم.
+- 401: التوكين مفقود/منتهي أو login فاشل. في endpoints المحمية امسح الجلسة واذهب إلى login.
+- 403: المستخدم مسجل لكنه لا يملك الدور أو يحاول الوصول إلى عيادة/حساب خارج نطاقه.
+- 404: المورد غير موجود أو لا يخص المستخدم الحالي.
+- 500: اعرض رسالة عامة وسجل traceId للدعم.
+
+خوارزمية استخراج رسالة الخطأ:
+1. إذا body.detail موجود استخدمه.
+2. إذا body.message موجود استخدمه.
+3. إذا body.errors موجود اجمع رسائل جميع الحقول.
+4. إذا body نفسه string استخدمه.
+5. وإلا استخدم HTTP status text.
+
+
+5) كتالوج الاستجابات الرئيسي
+============================
+
+AuthResponse:
+success, message, user?, token?
+
+UserDto:
+userId, name, email, phoneNumber?, address?, patientUserId?, clinicId?, clinicName?, emailConfirmed, role
+
+ApiResponse:
+success, message
+
+ClinicResponse:
+clinicId, name, address?, createdBySuperAdminUserId, adminSecretaryId?
+
+PatientResponse:
+patientId, patientUserId, name, email, phoneNumber?, address?, dateOfBirth?, gender, bloodType?, clinicId?, clinicName?, emailConfirmed
+
+DoctorResponse:
+doctorId, name, email, phoneNumber?, address?, dateOfBirth?, clinicId?, clinicName?, professionalLicenseNumber, emailConfirmed
+
+LaboratoryTechnologistResponse:
+laboratoryTechnologistId, name, email, phoneNumber?, address?, dateOfBirth?, clinicId?, clinicName?, professionalLicenseNumber, emailConfirmed
+
+RadiologyTechnologistResponse:
+radiologyTechnologistId, name, email, phoneNumber?, address?, dateOfBirth?, clinicId?, clinicName?, professionalLicenseNumber, emailConfirmed
+
+SecretaryResponse:
+secretaryId, name, email, phoneNumber?, address?, dateOfBirth?, clinicId?, clinicName?, managedClinicId?, managedClinicName?, isClinicAdmin
+
+AppointmentResponse:
+appointmentId, doctorId, doctorName, patientId, patientName, availabilitySlotId, clinicId?, clinicName?, appointmentDate, dayOfWeek, appointmentTime, notes?
+
+PagedResponse<T>:
+page, pageSize, totalCount, totalPages, items[]
+
+ChatResponse:
+chatId, otherUserId, otherUserName, createdAt, lastMessageAt?, lastMessagePreview?, lastMessageType?, unreadCount
+
+ChatMessageResponse:
+chatMessageId, chatId, senderId, senderName, messageType, text?, fileUrl?, originalFileName?, contentType?, fileSizeInBytes?, createdAt, readAt?
+
+ChatMessagesPageResponse:
+page, pageSize, totalCount, totalPages, items: ChatMessageResponse[]
+
+
+6) Auth APIs - التوثيق والتسجيل
+================================
+
+API-001
+POST /api/Auth/login
+الحماية: Public.
+Body JSON: { "email": string, "password": string }
+النجاح 200: AuthResponse مع success=true وuser وtoken.
+الفشل 401: AuthResponse مع success=false عند كلمة مرور خاطئة أو بريد غير مؤكد.
+تعامل الفرونت: لا تحفظ token إلا إذا status=200 وsuccess=true. خزّن role وuser مع token، ثم وجّه المستخدم للواجهة المناسبة لدوره.
+
+API-002
+POST /api/Auth/register-patient
+الحماية: Public.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?, gender, bloodType?, clinicId.
+الشروط: clinicId غير فارغ وموجود؛ gender وbloodType من القيم المذكورة؛ البريد فريد؛ كلمة المرور تحقق السياسة.
+النجاح 200: AuthResponse success=true، user موجود، token=null، ورسالة تطلب تأكيد البريد.
+الفشل 400: AuthResponse success=false للبريد المكرر أو القيم الخاطئة أو العيادة غير الموجودة أو كلمة المرور غير الصالحة.
+تعامل الفرونت: انتقل إلى شاشة إدخال كود التحقق ولا تعتبر المستخدم logged-in.
+
+API-003
+POST /api/Auth/register-doctor
+الحماية: Public حالياً.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+الشروط: العيادة موجودة؛ رقم الرخصة والبريد غير مكررين؛ كلمة المرور صالحة.
+النجاح 200: AuthResponse دون token، ثم يلزم تأكيد البريد.
+الفشل 400: البريد/الرخصة مكرران، clinicId مفقود، العيادة غير موجودة، أو Identity validation.
+ملاحظة: التسجيل Public حسب الكود الحالي؛ على الفرونت ألا يفترض وجود موافقة إدارية غير مطبقة في الباك إند.
+
+API-004
+POST /api/Auth/register-secretary
+الحماية: SuperAdmin فقط.
+Header: Bearer token بدور SuperAdmin.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?, clinicId?.
+النجاح 200: AuthResponse دون token للحساب الجديد؛ يلزم تأكيد بريد السكرتير.
+الفشل: 401 بلا توكين، 403 لدور غير SuperAdmin، 400 للبريد المكرر/العيادة غير الموجودة/كلمة المرور.
+
+API-005
+POST /api/Auth/register-authorized-member
+الحماية: Public.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?.
+النجاح 200: AuthResponse دون token؛ يلزم تأكيد البريد.
+الفشل 400: بريد مكرر أو كلمة مرور غير صالحة أو خطأ تسجيل.
+
+API-006
+POST /api/Auth/register-laboratory-technologist
+الحماية: Public حالياً.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+الشروط والنتائج: نفس تسجيل الطبيب لكن الدور LaboratoryTechnologist.
+النجاح 200: AuthResponse دون token.
+الفشل 400: clinicId/العيادة/الرخصة/البريد/كلمة المرور.
+
+API-007
+POST /api/Auth/register-radiology-technologist
+الحماية: Public حالياً.
+Body: name, email, password, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+الشروط والنتائج: نفس تسجيل فني المختبر لكن الدور RadiologyTechnologist.
+النجاح 200: AuthResponse دون token.
+الفشل 400: clinicId/العيادة/الرخصة/البريد/كلمة المرور.
+
+API-008
+POST /api/Auth/forgot-password
+الحماية: Public.
+Body: { "email": string }
+النجاح 200: ApiResponse success=true بنفس الرسالة سواء البريد موجوداً أم لا، لمنع كشف الحسابات.
+الفشل 400: فقط إذا فشلت العملية داخلياً وأصبحت success=false.
+تعامل الفرونت: اعرض دائماً شاشة إدخال الكود عند success=true، ولا تستنتج أن البريد موجود.
+
+API-009
+POST /api/Auth/reset-password
+الحماية: Public.
+Body: { "email": string, "verificationCode": string, "newPassword": string }
+الشروط: كود PasswordReset غير مستخدم وغير منتهي، وكلمة المرور الجديدة تحقق السياسة.
+النجاح 200: { success:true, message:"Password successfully reset." }
+الفشل 400: بريد/كود غير صحيح، كود منتهي، أو كلمة مرور ضعيفة.
+
+API-010
+POST /api/Auth/verify-registration-code
+الحماية: Public.
+Body: { "email": string, "verificationCode": string }
+النجاح 200: success=true عند التحقق، وأيضاً إذا كان البريد مؤكداً مسبقاً.
+الفشل 400: كود خاطئ/منتهي/مستخدم أو بريد غير موجود.
+تعامل الفرونت: بعد success=true انتقل إلى login؛ لا يوجد token في هذا الرد.
+
+API-011
+POST /api/Auth/resend-verification-code
+الحماية: Public.
+Body: { "email": string }
+النجاح 200: كود جديد صالح 15 دقيقة. البريد غير الموجود يعيد success=true برسالة عامة.
+الفشل 400: إذا كان البريد مؤكداً مسبقاً يعيد success=false، أو عند خطأ داخلي.
+
+
+7) Clinics APIs
+================
+
+API-012
+GET /api/Clinics
+الحماية: Public.
+النجاح 200: ClinicResponse[]. قد تكون [].
+الفشل المعتاد: 500 فقط عند مشكلة خادم/قاعدة بيانات.
+استخدام الفرونت: لتعبئة قائمة العيادات في التسجيل والفلاتر.
+
+API-013
+POST /api/Clinics
+الحماية: SuperAdmin.
+Body: { name, address?, adminSecretaryId? }
+الشروط: إذا أرسل adminSecretaryId يجب أن يكون سكرتيراً موجوداً وغير مرتبط بعيادة أخرى وغير مدير لعيادة أخرى.
+النجاح 200: ClinicResponse. ملاحظة: الكود يرجع 200 وليس 201.
+الفشل: 401/403، أو 400 عند سكرتير إداري غير صالح، أو Invalid token.
+
+API-014
+PUT /api/Clinics/{clinicId}
+الحماية: SuperAdmin.
+Body: { name, address?, adminSecretaryId? }
+النجاح 200: ClinicResponse بعد التعديل.
+الفشل 404: Clinic not found. الفشل 400: adminSecretaryId غير صالح أو مستخدم في عيادة أخرى.
+
+API-015
+DELETE /api/Clinics/{clinicId}
+الحماية: SuperAdmin.
+النجاح 204: بلا body.
+الفشل 404: العيادة غير موجودة. الفشل 400: لا يمكن الحذف إذا ما زال Users مرتبطين بالعيادة.
+تعامل الفرونت: لا تحذف العنصر من الواجهة إلا بعد 204.
+
+API-016
+PUT /api/Clinics/my-clinic
+الحماية: Secretary.
+Body: { name, address? }
+شرط إضافي: السكرتير يجب أن يكون AdminSecretary للعيادة، وليس مجرد سكرتير تابع لها.
+النجاح 200: ClinicResponse.
+الفشل 403: "This secretary is not assigned as clinic admin."
+
+API-017
+PUT /api/Clinics/{clinicId}/secretaries/{secretaryId}
+الحماية: SuperAdmin أو Secretary.
+Body: UpdateSecretaryRequest = name, email, phoneNumber?, address?, dateOfBirth?.
+النطاق: SuperAdmin لأي عيادة؛ Secretary لعيادته التي يحق له إدارتها فقط.
+النجاح 200: SecretaryResponse.
+الفشل: 403 خارج النطاق، 404 للعيادة/السكرتير، 400 للاسم/البريد/البريد المكرر.
+
+API-018
+DELETE /api/Clinics/{clinicId}/secretaries/{secretaryId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 204.
+الفشل: 403 خارج النطاق، 404 إذا غير موجود في العيادة، 400 إذا حذف السكرتير نفسه أو لديه علاقات تمنع الحذف.
+
+
+8) Appointments APIs
+====================
+
+الأدوار التي تقرأ: SuperAdmin, Secretary, Doctor, Patient.
+الأدوار التي تنشئ/تعدل/تحذف: SuperAdmin, Secretary, Patient. الطبيب لا يملك write حالياً.
+
+Create/Update body:
+doctorId, patientId, appointmentDate, appointmentTime, notes? (حد notes هو 1000 حرف).
+
+API-019
+GET /api/Appointments?clinicId=&fromDate=&toDate=
+الحماية: أدوار القراءة.
+النجاح 200: AppointmentResponse[] مرتبة حسب التاريخ ثم الوقت.
+النطاق: SuperAdmin يرى الكل ويمكنه filter clinicId؛ Secretary يرى عيادته فقط؛ Doctor مواعيده فقط؛ Patient مواعيده فقط.
+الفشل 400: fromDate أكبر من toDate. الفشل 403: سكرتير بلا عيادة أو يحاول عيادة أخرى.
+
+API-020
+GET /api/Appointments/me
+الحماية: Patient أو Doctor فقط.
+النجاح 200: مواعيد المستخدم الحالي فقط.
+الفشل 401 لتوكين غير صالح، 403 لباقي الأدوار.
+
+API-021
+GET /api/Appointments/{appointmentId}
+الحماية: أدوار القراءة.
+النجاح 200: AppointmentResponse.
+الفشل 404: الموعد غير موجود. الفشل 403: الموعد خارج نطاق المستخدم/العيادة.
+
+API-022
+POST /api/Appointments
+الحماية: SuperAdmin أو Secretary أو Patient.
+النجاح 201: AppointmentResponse مع Location يشير إلى GetById.
+الشروط: الطبيب والمريض موجودان وفي نفس العيادة؛ Patient لا ينشئ إلا لنفسه؛ Secretary داخل عيادته؛ لا يوجد حجز للطبيب أو المريض في نفس التاريخ والوقت.
+السلوك: ينشئ/يعيد AvailabilitySlot مدته 30 دقيقة تلقائياً.
+الفشل: 400 للحقول الفارغة/اختلاف العيادة/ازدواج الوقت، 403 للنطاق، 404 للطبيب أو المريض.
+
+API-023
+PUT /api/Appointments/{appointmentId}
+الحماية: أدوار الكتابة.
+Body وشروط الحجز مثل POST.
+النجاح 200: AppointmentResponse المحدث.
+الفشل 404 للموعد/الطبيب/المريض، 400 للتعارض، 403 إذا لا يحق للمستخدم تعديل الموعد.
+
+API-024
+DELETE /api/Appointments/{appointmentId}
+الحماية: أدوار الكتابة.
+النجاح 204.
+الفشل 404: الموعد غير موجود. 403: خارج النطاق. 400: الموعد لديه MedicalFiles ولا يمكن حذفه.
+
+
+9) Patients APIs
+================
+
+PatientResponse موضح في كتالوج الاستجابات.
+UpdatePatientRequest: name, email, phoneNumber?, address?, dateOfBirth?, gender, bloodType?, clinicId.
+UpdateMyPatientProfileRequest: name, phoneNumber?, address?, dateOfBirth?, gender, bloodType?.
+
+API-025
+GET /api/Patients?clinicId={optional}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: PatientResponse[].
+النطاق: SuperAdmin يستطيع كل العيادات؛ Secretary يرى عيادته فقط حتى لو أرسل clinicId مختلفاً.
+الفشل 403: السكرتير بلا عيادة أو طلب عيادة أخرى.
+
+API-026
+GET /api/Patients/clinic/{clinicId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: مرضى العيادة.
+الفشل 404: العيادة غير موجودة. 403: السكرتير يطلب عيادة غير عيادته.
+
+API-027
+GET /api/Patients/me
+الحماية: Patient.
+النجاح 200: PatientResponse للمستخدم الحالي.
+الفشل 401 للتوكين غير الصالح، 404 إذا User بلا Patient profile.
+
+API-028
+GET /api/Patients/{patientId}
+الحماية: SuperAdmin أو Secretary أو Patient.
+النجاح 200: PatientResponse.
+النطاق: Patient يستطيع قراءة معرفه فقط؛ Secretary مرضى عيادته فقط؛ SuperAdmin الجميع.
+الفشل 403 خارج النطاق، 404 غير موجود.
+
+API-029
+PUT /api/Patients/{patientId}
+الحماية: SuperAdmin أو Secretary.
+Body: UpdatePatientRequest كاملاً.
+النجاح 200: PatientResponse.
+الشروط: name/email/clinicId مطلوبة؛ gender وbloodType صالحان؛ البريد فريد؛ العيادة موجودة. تغيير العيادة يولد patientUserId جديداً.
+النطاق: Secretary يعدل مرضى عيادته ولا ينقلهم إلى عيادة أخرى.
+الفشل: 400 للمدخلات/البريد، 403 للنطاق، 404 للمريض/العيادة.
+
+API-030
+PUT /api/Patients/me
+الحماية: Patient.
+Body: UpdateMyPatientProfileRequest؛ لا يستطيع تغيير email أو clinicId أو patientUserId.
+النجاح 200: PatientResponse.
+الفشل 400 للاسم/gender/bloodType، 404 للبروفايل، 401 لتوكين غير صالح.
+
+API-031
+DELETE /api/Patients/{patientId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 204.
+الفشل: 403 خارج عيادة السكرتير، 404 غير موجود، 400 عند وجود علاقات مرتبطة تمنع الحذف مثل المواعيد أو السجلات/الدعوات.
+
+
+10) Doctors APIs
+================
+
+UpdateDoctorRequest: name, email, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+UpdateMyDoctorProfileRequest: name, phoneNumber?, address?, dateOfBirth?.
+
+API-032
+GET /api/Doctors?clinicId={optional}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: DoctorResponse[]. SuperAdmin يرى الكل؛ Secretary عيادته فقط.
+الفشل 403 لسكرتير بلا عيادة أو يحاول عيادة أخرى.
+
+API-033
+GET /api/Doctors/clinic/{clinicId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: أطباء العيادة.
+الفشل 404 للعيادة، 403 خارج نطاق السكرتير.
+
+API-034
+GET /api/Doctors/me
+الحماية: Doctor.
+النجاح 200: DoctorResponse للمستخدم الحالي.
+الفشل 401/404 عند توكين أو بروفايل غير صالح.
+
+API-035
+GET /api/Doctors/{doctorId}
+الحماية: SuperAdmin أو Secretary أو Doctor.
+النطاق: Doctor يقرأ معرفه فقط؛ Secretary داخل عيادته؛ SuperAdmin الجميع.
+النجاح 200: DoctorResponse. الفشل 403 خارج النطاق، 404 غير موجود.
+
+API-036
+PUT /api/Doctors/{doctorId}
+الحماية: SuperAdmin أو Secretary.
+Body: UpdateDoctorRequest.
+النجاح 200: DoctorResponse.
+الفشل: 400 للاسم/البريد/clinicId/license أو التكرار، 403 للنطاق، 404 للطبيب/العيادة.
+
+API-037
+PUT /api/Doctors/me
+الحماية: Doctor.
+Body: UpdateMyDoctorProfileRequest؛ لا يغير البريد أو العيادة أو الرخصة.
+النجاح 200: DoctorResponse. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
+
+API-038
+DELETE /api/Doctors/{doctorId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 204.
+الفشل: 403 خارج النطاق، 404 غير موجود، 400 عند وجود مواعيد/سجلات/علاقات تمنع الحذف.
+
+
+11) Laboratory Technologists APIs
+=================================
+
+UpdateLaboratoryTechnologistRequest:
+name, email, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+
+UpdateMyLaboratoryTechnologistProfileRequest:
+name, phoneNumber?, address?, dateOfBirth?.
+
+API-039
+GET /api/LaboratoryTechnologists?clinicId={optional}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: LaboratoryTechnologistResponse[].
+النطاق: SuperAdmin الكل؛ Secretary عيادته فقط.
+الفشل 403: سكرتير بلا عيادة أو يحاول عيادة أخرى.
+
+API-040
+GET /api/LaboratoryTechnologists/clinic/{clinicId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: فنيّو المختبر في العيادة.
+الفشل 404 للعيادة، 403 خارج نطاق السكرتير.
+
+API-041
+GET /api/LaboratoryTechnologists/me
+الحماية: LaboratoryTechnologist.
+النجاح 200: LaboratoryTechnologistResponse للحساب الحالي.
+الفشل 401 للتوكين غير الصالح، 404 إذا البروفايل غير موجود.
+
+API-042
+GET /api/LaboratoryTechnologists/{laboratoryTechnologistId}
+الحماية: SuperAdmin أو Secretary أو LaboratoryTechnologist.
+النطاق: الفني يقرأ حسابه فقط؛ Secretary داخل عيادته؛ SuperAdmin الجميع.
+النجاح 200. الفشل 403 خارج النطاق، 404 غير موجود.
+
+API-043
+PUT /api/LaboratoryTechnologists/{laboratoryTechnologistId}
+الحماية: SuperAdmin أو Secretary.
+Body: UpdateLaboratoryTechnologistRequest كاملاً.
+النجاح 200: LaboratoryTechnologistResponse.
+الفشل: 400 للاسم/البريد/clinicId/license أو تكرار البريد/الرخصة، 403 للنطاق، 404 للفني/العيادة.
+
+API-044
+PUT /api/LaboratoryTechnologists/me
+الحماية: LaboratoryTechnologist.
+Body: UpdateMyLaboratoryTechnologistProfileRequest؛ لا يغير البريد/العيادة/الرخصة.
+النجاح 200. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
+
+API-045
+DELETE /api/LaboratoryTechnologists/{laboratoryTechnologistId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 204.
+الفشل: 403 خارج النطاق، 404 غير موجود، 400 إذا أعاد Identity أخطاء حذف. إذا اصطدم الحذف بعلاقة قاعدة بيانات غير معالجة فقد يظهر 500 حالياً.
+
+
+12) Radiology Technologists APIs
+================================
+
+UpdateRadiologyTechnologistRequest:
+name, email, phoneNumber?, address?, dateOfBirth?, clinicId, professionalLicenseNumber.
+
+UpdateMyRadiologyTechnologistProfileRequest:
+name, phoneNumber?, address?, dateOfBirth?.
+
+API-046
+GET /api/RadiologyTechnologists?clinicId={optional}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: RadiologyTechnologistResponse[].
+النطاق: SuperAdmin الكل؛ Secretary عيادته فقط.
+الفشل 403 لسكرتير بلا عيادة أو خارج نطاقه.
+
+API-047
+GET /api/RadiologyTechnologists/clinic/{clinicId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: فنيّو الأشعة في العيادة.
+الفشل 404 للعيادة، 403 خارج نطاق السكرتير.
+
+API-048
+GET /api/RadiologyTechnologists/me
+الحماية: RadiologyTechnologist.
+النجاح 200: RadiologyTechnologistResponse للحساب الحالي.
+الفشل 401/404 للهوية أو البروفايل.
+
+API-049
+GET /api/RadiologyTechnologists/{radiologyTechnologistId}
+الحماية: SuperAdmin أو Secretary أو RadiologyTechnologist.
+النطاق: الفني يقرأ حسابه فقط؛ Secretary عيادته؛ SuperAdmin الجميع.
+النجاح 200. الفشل 403 خارج النطاق، 404 غير موجود.
+
+API-050
+PUT /api/RadiologyTechnologists/{radiologyTechnologistId}
+الحماية: SuperAdmin أو Secretary.
+Body: UpdateRadiologyTechnologistRequest كاملاً.
+النجاح 200: RadiologyTechnologistResponse.
+الفشل: 400 للحقول/التكرار، 403 للنطاق، 404 للفني/العيادة.
+
+API-051
+PUT /api/RadiologyTechnologists/me
+الحماية: RadiologyTechnologist.
+Body: UpdateMyRadiologyTechnologistProfileRequest؛ لا يغير البريد/العيادة/الرخصة.
+النجاح 200. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
+
+API-052
+DELETE /api/RadiologyTechnologists/{radiologyTechnologistId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 204.
+الفشل: 403 خارج النطاق، 404 غير موجود، 400 إذا أعاد Identity أخطاء حذف. قيود قاعدة بيانات غير معالجة قد تظهر 500 حالياً.
+
+
+13) Secretaries APIs
+====================
+
+SecretaryDashboardResponse:
+clinicId, clinicName, pendingRequestsCount, patientRegistrationsCount,
+reportsGeneratedCount, todayAvailabilitySlotsCount, todayAppointmentsCount,
+todayAppointmentsReachedCount, todayAppointments[], recentRegistrations[].
+
+todayAppointments item:
+appointmentId, doctorId, doctorName, patientId, patientName, patientUserId,
+appointmentDate, appointmentTime, notes?, hasReached.
+
+مهم: hasReached يعني حالياً أن وقت الموعد أصبح <= الوقت الحالي، وليس إثبات حضور فعلي محفوظ في قاعدة البيانات.
+
+API-053
+GET /api/Secretaries/dashboard
+الحماية: Secretary.
+النجاح 200: SecretaryDashboardResponse لعيادة السكرتير.
+الفشل 401 لتوكين غير صالح، 403 إذا السكرتير غير معين لعيادة.
+
+API-054
+GET /api/Secretaries?clinicId={optional}
+الحماية: SuperAdmin فقط.
+النجاح 200: SecretaryResponse[]؛ clinicId فلتر اختياري.
+الفشل 401/403 حسب التوثيق والدور.
+
+API-055
+GET /api/Secretaries/available
+الحماية: SuperAdmin فقط.
+النجاح 200: السكرتارية الذين clinicId لديهم null.
+
+API-056
+GET /api/Secretaries/clinic/{clinicId}
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: سكرتارية العيادة.
+النطاق: Secretary يستطيع عيادته التي يديرها فقط.
+الفشل 404 للعيادة، 403 خارج النطاق.
+
+API-057
+GET /api/Secretaries/my-clinic
+الحماية: Secretary.
+النجاح 200: SecretaryResponse[] لجميع سكرتارية عيادته.
+الفشل 403 إذا غير معين لعيادة، 401 لتوكين غير صالح.
+
+API-058
+PUT /api/Secretaries/{secretaryId}/assign-clinic
+الحماية: SuperAdmin أو Secretary.
+Body: { "clinicId": Guid }
+النجاح 200: SecretaryResponse بعد التعيين.
+الشروط: العيادة موجودة، المستخدم يملك إدارتها، السكرتير غير مربوط بعيادة/إدارة عيادة أخرى متعارضة.
+الفشل 400/403/404 حسب الشرط.
+
+API-059
+DELETE /api/Secretaries/{secretaryId}/remove-from-clinic
+الحماية: SuperAdmin أو Secretary.
+النجاح 200: SecretaryResponse بعد جعل clinicId=null. إذا كان مدير نفس العيادة يزال AdminSecretaryId أيضاً.
+الفشل 404 للسكرتير، 400 إذا غير معين أو مدير عيادة أخرى، 403 خارج النطاق.
+
+API-060
+GET /api/Secretaries/my-clinic/patients
+الحماية: Secretary.
+النجاح 200: PatientResponse[] لعيادة السكرتير.
+الفشل 403 إذا بلا عيادة.
+
+API-061
+PUT /api/Secretaries/my-clinic/patients/{patientId}
+الحماية: Secretary.
+Body: UpdatePatientRequest كاملاً.
+النجاح 200: PatientResponse.
+الفشل: نفس API-029 مع فرض أن المريض والعيادة ضمن عيادة السكرتير.
+
+API-062
+DELETE /api/Secretaries/my-clinic/patients/{patientId}
+الحماية: Secretary.
+النجاح 204.
+الفشل: 403 خارج عيادته، 404 غير موجود، 400 عند وجود علاقات تمنع الحذف.
+
+API-063
+GET /api/Secretaries/my-clinic/doctors
+الحماية: Secretary.
+النجاح 200: DoctorResponse[] لعيادته.
+
+API-064
+PUT /api/Secretaries/my-clinic/doctors/{doctorId}
+الحماية: Secretary.
+Body: UpdateDoctorRequest.
+النجاح 200: DoctorResponse.
+الفشل: نفس API-036 مع تقييد العيادة.
+
+API-065
+DELETE /api/Secretaries/my-clinic/doctors/{doctorId}
+الحماية: Secretary.
+النجاح 204. الفشل 403/404/400 حسب النطاق والعلاقات.
+
+API-066
+GET /api/Secretaries/my-clinic/laboratory-technologists
+الحماية: Secretary.
+النجاح 200: LaboratoryTechnologistResponse[] لعيادته.
+
+API-067
+PUT /api/Secretaries/my-clinic/laboratory-technologists/{laboratoryTechnologistId}
+الحماية: Secretary.
+Body: UpdateLaboratoryTechnologistRequest.
+النجاح 200. الفشل: نفس API-043 مع تقييد العيادة.
+
+API-068
+DELETE /api/Secretaries/my-clinic/laboratory-technologists/{laboratoryTechnologistId}
+الحماية: Secretary.
+النجاح 204. الفشل 403/404/400.
+
+API-069
+GET /api/Secretaries/my-clinic/radiology-technologists
+الحماية: Secretary.
+النجاح 200: RadiologyTechnologistResponse[] لعيادته.
+
+API-070
+PUT /api/Secretaries/my-clinic/radiology-technologists/{radiologyTechnologistId}
+الحماية: Secretary.
+Body: UpdateRadiologyTechnologistRequest.
+النجاح 200. الفشل: نفس API-050 مع تقييد العيادة.
+
+API-071
+DELETE /api/Secretaries/my-clinic/radiology-technologists/{radiologyTechnologistId}
+الحماية: Secretary.
+النجاح 204. الفشل 403/404/400.
+
+
+14) Authorized Members APIs
+================================
+
+جميع endpoints في هذا القسم تتطلب role=AuthorizedMember.
+
+AuthorizedMemberProfileResponse:
+authorizedMemberId, name, email, phoneNumber?, address?, dateOfBirth?.
+
+AuthorizedMemberPatientResponse:
+patientId, name, email, phoneNumber?, address?, dateOfBirth?, patientUserId,
+clinicId?, clinicName?, relationshipType, authorizedAt.
+
+AuthorizedMemberInviteResponse:
+inviteId, patientId, patientName, patientEmail, patientUserId, clinicId?,
+clinicName?, relationshipType, status, sentAt, respondedAt?.
+
+API-072
+GET /api/AuthorizedMembers/me
+النجاح 200: AuthorizedMemberProfileResponse.
+الفشل 401/403 للتوثيق والدور، 404 إذا البروفايل غير موجود.
+
+API-073
+GET /api/AuthorizedMembers/my-patients
+النجاح 200: AuthorizedMemberPatientResponse[] للعلاقات المقبولة فقط، مرتبة بالأحدث.
+القائمة الفارغة [] حالة نجاح طبيعية.
+
+API-074
+GET /api/AuthorizedMembers/my-invites
+النجاح 200: AuthorizedMemberInviteResponse[] بجميع الحالات Pending/Accepted/Rejected.
+
+API-075
+POST /api/AuthorizedMembers/my-invites/{inviteId}/accept
+Body: لا يوجد.
+النجاح 200: AuthorizedMemberInviteResponse بحالة Accepted، وإنشاء علاقة وصول للمريض إذا لم تكن موجودة.
+الفشل 404: الدعوة لا تخص المستخدم/غير موجودة. 400: تم الرد عليها سابقاً.
+
+API-076
+POST /api/AuthorizedMembers/my-invites/{inviteId}/reject
+Body: لا يوجد.
+النجاح 200: AuthorizedMemberInviteResponse بحالة Rejected.
+الفشل 404 أو 400 بنفس شروط accept.
+
+
+15) Patient Profile APIs
+=======================
+
+جميع endpoints في هذا القسم تتطلب role=Patient وتعمل على المريض المستخرج من التوكين؛ لا يرسل patientId.
+
+API-077
+GET /api/patient-profile/dashboard
+النجاح 200: كائن يحتوي:
+patientId, patientName, upcomingAppointmentsCount, unreadMessagesCount,
+unreadNotificationsCount, healthOverview, visitsByClinic, upcomingAppointments[].
+healthOverview: totalRecordsCount, labResultsCount, prescriptionsCount, imagingResultsCount.
+visitsByClinic: totalVisits, clinicsCount, clinics[{clinicId?,clinicName,visitsCount}].
+الفشل 404 إذا Patient profile غير موجود، 401/403 للتوثيق والدور.
+ملاحظة: prescriptionsCount حالياً يساوي 0 لأن تدفق الوصفات غير مطبق.
+
+API-078
+GET /api/patient-profile/notifications?status=&page=&pageSize=
+الحماية: Patient.
+status المقبول: all أو read أو unread؛ null يعامل all.
+Pagination: page<=0 يصبح 1، pageSize<=0 يصبح 20، والحد الأعلى 100.
+النجاح 200: PagedResponse<PatientNotificationResponse>.
+Notification item: notificationId, title, isRead, category.
+الفشل 400 عند status غير صالح.
+
+API-079
+PATCH /api/patient-profile/notifications/{notificationId}/read
+Body: لا يوجد.
+النجاح 200: PatientNotificationResponse بعد isRead=true.
+الفشل 404 إذا الإشعار غير موجود أو لا يخص المريض.
+
+API-080
+PATCH /api/patient-profile/notifications/read-all
+Body: لا يوجد.
+النجاح 200: { "updated": number } بعد تعليم جميع إشعارات المريض غير المقروءة.
+
+API-081
+GET /api/patient-profile/medical-records?type=&query=&page=&pageSize=
+type المقبول: all، lab/labs/lab-results، imaging/imaging-results، prescription/prescriptions/rx.
+query يبحث في اسم الطبيب والعيادة واسم الفحص ومسار الملف.
+Pagination: default 20، max 100.
+النجاح 200: PagedResponse<PatientMedicalRecordResponse>.
+item: medicalFileId, recordCode, recordType, title, description?, severityLevel,
+fileType, fileSizeInBytes, uploadedAt, doctorId, doctorName, clinicId?, clinicName?,
+appointmentDate, canDownloadDirectly, hasPendingDownloadRequest.
+الفشل 400 عند type غير صالح.
+ملاحظة: prescription filters حالياً ترجع قائمة فارغة لأن الوصفات غير مطبقة.
+
+API-082
+GET /api/patient-profile/medical-records/{medicalFileId}
+النجاح 200: PatientMedicalRecordDetailResponse، وهي كل حقول القائمة إضافة إلى:
+appointmentId, appointmentTime, appointmentNotes?, summary?, clinicalDetails?.
+الفشل 404 إذا السجل غير موجود أو لا يخص المريض.
+
+API-083
+GET /api/patient-profile/medical-records/{medicalFileId}/download
+النجاح 200: ملف binary مع Content-Type وContent-Disposition.
+الشروط الحالية: SeverityLevel=Low فقط.
+الفشل 400 للسجل High، 404 للسجل أو الملف الفيزيائي المفقود.
+تعامل الفرونت: استخدم fetch مع Authorization ثم response.blob() ولا تستخدم response.json().
+ملاحظة مهمة: الرسالة تقول إن High يحتاج موافقة، لكن endpoint الحالي يرفض كل High ولا يفحص Approved request؛ لا يوجد حالياً endpoint سكرتير للموافقة. هذا التدفق غير مكتمل في الباك إند الحالي.
+
+API-084
+POST /api/patient-profile/medical-records/{medicalFileId}/download-requests
+Body: { "reason": string, "purposeDescription": string }
+الشروط: الحقلان غير فارغين؛ السجل يخص المريض؛ السجل ليس Low.
+النجاح 201 عند إنشاء طلب جديد: PatientFileDownloadRequestResponse.
+إذا يوجد طلب Pending لنفس الملف: 200 ويرجع الطلب الموجود، ولا ينشئ تكراراً.
+الفشل 400 للحقول أو إذا السجل Low، 404 للسجل.
+
+API-085
+GET /api/patient-profile/download-requests?status=&page=&pageSize=
+status: all, pending, approved, rejected؛ غير حساس لحالة الأحرف.
+النجاح 200: PagedResponse<PatientFileDownloadRequestResponse>.
+item: fileDownloadRequestId, medicalFileId, recordTitle, reason, purposeDescription,
+status, submittedAt, reviewedAt?, rejectionReason?, reviewedBySecretaryId?, reviewedBySecretaryName?.
+الفشل 400 عند status غير صالح.
+
+API-086
+GET /api/patient-profile/authorized-members
+النجاح 200: قائمة العلاقات المقبولة:
+authorizedMemberId, name, email, phoneNumber?, relationshipType, authorizedAt.
+
+API-087
+GET /api/patient-profile/authorized-member-invites
+النجاح 200: قائمة الدعوات:
+inviteId, authorizedMemberId, authorizedMemberName, authorizedMemberEmail,
+relationshipType, status, sentAt, respondedAt?.
+
+API-088
+POST /api/patient-profile/authorized-member-invites
+Body: { "fullName": string|null, "email": string, "relationshipType": string }
+ملاحظة: fullName موجود في DTO لكنه غير مستخدم حالياً في الخدمة.
+الشرط: الحساب بالبريد يجب أن يكون مسجلاً مسبقاً بدور AuthorizedMember.
+النجاح 201 عند إنشاء دعوة جديدة. إذا توجد Pending invite يعيد 200 والدعوة الموجودة.
+الفشل: 400 للبريد/relationshipType أو علاقة موجودة، 404 إذا حساب AuthorizedMember غير موجود.
+
+API-089
+DELETE /api/patient-profile/authorized-members/{authorizedMemberId}
+النجاح 204: إزالة علاقة الوصول.
+الفشل 404 إذا العلاقة لا تخص المريض أو غير موجودة.
+
+API-090
+DELETE /api/patient-profile/authorized-member-invites/{inviteId}
+النجاح 204: حذف دعوة Pending.
+الفشل 404 إذا لا تخص المريض، 400 إذا الدعوة ليست Pending.
+
+
+16) Chats HTTP APIs
+===================
+
+جميع endpoints تتطلب أي مستخدم authenticated، ولا يوجد تقييد role.
+كل عملية قراءة/إرسال/تنزيل تتحقق أيضاً أن المستخدم طرف في Chat.
+
+API-091
+POST /api/chats/open
+Body JSON: { "recipientUserId": Guid }
+النجاح 200: ChatResponse. الاستدعاء idempotent؛ إذا كانت المحادثة موجودة يرجع نفس ChatId.
+السلوك: ينشئ مجلد wwwroot/chats/{chatId بدون شرطات} عند فتح Chat جديد أو موجود.
+الفشل 400: Guid فارغ أو محاولة محادثة النفس. 404: المستخدم المستلم غير موجود. 401/403 للتوثيق.
+
+API-092
+GET /api/chats
+النجاح 200: ChatResponse[] للمستخدم الحالي، مرتبة حسب آخر رسالة ثم تاريخ الإنشاء.
+unreadCount يحسب الرسائل الواردة فقط التي readAt=null.
+
+API-093
+GET /api/chats/{chatId}/messages?page=1&pageSize=50
+النجاح 200: ChatMessagesPageResponse. العناصر داخل الصفحة مرتبة زمنياً من الأقدم إلى الأحدث.
+Pagination: page<=0 يصبح 1، pageSize<=0 يصبح 50، max=100.
+الفشل 404 للـChat، 403 إذا المستخدم ليس عضواً.
+
+API-094
+POST /api/chats/{chatId}/messages
+Content-Type: multipart/form-data. لا ترسل JSON.
+Form fields:
+- messageType: Text أو Image أو Audio.
+- text: مطلوب فقط لـText، max=4000.
+- file: مطلوب فقط لـImage/Audio.
+
+قواعد المحتوى:
+- Text: نص غير فارغ، ولا File.
+- Image/Audio: File موجود، ولا Text/caption.
+- Image types: JPEG, PNG, GIF, WebP؛ max 10 MB.
+- Audio types: MP3, WAV, OGG, WebM, M4A, AAC؛ max 25 MB.
+- Request limit الكامل 27 MB.
+- الباك إند يفحص Content-Type وتوقيع bytes الحقيقي، ولا يثق باسم الملف.
+
+النجاح 200: ChatMessageResponse، وإنشاء Notification للطرف الآخر، وبث ReceiveMessage وReceiveNotification.
+الفشل: 400 للنوع/التركيب/الحجم/التوقيع، 404 للـChat، 403 لغير العضو، 413 إذا تجاوز request limit من الخادم.
+مهم: المرسل يحصل على ChatMessageResponse من HTTP ويستقبل ReceiveMessage أيضاً؛ حدّث الـstore بطريقة upsert/dedupe باستخدام chatMessageId حتى لا تظهر الرسالة مرتين.
+
+مثال FormData:
+const form = new FormData();
+form.append("messageType", "Image");
+form.append("file", selectedFile);
+await apiFetch(`/api/chats/${chatId}/messages`, { method: "POST", body: form });
+
+مهم: عند استخدام FormData لا تضبط Content-Type يدوياً؛ المتصفح يضيف boundary.
+
+API-095
+POST /api/chats/{chatId}/read
+Body: لا يوجد.
+النجاح 200: { updatedMessages: number, readAt: DateTime }.
+السلوك: يعلم الرسائل الواردة غير المقروءة فقط، ثم يبث MessagesRead للطرفين.
+الفشل 404 للـChat، 403 لغير العضو.
+
+API-096
+GET /api/chats/{chatId}/messages/{messageId}/file
+النجاح 200/206: ملف الصورة أو الصوت؛ يدعم Range requests ويضع اسم التنزيل الأصلي.
+الفشل 404 للرسالة/الملف الفيزيائي، 400 إذا الرسالة Text، 403 إذا المستخدم ليس عضواً.
+تعامل الفرونت المهم:
+- fileUrl في ChatMessageResponse هو path محمي وليس static URL عاماً.
+- لا تضع fileUrl مباشرة في <img src> أو <audio src> لأنهما لا يرسلان Authorization header بسهولة.
+- استخدم fetch مع Bearer token ثم Blob/ObjectURL.
+- للصوت الكبير يمكن إرسال Range header مع Authorization والحفاظ على 206.
+
+
+17) SignalR - ChatHub
+====================
+
+المسار: /hubs/chat
+الحماية: JWT مطلوب.
+في JavaScript استخدم accessTokenFactory؛ مكتبة SignalR سترسل access_token بالطريقة المناسبة.
+
+الاتصال:
+const chatConnection = new signalR.HubConnectionBuilder()
+  .withUrl(`${API_BASE}/hubs/chat`, {
+    accessTokenFactory: () => token
+  })
+  .withAutomaticReconnect()
+  .build();
+
+سجل event handlers قبل start():
+
+chatConnection.on("ReceiveMessage", (message) => {
+  // message هو ChatMessageResponse
+  // حدّث المحادثة، امنع التكرار بواسطة chatMessageId، وشغّل إشعاراً حسب الشاشة الحالية.
+});
+
+chatConnection.on("MessagesRead", (payload) => {
+  // { chatId, readByUserId, updatedMessages, readAt }
+  // حدّث readAt للرسائل المناسبة.
+});
+
+chatConnection.on("TypingChanged", (payload) => {
+  // { chatId, userId, isTyping }
+  // اعرض/أخف مؤشر الكتابة.
+});
+
+await chatConnection.start();
+
+عند الاتصال، الخادم يضم الاتصال تلقائياً إلى Chats الموجودة للمستخدم.
+عند فتح Chat جديد أثناء اتصال قائم، نفذ JoinChat للتمكن من typing group:
+await chatConnection.invoke("JoinChat", chatId);
+
+طرق ChatHub:
+
+HUB-C01 JoinChat(chatId)
+النجاح: لا يرجع بيانات؛ يضم connection إلى مجموعة chat.
+الفشل: HubException إذا ليس عضواً.
+
+HUB-C02 LeaveChat(chatId)
+النجاح: إزالة connection من المجموعة. لا يفحص العضوية.
+
+HUB-C03 SendTextMessage(chatId, text)
+النجاح: يرجع ChatMessageResponse ويبث ReceiveMessage.
+الفشل: HubException/Hub invocation error عند Chat غير موجود، غير عضو، أو نص فارغ/أطول من 4000.
+استخدم هذه الطريقة للنص الفوري فقط؛ الصور والصوت عبر API-094.
+
+HUB-C04 MarkAsRead(chatId)
+النجاح: يرجع MarkChatReadResponse ويبث MessagesRead.
+الفشل: Chat غير موجود أو غير عضو.
+
+HUB-C05 SetTyping(chatId, isTyping)
+النجاح: يبث TypingChanged إلى OthersInGroup فقط.
+الفشل: HubException لغير العضو.
+
+إدارة إعادة الاتصال:
+- withAutomaticReconnect لا يبدأ الاتصال الأول تلقائياً عند الفشل؛ نفذ retry للـstart.
+- بعد onreconnected أعد JoinChat للمحادثة المفتوحة حالياً احتياطياً.
+- عند 401/close بسبب token منتهي، حدّث التوكين أو أعد login ثم أعد بناء الاتصال.
+
+
+18) SignalR - NotificationHub
+================================
+
+المسار: /hubs/notifications
+الحماية: JWT وUserIdentifier صالحان.
+
+const notificationConnection = new signalR.HubConnectionBuilder()
+  .withUrl(`${API_BASE}/hubs/notifications`, {
+    accessTokenFactory: () => token
+  })
+  .withAutomaticReconnect()
+  .build();
+
+notificationConnection.on("ReceiveNotification", (notification) => {
+  // { notificationId, chatId, senderId, title }
+  // زد unread badge واعرض toast.
+});
+
+await notificationConnection.start();
+
+NotificationHub لا يحتوي client-invokable methods حالياً؛ وظيفته استقبال ReceiveNotification فقط.
+تعليم إشعار المريض كمقروء يتم عبر API-079 أو API-080، وليس عبر Hub.
+
+
+19) أمثلة Frontend عملية
+=======================
+
+مثال apiFetch مرن:
+
+async function apiFetch(path, options = {}) {
+  const token = authStore.token;
+  const isFormData = options.body instanceof FormData;
+  const headers = new Headers(options.headers || {});
+  headers.set("Accept", "application/json");
+  if (!isFormData && options.body != null) {
+    headers.set("Content-Type", "application/json");
+  }
+  if (token) headers.set("Authorization", `Bearer ${token}`);
+
+  const response = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  if (response.status === 204) return null;
+
+  const contentType = response.headers.get("content-type") || "";
+  const body = contentType.includes("json")
+    ? await response.json()
+    : await response.text();
+
+  if (!response.ok) {
+    const validationMessages = body?.errors
+      ? Object.values(body.errors).flat().join(" ")
+      : null;
+    const message = body?.detail || body?.message || validationMessages
+      || (typeof body === "string" ? body : response.statusText);
+    const error = new Error(message);
+    error.status = response.status;
+    error.body = body;
+    throw error;
+  }
+  return body;
+}
+
+مثال JSON request:
+await apiFetch("/api/Auth/login", {
+  method: "POST",
+  body: JSON.stringify({ email, password })
+});
+
+مثال تنزيل ملف محمي:
+async function loadProtectedFile(fileUrl) {
+  const response = await fetch(`${API_BASE}${fileUrl}`, {
+    headers: { Authorization: `Bearer ${authStore.token}` }
+  });
+  if (!response.ok) throw new Error(`File download failed: ${response.status}`);
+  const blob = await response.blob();
+  return URL.createObjectURL(blob);
+}
+
+عند إزالة الصورة/الصوت من الواجهة:
+URL.revokeObjectURL(objectUrl);
+
+
+20) نقاط ناقصة أو غير موحدة يجب أن يعرفها الفرونت إند
+=====================================================
+
+1. صيغة الخطأ غير موحدة: ProblemDetails أو JSON string أو AuthResponse. استخدم parser المرن أعلاه.
+2. تسجيل Doctor/Lab/Radiology Public حالياً، رغم أن نظاماً طبياً قد يحتاج موافقة إدارية.
+3. High-severity medical download flow غير مكتمل: إنشاء الطلب موجود، لكن مراجعة/قبول السكرتير والتنزيل بعد القبول غير موجودين كـAPI حالياً.
+4. Prescription counters/filter موجودة في DTO/API لكنها ترجع 0/قائمة فارغة حالياً.
+5. Create Clinic يرجع 200 وليس 201.
+6. تسجيل المستخدم يرجع 200 بلا token؛ لا بد من verify ثم login.
+7. Enums مثل ChatMessageType وDayOfWeek ترجع أرقاماً حالياً؛ اعمل mapping واضح في الفرونت.
+8. fileUrl للمحادثات يحتاج Authorization؛ استخدم Blob ولا تعتبره رابطاً عاماً.
+9. لا يوجد refresh-token endpoint حالياً. عند انتهاء JWT يجب إعادة login.
+10. CORS الحالي AllowAnyOrigin؛ لا تعتمد عليه كسياسة production نهائية.
+11. قائمة الإشعارات وmark-as-read عبر HTTP موجودة فقط في PatientProfile. الأدوار الأخرى تستقبل إشعار الرسالة لحظياً عبر NotificationHub لكن لا تملك حالياً endpoint عاماً لاسترجاع سجل إشعاراتها.
+
+
+21) Checklist قبل ربط أي شاشة
+================================
+
+- هل endpoint Public أم يحتاج token؟
+- هل role الحالي ضمن الأدوار المسموحة؟
+- هل الطلب JSON أم multipart/form-data؟
+- هل التاريخ DateOnly والوقت TimeOnly بالصيغة الصحيحة؟
+- هل response يمكن أن يكون 204 بلا body؟
+- هل error parser يدعم ProblemDetails وstring وAuthResponse؟
+- هل البيانات مقيدة بعيادة السكرتير أو بمعرف المستخدم داخل التوكين؟
+- هل الملف يحتاج fetch مع Authorization ثم Blob؟
+- هل SignalR handlers مسجلة قبل start؟
+- هل تمنع تكرار الرسائل المستلمة باستخدام chatMessageId؟
+
+
+نهاية الدليل
+============

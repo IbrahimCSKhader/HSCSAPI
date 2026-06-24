@@ -1,0 +1,1215 @@
+6-20 FULL TEST CASE SPECIFICATION - HSCSAPI
+===========================================
+
+التاريخ المرجعي: 20 يونيو 2026
+النطاق: جميع HTTP endpoints الحالية (96 endpoint) + ChatHub + NotificationHub
+التنظيم: Grouped by Controller
+
+مهم جداً:
+- هذا الملف هو Test Case Specification شامل، وليس ادعاء أن جميع الحالات نفذت على قاعدة الإنتاج.
+- الحالات التي تحتاج بيانات تحفظ/تحذف يجب تنفيذها على قاعدة TEST معزولة ومجهزة بالـfixtures أدناه.
+- الاختبارات الآلية الموجودة حالياً تغطي المحادثات وSignalR وتخزين الملفات. نتيجة تشغيلها تسجل في قسم Execution Summary بعد التشغيل.
+- ممنوع تنفيذ حالات DELETE أو التسجيل الجماعي على قاعدة الإنتاج.
+
+
+أعمدة كل Test Case
+==================
+
+ID: رقم الحالة.
+Type: SUCCESS / VALIDATION / AUTH / AUTHORIZATION / NOT_FOUND / CONFLICT / FILE / PAGING / SECURITY / FAILURE.
+Preconditions: البيانات والحساب المطلوبان قبل التنفيذ.
+Input/Steps: الطلب الذي ينفذ.
+Expected: HTTP status + شكل body + أثر قاعدة البيانات أو الحدث المتوقع.
+Execution: PLANNED ما لم يذكر PASS من اختبار آلي منفذ.
+
+
+TEST DATA FIXTURES
+==================
+
+CL-A: عيادة A صالحة.
+CL-B: عيادة B صالحة.
+U-SA: SuperAdmin مؤكد البريد.
+U-SEC-A: Secretary تابع لـCL-A ومديرها.
+U-SEC-A2: Secretary تابع لـCL-A وليس مديراً.
+U-SEC-B: Secretary تابع لـCL-B ومديرها.
+U-SEC-FREE: Secretary غير تابع لأي عيادة.
+U-PAT-A: Patient مؤكد تابع لـCL-A.
+U-PAT-A2: Patient آخر تابع لـCL-A.
+U-PAT-B: Patient تابع لـCL-B.
+U-DOC-A: Doctor تابع لـCL-A ورخصته فريدة.
+U-DOC-B: Doctor تابع لـCL-B.
+U-LAB-A / U-LAB-B: LaboratoryTechnologist لكل عيادة.
+U-RAD-A / U-RAD-B: RadiologyTechnologist لكل عيادة.
+U-AM: AuthorizedMember مؤكد البريد.
+U-UNVERIFIED: مستخدم مسجل ولم يؤكد البريد.
+APP-A-FUTURE: موعد مستقبلي بين U-DOC-A وU-PAT-A دون ملفات.
+APP-A-WITH-FILE: موعد لديه MedicalFile.
+MF-LOW: سجل طبي Low للمريض U-PAT-A وله ملف فعلي.
+MF-HIGH: سجل طبي High للمريض U-PAT-A.
+INV-PENDING: دعوة Pending من U-PAT-A إلى U-AM.
+CHAT-A: محادثة بين U-PAT-A وU-DOC-A.
+OUTSIDER: مستخدم مؤكد ليس عضواً في CHAT-A.
+
+
+GLOBAL CROSS-CUTTING CASES
+==========================
+
+GLOBAL-001 | AUTH
+Scope: كل endpoint عليه [Authorize].
+Input: الطلب بلا Authorization header.
+Expected: 401، ولا تغيير في قاعدة البيانات.
+Execution: PLANNED لكل endpoint محمي.
+
+GLOBAL-002 | AUTH
+Scope: كل endpoint محمي.
+Input: Bearer token منتهي أو signature خاطئ.
+Expected: 401، ولا يصل الطلب إلى Service.
+Execution: PLANNED.
+
+GLOBAL-003 | AUTHORIZATION
+Scope: كل endpoint عليه Roles.
+Input: token صالح لكن role غير مسموح.
+Expected: 403، ولا تغيير في قاعدة البيانات.
+Execution: PLANNED.
+
+GLOBAL-004 | VALIDATION
+Scope: كل endpoint يستقبل JSON.
+Input: JSON غير صالح syntax.
+Expected: 400 ValidationProblemDetails.
+Execution: PLANNED.
+
+GLOBAL-005 | VALIDATION
+Scope: حقول Guid في route والمقيدة بـ:guid.
+Input: قيمة مثل abc بدلاً من Guid.
+Expected: 404 route not matched.
+Execution: PLANNED.
+
+GLOBAL-006 | VALIDATION
+Scope: DateOnly/TimeOnly query أو body.
+Input: تاريخ 2026-99-99 أو وقت 28:90.
+Expected: 400 model-binding validation error.
+Execution: PLANNED.
+
+GLOBAL-007 | FAILURE
+Scope: جميع endpoints.
+Input: محاكاة توقف قاعدة البيانات.
+Expected: 500 application/problem+json مع traceId، دون كشف تفاصيل حساسة في Production.
+Execution: PLANNED في test environment فقط.
+
+GLOBAL-008 | SECURITY
+Scope: string inputs.
+Input: HTML/JS مثل <script>alert(1)</script>.
+Expected: لا ينفذ الخادم script؛ الفرونت يعرض النص escaped ولا يستخدم innerHTML.
+Execution: PLANNED.
+
+GLOBAL-009 | SECURITY
+Scope: search/name/email inputs.
+Input: SQL injection strings مثل ' OR 1=1 --.
+Expected: لا injection لأن EF يستخدم parameterization؛ النتيجة تعامل كنص أو validation failure.
+Execution: PLANNED.
+
+GLOBAL-010 | HTTP
+Scope: كل endpoint.
+Input: HTTP method خاطئ على route صحيح.
+Expected: 405 Method Not Allowed أو 404 حسب route matching، دون أثر بيانات.
+Execution: PLANNED.
+
+GLOBAL-011 | CANCELLATION
+Scope: عمليات طويلة.
+Input: إلغاء request من العميل أثناء التنفيذ.
+Expected: لا response جزئي؛ middleware يستخدم 499 إذا RequestAborted سبب OperationCanceledException قبل بدء response.
+Execution: PLANNED.
+
+GLOBAL-012 | SERIALIZATION
+Scope: كل response.
+Input: نجاح عادي.
+Expected: JSON camelCase، null للحقول الاختيارية، [] للقوائم الفارغة، وعدم ظهور navigation cycles.
+Execution: PLANNED.
+
+
+CONTROLLER: AuthController (API-001 .. API-011)
+================================================
+
+Endpoint API-001: POST /api/Auth/login
+
+AUTH-001-S01 | SUCCESS
+Preconditions: U-PAT-A مؤكد البريد وكلمة مروره صحيحة.
+Input: email + password الصحيحان.
+Expected: 200؛ AuthResponse.success=true؛ user صحيح؛ token JWT غير فارغ ويحمل NameIdentifier/Email/Role.
+Execution: PLANNED.
+
+AUTH-001-F01 | AUTH
+Preconditions: بريد موجود.
+Input: password خاطئة.
+Expected: 401؛ success=false؛ message="Invalid email or password."؛ token=null.
+Execution: PLANNED.
+
+AUTH-001-F02 | AUTH
+Input: بريد غير موجود.
+Expected: 401 بنفس رسالة كلمة المرور الخاطئة لمنع user enumeration.
+Execution: PLANNED.
+
+AUTH-001-F03 | AUTH
+Preconditions: U-UNVERIFIED.
+Input: بيانات صحيحة.
+Expected: 401؛ success=false؛ رسالة تطلب تأكيد البريد؛ token=null.
+Execution: PLANNED.
+
+AUTH-001-F04 | VALIDATION
+Input: email/password فارغان أو null/malformed body.
+Expected: 401 AuthResponse أو 400 model binding حسب شكل JSON؛ لا token.
+Execution: PLANNED.
+
+Endpoint API-002: POST /api/Auth/register-patient
+
+AUTH-002-S01 | SUCCESS
+Input: بيانات فريدة، CL-A، Gender=Male، BloodType=OPositive، password صالحة.
+Expected: 200؛ success=true؛ User وPatient محفوظان؛ patientUserId مولد؛ EmailConfirmed=false؛ كود 6 أرقام صالح 15 دقيقة؛ token=null.
+Execution: PLANNED على DB-TEST.
+
+AUTH-002-S02 | SUCCESS
+Input: bloodType=null والحقول الاختيارية null.
+Expected: 200 وحفظ القيم الاختيارية null.
+Execution: PLANNED.
+
+AUTH-002-F01 | VALIDATION
+Input: clinicId=Guid.Empty.
+Expected: 400؛ success=false؛ "ClinicId is required."
+Execution: PLANNED.
+
+AUTH-002-F02 | NOT_FOUND
+Input: clinicId صالح الشكل لكنه غير موجود.
+Expected: 400 AuthResponse؛ message يحتوي "Clinic not found."
+Execution: PLANNED.
+
+AUTH-002-F03 | VALIDATION
+Input: gender قيمة غير معرفة.
+Expected: 400؛ "Invalid gender value."
+Execution: PLANNED.
+
+AUTH-002-F04 | VALIDATION
+Input: bloodType قيمة غير معرفة.
+Expected: 400؛ "Invalid blood type value."
+Execution: PLANNED.
+
+AUTH-002-F05 | CONFLICT
+Input: email مستخدم مسبقاً.
+Expected: 400؛ "Email already registered."؛ لا User إضافي.
+Execution: PLANNED.
+
+AUTH-002-F06 | VALIDATION
+Input: كل تركيبات password المخالفة: أقل من 8، بلا رقم، بلا uppercase، بلا lowercase.
+Expected: 400 مع Identity error المناسب لكل حالة؛ لا حساب.
+Execution: PLANNED كـ4 data rows.
+
+Endpoint API-003: POST /api/Auth/register-doctor
+
+AUTH-003-S01 | SUCCESS
+Input: email/license فريدان، CL-A موجودة، password صالحة.
+Expected: 200؛ User+Doctor+Role محفوظون؛ verification code؛ token=null.
+Execution: PLANNED.
+
+AUTH-003-F01 | VALIDATION
+Input: clinicId فارغ.
+Expected: 400 "ClinicId is required."
+Execution: PLANNED.
+
+AUTH-003-F02 | NOT_FOUND
+Input: clinicId غير موجود.
+Expected: 400 AuthResponse برسالة Clinic not found.
+Execution: PLANNED.
+
+AUTH-003-F03 | CONFLICT
+Input: professionalLicenseNumber موجود.
+Expected: 400؛ لا حساب جديد.
+Execution: PLANNED.
+
+AUTH-003-F04 | CONFLICT
+Input: email موجود.
+Expected: 400 Email already registered.
+Execution: PLANNED.
+
+AUTH-003-F05 | VALIDATION
+Input: password غير صالحة.
+Expected: 400 Identity errors.
+Execution: PLANNED.
+
+Endpoint API-004: POST /api/Auth/register-secretary
+
+AUTH-004-S01 | SUCCESS
+Preconditions: token U-SA.
+Input: بيانات فريدة مع clinicId=null.
+Expected: 200؛ Secretary غير معين لعيادة؛ verification code؛ token=null.
+Execution: PLANNED.
+
+AUTH-004-S02 | SUCCESS
+Input: clinicId=CL-A.
+Expected: 200؛ Secretary.User.ClinicId=CL-A.
+Execution: PLANNED.
+
+AUTH-004-F01 | AUTH | Apply GLOBAL-001.
+AUTH-004-F02 | AUTHORIZATION | token ليس SuperAdmin؛ Expected 403.
+AUTH-004-F03 | NOT_FOUND | clinicId غير موجود؛ Expected 400 AuthResponse.
+AUTH-004-F04 | CONFLICT | email مكرر؛ Expected 400.
+AUTH-004-F05 | VALIDATION | password ضعيفة؛ Expected 400.
+
+Endpoint API-005: POST /api/Auth/register-authorized-member
+
+AUTH-005-S01 | SUCCESS
+Input: بيانات فريدة وحقول اختيارية صالحة.
+Expected: 200؛ User+AuthorizedMember+Role؛ verification code؛ token=null.
+Execution: PLANNED.
+
+AUTH-005-F01 | CONFLICT | email مكرر؛ Expected 400.
+AUTH-005-F02 | VALIDATION | password ضعيفة؛ Expected 400.
+AUTH-005-F03 | VALIDATION | email/name فارغان؛ Expected Identity/DB validation failure 400، ولا حساب كامل.
+
+Endpoint API-006: POST /api/Auth/register-laboratory-technologist
+
+AUTH-006-S01 | SUCCESS | بيانات فريدة وCL-A؛ Expected 200 وإنشاء Lab profile دون token.
+AUTH-006-F01 | VALIDATION | clinicId فارغ؛ Expected 400.
+AUTH-006-F02 | NOT_FOUND | clinicId غير موجود؛ Expected 400.
+AUTH-006-F03 | CONFLICT | license مكرر؛ Expected 400.
+AUTH-006-F04 | CONFLICT | email مكرر؛ Expected 400.
+AUTH-006-F05 | VALIDATION | password ضعيفة؛ Expected 400.
+
+Endpoint API-007: POST /api/Auth/register-radiology-technologist
+
+AUTH-007-S01 | SUCCESS | بيانات فريدة وCL-A؛ Expected 200 وإنشاء Radiology profile دون token.
+AUTH-007-F01 | VALIDATION | clinicId فارغ؛ Expected 400.
+AUTH-007-F02 | NOT_FOUND | clinicId غير موجود؛ Expected 400.
+AUTH-007-F03 | CONFLICT | license مكرر؛ Expected 400.
+AUTH-007-F04 | CONFLICT | email مكرر؛ Expected 400.
+AUTH-007-F05 | VALIDATION | password ضعيفة؛ Expected 400.
+
+Endpoint API-008: POST /api/Auth/forgot-password
+
+AUTH-008-S01 | SUCCESS
+Input: بريد موجود.
+Expected: 200 success=true؛ إبطال الأكواد القديمة؛ إنشاء PasswordReset code جديد صالح 15 دقيقة؛ رسالة عامة.
+Execution: PLANNED.
+
+AUTH-008-S02 | SECURITY
+Input: بريد غير موجود.
+Expected: 200 success=true ونفس الرسالة العامة؛ لا كشف لوجود الحساب.
+Execution: PLANNED.
+
+AUTH-008-F01 | FAILURE
+Input: محاكاة خطأ داخلي.
+Expected: 400 لأن controller يحول success=false إلى BadRequest؛ message يبدأ Password reset request failed.
+Execution: PLANNED.
+
+Endpoint API-009: POST /api/Auth/reset-password
+
+AUTH-009-S01 | SUCCESS
+Preconditions: PasswordReset code صالح غير مستخدم.
+Input: email/code/newPassword صالحة.
+Expected: 200 success=true؛ PasswordHash وSecurityStamp يتغيران؛ code.IsUsed=true؛ كلمة المرور القديمة تفشل والجديدة تنجح.
+Execution: PLANNED.
+
+AUTH-009-F01 | NOT_FOUND | email غير موجود؛ Expected 400 Invalid email or code.
+AUTH-009-F02 | VALIDATION | code خاطئ؛ Expected 400 Invalid or expired verification code.
+AUTH-009-F03 | VALIDATION | code منتهي؛ Expected 400.
+AUTH-009-F04 | VALIDATION | code مستخدم؛ Expected 400.
+AUTH-009-F05 | VALIDATION | newPassword ضعيفة بكل قواعد Identity؛ Expected 400 وعدم استهلاك code.
+
+Endpoint API-010: POST /api/Auth/verify-registration-code
+
+AUTH-010-S01 | SUCCESS
+Preconditions: EmailVerification code صالح.
+Expected: 200 success=true؛ EmailConfirmed=true؛ code.IsUsed=true.
+Execution: PLANNED.
+
+AUTH-010-S02 | IDEMPOTENCY
+Preconditions: البريد مؤكد مسبقاً.
+Expected: 200 success=true "Email is already verified."
+Execution: PLANNED.
+
+AUTH-010-F01 | NOT_FOUND | email غير موجود؛ Expected 400.
+AUTH-010-F02 | VALIDATION | code خاطئ/منتهي/مستخدم؛ Expected 400.
+AUTH-010-F03 | FAILURE | فشل Identity update؛ Expected 400 success=false وعدم commit جزئي.
+
+Endpoint API-011: POST /api/Auth/resend-verification-code
+
+AUTH-011-S01 | SUCCESS
+Preconditions: حساب غير مؤكد.
+Expected: 200؛ الأكواد القديمة IsUsed=true؛ كود جديد 6 أرقام صالح 15 دقيقة.
+Execution: PLANNED.
+
+AUTH-011-S02 | SECURITY
+Input: email غير موجود.
+Expected: 200 success=true برسالة عامة.
+Execution: PLANNED.
+
+AUTH-011-F01 | CONFLICT
+Preconditions: email مؤكد.
+Expected: 400 success=false "already verified".
+Execution: PLANNED.
+
+AUTH-011-F02 | VALIDATION
+Input: email بصيغة غير صالحة أو فارغ.
+Expected: 400 ValidationProblemDetails بسبب Required/EmailAddress.
+Execution: PLANNED.
+
+
+CONTROLLER: ClinicsController (API-012 .. API-018)
+====================================================
+
+Endpoint API-012: GET /api/Clinics
+CLN-012-S01 | SUCCESS | DB يحتوي CL-A/CL-B؛ Expected 200 ClinicResponse[2].
+CLN-012-S02 | EMPTY | DB بلا Clinics؛ Expected 200 [].
+CLN-012-F01 | FAILURE | DB unavailable؛ Expected GLOBAL-007.
+
+Endpoint API-013: POST /api/Clinics
+CLN-013-S01 | SUCCESS | U-SA، name/address، بلا admin؛ Expected 200 وإنشاء Clinic وCreatedBy=U-SA.
+CLN-013-S02 | SUCCESS | adminSecretaryId=U-SEC-FREE؛ Expected 200، ربطه بالعيادة وتعيينه Admin.
+CLN-013-F01 | AUTH | GLOBAL-001.
+CLN-013-F02 | AUTHORIZATION | role غير SuperAdmin؛ Expected 403.
+CLN-013-F03 | AUTH | token بلا NameIdentifier؛ Expected 401/UnauthorizedObject بحسب pipeline.
+CLN-013-F04 | NOT_FOUND | adminSecretaryId غير موجود؛ Expected 400 "Admin secretary not found."
+CLN-013-F05 | CONFLICT | admin مرتبط بعيادة؛ Expected 400.
+CLN-013-F06 | CONFLICT | admin يدير عيادة أخرى؛ Expected 400.
+
+Endpoint API-014: PUT /api/Clinics/{clinicId}
+CLN-014-S01 | SUCCESS | U-SA يعدل name/address؛ Expected 200 والقيم محفوظة.
+CLN-014-S02 | SUCCESS | تغيير admin إلى سكرتير صالح لنفس العيادة؛ Expected 200.
+CLN-014-F01 | NOT_FOUND | clinicId غير موجود؛ Expected 404.
+CLN-014-F02 | CONFLICT | admin لعيادة أخرى؛ Expected 400.
+CLN-014-F03 | AUTHORIZATION | غير SuperAdmin؛ Expected 403.
+
+Endpoint API-015: DELETE /api/Clinics/{clinicId}
+CLN-015-S01 | SUCCESS | عيادة بلا Users؛ Expected 204 وحذف الصف.
+CLN-015-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+CLN-015-F02 | CONFLICT | Users مرتبطون؛ Expected 400 وعدم الحذف.
+CLN-015-F03 | AUTHORIZATION | غير SuperAdmin؛ Expected 403.
+
+Endpoint API-016: PUT /api/Clinics/my-clinic
+CLN-016-S01 | SUCCESS | U-SEC-A هو Admin؛ Expected 200 وتعديل CL-A فقط.
+CLN-016-F01 | AUTHORIZATION | U-SEC-A2 ليس Admin؛ Expected 403.
+CLN-016-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-017: PUT /api/Clinics/{clinicId}/secretaries/{secretaryId}
+CLN-017-S01 | SUCCESS | U-SA يعدل سكرتيراً داخل CL-A؛ Expected 200 SecretaryResponse.
+CLN-017-S02 | SUCCESS | U-SEC-A يعدل سكرتيراً آخر في CL-A؛ Expected 200.
+CLN-017-F01 | AUTHORIZATION | U-SEC-B يحاول CL-A؛ Expected 403.
+CLN-017-F02 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+CLN-017-F03 | NOT_FOUND | secretary ليس في clinic؛ Expected 404.
+CLN-017-F04 | VALIDATION | name/email فارغان؛ Expected 400.
+CLN-017-F05 | CONFLICT | email مكرر؛ Expected 400.
+
+Endpoint API-018: DELETE /api/Clinics/{clinicId}/secretaries/{secretaryId}
+CLN-018-S01 | SUCCESS | U-SA يحذف سكرتيراً بلا blockers؛ Expected 204.
+CLN-018-S02 | SUCCESS | U-SEC-A يحذف سكرتيراً آخر داخل CL-A؛ Expected 204.
+CLN-018-F01 | AUTHORIZATION | سكرتير خارج العيادة؛ Expected 403.
+CLN-018-F02 | NOT_FOUND | clinic/secretary غير موجود؛ Expected 404.
+CLN-018-F03 | CONFLICT | السكرتير يحذف نفسه؛ Expected 400.
+CLN-018-F04 | CONFLICT | تقارير/علاقات تمنع الحذف؛ Expected 400 وعدم حذف User.
+
+
+CONTROLLER: AppointmentsController (API-019 .. API-024)
+========================================================
+
+Endpoint API-019: GET /api/Appointments
+APP-019-S01 | SUCCESS | U-SA بلا filters؛ Expected 200 كل المواعيد مرتبة date/time.
+APP-019-S02 | SUCCESS | U-SA مع clinicId=CL-A؛ Expected مواعيد CL-A فقط.
+APP-019-S03 | SUCCESS | U-SEC-A؛ Expected CL-A فقط حتى دون filter.
+APP-019-S04 | SUCCESS | U-DOC-A؛ Expected مواعيد الطبيب فقط.
+APP-019-S05 | SUCCESS | U-PAT-A؛ Expected مواعيد المريض فقط.
+APP-019-S06 | PAGING/FILTER | fromDate/toDate حدود متساوية؛ Expected مواعيد ذلك اليوم.
+APP-019-F01 | VALIDATION | fromDate>toDate؛ Expected 400 ProblemDetails.
+APP-019-F02 | AUTHORIZATION | U-SEC-A يرسل clinicId=CL-B؛ Expected 403.
+APP-019-F03 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+APP-019-F04 | AUTHORIZATION | U-AM؛ Expected 403 role.
+
+Endpoint API-020: GET /api/Appointments/me
+APP-020-S01 | SUCCESS | U-PAT-A؛ Expected مواعيده فقط.
+APP-020-S02 | SUCCESS | U-DOC-A؛ Expected مواعيده فقط.
+APP-020-F01 | AUTHORIZATION | Secretary/SuperAdmin/AuthorizedMember؛ Expected 403 لكل role.
+APP-020-F02 | AUTH | token بلا valid NameIdentifier؛ Expected 401/403.
+
+Endpoint API-021: GET /api/Appointments/{appointmentId}
+APP-021-S01 | SUCCESS | U-SA يطلب APP-A-FUTURE؛ Expected 200 AppointmentResponse.
+APP-021-S02 | SUCCESS | U-SEC-A/U-DOC-A/U-PAT-A كل حسب نطاقه؛ Expected 200.
+APP-021-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+APP-021-F02 | AUTHORIZATION | U-SEC-B/U-DOC-B/U-PAT-B؛ Expected 403.
+
+Endpoint API-022: POST /api/Appointments
+APP-022-S01 | SUCCESS | U-SA، doctor/patient في CL-A، وقت متاح؛ Expected 201 وAvailabilitySlot 30 دقيقة.
+APP-022-S02 | SUCCESS | U-SEC-A لنفس العيادة؛ Expected 201.
+APP-022-S03 | SUCCESS | U-PAT-A لنفسه؛ Expected 201.
+APP-022-F01 | VALIDATION | doctorId/patientId/date/time default؛ Expected 400 لكل حقل.
+APP-022-F02 | NOT_FOUND | doctor غير موجود؛ Expected 404.
+APP-022-F03 | NOT_FOUND | patient غير موجود؛ Expected 404.
+APP-022-F04 | CONFLICT | doctor/patient بعيادتين مختلفتين؛ Expected 400.
+APP-022-F05 | CONFLICT | الطبيب محجوز بنفس date/time؛ Expected 400.
+APP-022-F06 | CONFLICT | المريض محجوز بنفس date/time؛ Expected 400.
+APP-022-F07 | AUTHORIZATION | U-PAT-A ينشئ لـU-PAT-A2؛ Expected 403.
+APP-022-F08 | AUTHORIZATION | U-SEC-A يحجز CL-B؛ Expected 403.
+APP-022-F09 | AUTHORIZATION | Doctor يحاول POST؛ Expected 403 role.
+APP-022-F10 | VALIDATION | notes>1000؛ Expected 400 ValidationProblemDetails.
+
+Endpoint API-023: PUT /api/Appointments/{appointmentId}
+APP-023-S01 | SUCCESS | U-SA يعدل إلى slot متاح؛ Expected 200 وكل الحقول محدثة.
+APP-023-S02 | SUCCESS | U-SEC-A ضمن CL-A؛ Expected 200.
+APP-023-S03 | SUCCESS | U-PAT-A لموعده؛ Expected 200.
+APP-023-F01 | NOT_FOUND | appointment غير موجود؛ Expected 404.
+APP-023-F02 | AUTHORIZATION | موعد خارج النطاق؛ Expected 403.
+APP-023-F03 | CONFLICT | slot يتعارض مع doctor؛ Expected 400.
+APP-023-F04 | CONFLICT | slot يتعارض مع patient؛ Expected 400.
+APP-023-F05 | VALIDATION | body fields/default/notes limit؛ Expected 400.
+
+Endpoint API-024: DELETE /api/Appointments/{appointmentId}
+APP-024-S01 | SUCCESS | APP-A-FUTURE بلا files ومنفذ مصرح؛ Expected 204 وحذف appointment.
+APP-024-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+APP-024-F02 | AUTHORIZATION | مستخدم خارج النطاق؛ Expected 403.
+APP-024-F03 | CONFLICT | APP-A-WITH-FILE؛ Expected 400 وعدم الحذف.
+APP-024-F04 | AUTHORIZATION | Doctor يحاول DELETE؛ Expected 403 role.
+
+
+CONTROLLER: PatientsController (API-025 .. API-031)
+==================================================
+
+Endpoint API-025: GET /api/Patients
+PAT-025-S01 | SUCCESS | U-SA بلا clinicId؛ Expected 200 كل المرضى.
+PAT-025-S02 | SUCCESS | U-SA مع CL-A؛ Expected مرضى CL-A فقط.
+PAT-025-S03 | SUCCESS | U-SEC-A؛ Expected مرضى CL-A فقط.
+PAT-025-S04 | EMPTY | عيادة بلا مرضى؛ Expected 200 [].
+PAT-025-F01 | AUTHORIZATION | U-SEC-A يرسل CL-B؛ Expected 403.
+PAT-025-F02 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+PAT-025-F03 | AUTHORIZATION | Patient/Doctor؛ Expected 403 role.
+
+Endpoint API-026: GET /api/Patients/clinic/{clinicId}
+PAT-026-S01 | SUCCESS | U-SA يطلب CL-A؛ Expected PatientResponse[] لCL-A.
+PAT-026-S02 | SUCCESS | U-SEC-A يطلب CL-A؛ Expected 200.
+PAT-026-F01 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+PAT-026-F02 | AUTHORIZATION | U-SEC-A يطلب CL-B؛ Expected 403.
+
+Endpoint API-027: GET /api/Patients/me
+PAT-027-S01 | SUCCESS | U-PAT-A؛ Expected 200 وpatientId مطابق NameIdentifier.
+PAT-027-F01 | NOT_FOUND | User بدور Patient بلا profile؛ Expected 404.
+PAT-027-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-028: GET /api/Patients/{patientId}
+PAT-028-S01 | SUCCESS | U-SA يطلب أي Patient؛ Expected 200.
+PAT-028-S02 | SUCCESS | U-SEC-A يطلب U-PAT-A؛ Expected 200.
+PAT-028-S03 | SUCCESS | U-PAT-A يطلب نفسه؛ Expected 200.
+PAT-028-F01 | AUTHORIZATION | U-PAT-A يطلب U-PAT-A2؛ Expected 403.
+PAT-028-F02 | AUTHORIZATION | U-SEC-A يطلب U-PAT-B؛ Expected 403.
+PAT-028-F03 | NOT_FOUND | patientId غير موجود؛ Expected 404.
+
+Endpoint API-029: PUT /api/Patients/{patientId}
+PAT-029-S01 | SUCCESS | U-SA يحدّث كل الحقول؛ Expected 200 والقيم trimmed ومحفوظة.
+PAT-029-S02 | SUCCESS | U-SA ينقل patient من CL-A إلى CL-B؛ Expected patientUserId جديد.
+PAT-029-S03 | SUCCESS | U-SEC-A يعدل U-PAT-A داخل CL-A؛ Expected 200.
+PAT-029-F01 | VALIDATION | name فارغ؛ Expected 400.
+PAT-029-F02 | VALIDATION | email فارغ؛ Expected 400.
+PAT-029-F03 | VALIDATION | clinicId فارغ؛ Expected 400.
+PAT-029-F04 | VALIDATION | gender غير صالح؛ Expected 400.
+PAT-029-F05 | VALIDATION | bloodType غير صالح؛ Expected 400.
+PAT-029-F06 | NOT_FOUND | patient غير موجود؛ Expected 404.
+PAT-029-F07 | NOT_FOUND | target clinic غير موجود؛ Expected 404.
+PAT-029-F08 | CONFLICT | email يخص User آخر؛ Expected 400 وعدم تغيير البريد.
+PAT-029-F09 | AUTHORIZATION | U-SEC-A يعدل U-PAT-B؛ Expected 403.
+PAT-029-F10 | AUTHORIZATION | U-SEC-A ينقل U-PAT-A إلى CL-B؛ Expected 403.
+
+Endpoint API-030: PUT /api/Patients/me
+PAT-030-S01 | SUCCESS | U-PAT-A يعدل name/phone/address/date/gender/blood؛ Expected 200.
+PAT-030-S02 | SUCCESS | القيم الاختيارية null؛ Expected مسحها وحفظ null.
+PAT-030-F01 | VALIDATION | name فارغ؛ Expected 400.
+PAT-030-F02 | VALIDATION | gender غير صالح؛ Expected 400.
+PAT-030-F03 | VALIDATION | bloodType غير صالح؛ Expected 400.
+PAT-030-F04 | NOT_FOUND | profile غير موجود؛ Expected 404.
+PAT-030-F05 | SECURITY | body يحاول إضافة email/clinicId؛ Expected تجاهل الحقول غير الموجودة في DTO وعدم تغييرها.
+
+Endpoint API-031: DELETE /api/Patients/{patientId}
+PAT-031-S01 | SUCCESS | Patient بلا blockers وبصلاحية U-SA/U-SEC-A؛ Expected 204 وحذف User+Profile.
+PAT-031-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+PAT-031-F02 | AUTHORIZATION | U-SEC-A يحذف U-PAT-B؛ Expected 403.
+PAT-031-F03 | CONFLICT | Patient لديه Appointments؛ Expected 400 وذكر blocker.
+PAT-031-F04 | CONFLICT | لديه Medical/relations/invites/download requests حسب fixture؛ Expected 400 وعدم حذف.
+
+
+CONTROLLER: DoctorsController (API-032 .. API-038)
+=================================================
+
+Endpoint API-032: GET /api/Doctors
+DOC-032-S01 | SUCCESS | U-SA بلا filter؛ Expected كل الأطباء.
+DOC-032-S02 | SUCCESS | U-SA مع CL-A؛ Expected CL-A فقط.
+DOC-032-S03 | SUCCESS | U-SEC-A؛ Expected CL-A فقط.
+DOC-032-S04 | EMPTY | لا أطباء في النطاق؛ Expected 200 [].
+DOC-032-F01 | AUTHORIZATION | U-SEC-A يطلب CL-B؛ Expected 403.
+DOC-032-F02 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+
+Endpoint API-033: GET /api/Doctors/clinic/{clinicId}
+DOC-033-S01 | SUCCESS | U-SA/U-SEC-A يطلب CL-A؛ Expected 200 DoctorResponse[].
+DOC-033-F01 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+DOC-033-F02 | AUTHORIZATION | U-SEC-A يطلب CL-B؛ Expected 403.
+
+Endpoint API-034: GET /api/Doctors/me
+DOC-034-S01 | SUCCESS | U-DOC-A؛ Expected DoctorResponse مطابق التوكين.
+DOC-034-F01 | NOT_FOUND | role Doctor بلا profile؛ Expected 404.
+DOC-034-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-035: GET /api/Doctors/{doctorId}
+DOC-035-S01 | SUCCESS | U-SA أي doctor؛ Expected 200.
+DOC-035-S02 | SUCCESS | U-SEC-A يطلب U-DOC-A؛ Expected 200.
+DOC-035-S03 | SUCCESS | U-DOC-A يطلب نفسه؛ Expected 200.
+DOC-035-F01 | AUTHORIZATION | U-DOC-A يطلب U-DOC-B؛ Expected 403.
+DOC-035-F02 | AUTHORIZATION | U-SEC-A يطلب U-DOC-B؛ Expected 403.
+DOC-035-F03 | NOT_FOUND | doctor غير موجود؛ Expected 404.
+
+Endpoint API-036: PUT /api/Doctors/{doctorId}
+DOC-036-S01 | SUCCESS | U-SA يعدل حقول doctor ضمن Clinic صالحة؛ Expected 200.
+DOC-036-S02 | SUCCESS | U-SEC-A يعدل U-DOC-A داخل CL-A؛ Expected 200.
+DOC-036-F01 | VALIDATION | name/email/clinicId/license فارغ كل على حدة؛ Expected 400.
+DOC-036-F02 | NOT_FOUND | doctor غير موجود؛ Expected 404.
+DOC-036-F03 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+DOC-036-F04 | CONFLICT | email مكرر؛ Expected 400.
+DOC-036-F05 | CONFLICT | license مكررة؛ Expected 400.
+DOC-036-F06 | AUTHORIZATION | U-SEC-A يعدل U-DOC-B أو ينقله CL-B؛ Expected 403.
+
+Endpoint API-037: PUT /api/Doctors/me
+DOC-037-S01 | SUCCESS | U-DOC-A يعدل حقول self؛ Expected 200 دون تغيير email/clinic/license.
+DOC-037-S02 | SUCCESS | optional fields=null؛ Expected حفظ null.
+DOC-037-F01 | VALIDATION | name فارغ؛ Expected 400.
+DOC-037-F02 | NOT_FOUND | profile غير موجود؛ Expected 404.
+DOC-037-F03 | SECURITY | body فيه email/clinic/license إضافية؛ Expected تجاهلها.
+
+Endpoint API-038: DELETE /api/Doctors/{doctorId}
+DOC-038-S01 | SUCCESS | Doctor بلا blockers؛ Expected 204.
+DOC-038-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+DOC-038-F02 | AUTHORIZATION | U-SEC-A يحذف U-DOC-B؛ Expected 403.
+DOC-038-F03 | CONFLICT | Doctor لديه appointments/slots/files/reminders؛ Expected 400 وعدم الحذف.
+
+
+CONTROLLER: LaboratoryTechnologistsController (API-039 .. API-045)
+=================================================================
+
+Endpoint API-039: GET /api/LaboratoryTechnologists
+LAB-039-S01 | SUCCESS | U-SA كل الفنيين؛ Expected 200 list.
+LAB-039-S02 | SUCCESS | U-SA filter CL-A؛ Expected CL-A فقط.
+LAB-039-S03 | SUCCESS | U-SEC-A؛ Expected CL-A فقط.
+LAB-039-F01 | AUTHORIZATION | U-SEC-A يطلب CL-B؛ Expected 403.
+LAB-039-F02 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+
+Endpoint API-040: GET /api/LaboratoryTechnologists/clinic/{clinicId}
+LAB-040-S01 | SUCCESS | U-SA/U-SEC-A يطلب CL-A؛ Expected 200.
+LAB-040-F01 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+LAB-040-F02 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+
+Endpoint API-041: GET /api/LaboratoryTechnologists/me
+LAB-041-S01 | SUCCESS | U-LAB-A؛ Expected profile مطابق التوكين.
+LAB-041-F01 | NOT_FOUND | role بلا profile؛ Expected 404.
+LAB-041-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-042: GET /api/LaboratoryTechnologists/{id}
+LAB-042-S01 | SUCCESS | U-SA أي فني؛ Expected 200.
+LAB-042-S02 | SUCCESS | U-SEC-A يطلب U-LAB-A؛ Expected 200.
+LAB-042-S03 | SUCCESS | U-LAB-A يطلب نفسه؛ Expected 200.
+LAB-042-F01 | AUTHORIZATION | self role يطلب فني آخر؛ Expected 403.
+LAB-042-F02 | AUTHORIZATION | Secretary عيادة أخرى؛ Expected 403.
+LAB-042-F03 | NOT_FOUND | id غير موجود؛ Expected 404.
+
+Endpoint API-043: PUT /api/LaboratoryTechnologists/{id}
+LAB-043-S01 | SUCCESS | U-SA/U-SEC-A يعدل ضمن النطاق؛ Expected 200.
+LAB-043-F01 | VALIDATION | name/email/clinicId/license فارغ كل على حدة؛ Expected 400.
+LAB-043-F02 | NOT_FOUND | الفني أو العيادة غير موجود؛ Expected 404.
+LAB-043-F03 | CONFLICT | email مكرر؛ Expected 400.
+LAB-043-F04 | CONFLICT | license مكررة؛ Expected 400.
+LAB-043-F05 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+
+Endpoint API-044: PUT /api/LaboratoryTechnologists/me
+LAB-044-S01 | SUCCESS | self يعدل name/phone/address/date؛ Expected 200.
+LAB-044-F01 | VALIDATION | name فارغ؛ Expected 400.
+LAB-044-F02 | NOT_FOUND | profile غير موجود؛ Expected 404.
+LAB-044-F03 | SECURITY | حقول email/clinic/license إضافية؛ Expected تجاهلها.
+
+Endpoint API-045: DELETE /api/LaboratoryTechnologists/{id}
+LAB-045-S01 | SUCCESS | بلا علاقات مانعة؛ Expected 204.
+LAB-045-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+LAB-045-F02 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+LAB-045-F03 | FAILURE | علاقة LabTestRequests تمنع FK delete؛ Expected حالياً احتمال 500 إن لم يعالجها Identity/Service؛ يجب تسجيلها كعيب إذا ظهرت.
+
+
+CONTROLLER: RadiologyTechnologistsController (API-046 .. API-052)
+================================================================
+
+Endpoint API-046: GET /api/RadiologyTechnologists
+RAD-046-S01 | SUCCESS | U-SA كل الفنيين؛ Expected 200 list.
+RAD-046-S02 | SUCCESS | U-SA filter CL-A؛ Expected CL-A فقط.
+RAD-046-S03 | SUCCESS | U-SEC-A؛ Expected CL-A فقط.
+RAD-046-F01 | AUTHORIZATION | U-SEC-A يطلب CL-B؛ Expected 403.
+RAD-046-F02 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+
+Endpoint API-047: GET /api/RadiologyTechnologists/clinic/{clinicId}
+RAD-047-S01 | SUCCESS | U-SA/U-SEC-A يطلب CL-A؛ Expected 200.
+RAD-047-F01 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+RAD-047-F02 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+
+Endpoint API-048: GET /api/RadiologyTechnologists/me
+RAD-048-S01 | SUCCESS | U-RAD-A؛ Expected profile مطابق التوكين.
+RAD-048-F01 | NOT_FOUND | role بلا profile؛ Expected 404.
+RAD-048-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-049: GET /api/RadiologyTechnologists/{id}
+RAD-049-S01 | SUCCESS | U-SA أي فني؛ Expected 200.
+RAD-049-S02 | SUCCESS | U-SEC-A يطلب U-RAD-A؛ Expected 200.
+RAD-049-S03 | SUCCESS | U-RAD-A يطلب نفسه؛ Expected 200.
+RAD-049-F01 | AUTHORIZATION | self role يطلب فني آخر؛ Expected 403.
+RAD-049-F02 | AUTHORIZATION | Secretary عيادة أخرى؛ Expected 403.
+RAD-049-F03 | NOT_FOUND | id غير موجود؛ Expected 404.
+
+Endpoint API-050: PUT /api/RadiologyTechnologists/{id}
+RAD-050-S01 | SUCCESS | U-SA/U-SEC-A يعدل ضمن النطاق؛ Expected 200.
+RAD-050-F01 | VALIDATION | name/email/clinicId/license فارغ كل على حدة؛ Expected 400.
+RAD-050-F02 | NOT_FOUND | الفني أو العيادة غير موجود؛ Expected 404.
+RAD-050-F03 | CONFLICT | email مكرر؛ Expected 400.
+RAD-050-F04 | CONFLICT | license مكررة؛ Expected 400.
+RAD-050-F05 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+
+Endpoint API-051: PUT /api/RadiologyTechnologists/me
+RAD-051-S01 | SUCCESS | self يعدل name/phone/address/date؛ Expected 200.
+RAD-051-F01 | VALIDATION | name فارغ؛ Expected 400.
+RAD-051-F02 | NOT_FOUND | profile غير موجود؛ Expected 404.
+RAD-051-F03 | SECURITY | حقول email/clinic/license إضافية؛ Expected تجاهلها.
+
+Endpoint API-052: DELETE /api/RadiologyTechnologists/{id}
+RAD-052-S01 | SUCCESS | بلا علاقات مانعة؛ Expected 204.
+RAD-052-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+RAD-052-F02 | AUTHORIZATION | Secretary خارج النطاق؛ Expected 403.
+RAD-052-F03 | FAILURE | علاقة ImagingTestRequests تمنع FK delete؛ Expected احتمال 500 حالياً وتسجيل defect.
+
+
+CONTROLLER: SecretariesController (API-053 .. API-071)
+=====================================================
+
+Endpoint API-053: GET /api/Secretaries/dashboard
+SEC-053-S01 | SUCCESS | U-SEC-A؛ Expected 200 وClinicId/Name صحيحة وكل counters متطابقة مع DB.
+SEC-053-S02 | SUCCESS | مواعيد اليوم قبل/بعد الوقت الحالي؛ Expected hasReached=true للسابق وfalse للقادم.
+SEC-053-S03 | EMPTY | لا مواعيد/تقارير/طلبات؛ Expected counts=0 وlists=[].
+SEC-053-S04 | LIMIT | أكثر من 10 تسجيلات؛ Expected recentRegistrations أعلى 10 فقط بترتيب RegisteredAt desc.
+SEC-053-F01 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+SEC-053-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-054: GET /api/Secretaries
+SEC-054-S01 | SUCCESS | U-SA بلا filter؛ Expected كل SecretaryResponse.
+SEC-054-S02 | SUCCESS | U-SA مع clinicId=CL-A؛ Expected CL-A فقط.
+SEC-054-S03 | EMPTY | filter بلا نتائج؛ Expected 200 [].
+SEC-054-F01 | AUTHORIZATION | Secretary/أي role آخر؛ Expected 403.
+
+Endpoint API-055: GET /api/Secretaries/available
+SEC-055-S01 | SUCCESS | U-SA؛ Expected السكرتارية clinicId=null فقط.
+SEC-055-S02 | EMPTY | لا سكرتير متاح؛ Expected 200 [].
+SEC-055-F01 | AUTHORIZATION | غير SuperAdmin؛ Expected 403.
+
+Endpoint API-056: GET /api/Secretaries/clinic/{clinicId}
+SEC-056-S01 | SUCCESS | U-SA يطلب CL-A؛ Expected list.
+SEC-056-S02 | SUCCESS | U-SEC-A يطلب CL-A؛ Expected list.
+SEC-056-F01 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+SEC-056-F02 | AUTHORIZATION | U-SEC-B يطلب CL-A؛ Expected 403.
+
+Endpoint API-057: GET /api/Secretaries/my-clinic
+SEC-057-S01 | SUCCESS | U-SEC-A/U-SEC-A2؛ Expected سكرتارية CL-A.
+SEC-057-F01 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+SEC-057-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-058: PUT /api/Secretaries/{secretaryId}/assign-clinic
+SEC-058-S01 | SUCCESS | U-SA يعين U-SEC-FREE إلى CL-A؛ Expected 200 وClinicId=CL-A.
+SEC-058-S02 | SUCCESS | U-SEC-A يعين سكرتيراً حراً إلى CL-A؛ Expected 200.
+SEC-058-F01 | VALIDATION | clinicId=Guid.Empty؛ Expected 400.
+SEC-058-F02 | NOT_FOUND | clinic غير موجود؛ Expected 404.
+SEC-058-F03 | NOT_FOUND | secretary غير موجود؛ Expected 404.
+SEC-058-F04 | AUTHORIZATION | U-SEC-B يعين إلى CL-A؛ Expected 403.
+SEC-058-F05 | CONFLICT | Secretary مرتبط بعيادة أخرى؛ Expected 400.
+SEC-058-F06 | CONFLICT | Secretary يدير عيادة أخرى؛ Expected 400.
+
+Endpoint API-059: DELETE /api/Secretaries/{secretaryId}/remove-from-clinic
+SEC-059-S01 | SUCCESS | U-SA يزيل U-SEC-A2؛ Expected 200 وClinicId=null.
+SEC-059-S02 | SUCCESS | إزالة Admin لنفس العيادة؛ Expected AdminSecretaryId=null وClinicId=null.
+SEC-059-F01 | NOT_FOUND | secretary غير موجود؛ Expected 404.
+SEC-059-F02 | CONFLICT | غير معين لأي عيادة؛ Expected 400.
+SEC-059-F03 | AUTHORIZATION | U-SEC-B يزيل من CL-A؛ Expected 403.
+SEC-059-F04 | CONFLICT | يدير عيادة مختلفة عن User.ClinicId؛ Expected 400.
+
+Endpoint API-060: GET /api/Secretaries/my-clinic/patients
+SEC-060-S01 | SUCCESS | U-SEC-A؛ Expected مرضى CL-A فقط.
+SEC-060-S02 | EMPTY | CL-A بلا مرضى؛ Expected [].
+SEC-060-F01 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+
+Endpoint API-061: PUT /api/Secretaries/my-clinic/patients/{patientId}
+SEC-061-S01 | SUCCESS | U-SEC-A يعدل U-PAT-A ويبقي CL-A؛ Expected 200.
+SEC-061-F01 | AUTHORIZATION | patient في CL-B؛ Expected 403.
+SEC-061-F02 | AUTHORIZATION | محاولة ClinicId=CL-B؛ Expected 403.
+SEC-061-F03 | VALIDATION | name/email/clinic/gender/blood invalid؛ Expected 400 لكل data row.
+SEC-061-F04 | CONFLICT | email مكرر؛ Expected 400.
+SEC-061-F05 | NOT_FOUND | patient أو clinic غير موجود؛ Expected 404.
+
+Endpoint API-062: DELETE /api/Secretaries/my-clinic/patients/{patientId}
+SEC-062-S01 | SUCCESS | U-PAT-A بلا blockers؛ Expected 204.
+SEC-062-F01 | AUTHORIZATION | patient CL-B؛ Expected 403.
+SEC-062-F02 | NOT_FOUND | غير موجود؛ Expected 404.
+SEC-062-F03 | CONFLICT | blockers؛ Expected 400.
+
+Endpoint API-063: GET /api/Secretaries/my-clinic/doctors
+SEC-063-S01 | SUCCESS | U-SEC-A؛ Expected أطباء CL-A فقط.
+SEC-063-S02 | EMPTY | لا أطباء؛ Expected [].
+SEC-063-F01 | AUTHORIZATION | U-SEC-FREE؛ Expected 403.
+
+Endpoint API-064: PUT /api/Secretaries/my-clinic/doctors/{doctorId}
+SEC-064-S01 | SUCCESS | U-SEC-A يعدل U-DOC-A ويبقي CL-A؛ Expected 200.
+SEC-064-F01 | AUTHORIZATION | doctor CL-B أو target ClinicId=CL-B؛ Expected 403.
+SEC-064-F02 | VALIDATION | required fields invalid؛ Expected 400.
+SEC-064-F03 | CONFLICT | email/license مكررة؛ Expected 400.
+SEC-064-F04 | NOT_FOUND | doctor/clinic غير موجود؛ Expected 404.
+
+Endpoint API-065: DELETE /api/Secretaries/my-clinic/doctors/{doctorId}
+SEC-065-S01 | SUCCESS | Doctor CL-A بلا blockers؛ Expected 204.
+SEC-065-F01 | AUTHORIZATION | Doctor CL-B؛ Expected 403.
+SEC-065-F02 | NOT_FOUND | غير موجود؛ Expected 404.
+SEC-065-F03 | CONFLICT | لديه علاقات؛ Expected 400.
+
+Endpoint API-066: GET /api/Secretaries/my-clinic/laboratory-technologists
+SEC-066-S01 | SUCCESS | U-SEC-A؛ Expected Lab CL-A فقط.
+SEC-066-S02 | EMPTY | لا نتائج؛ Expected [].
+SEC-066-F01 | AUTHORIZATION | Secretary بلا عيادة؛ Expected 403.
+
+Endpoint API-067: PUT /api/Secretaries/my-clinic/laboratory-technologists/{id}
+SEC-067-S01 | SUCCESS | تعديل U-LAB-A ضمن CL-A؛ Expected 200.
+SEC-067-F01 | AUTHORIZATION | U-LAB-B/target CL-B؛ Expected 403.
+SEC-067-F02 | VALIDATION | required invalid؛ Expected 400.
+SEC-067-F03 | CONFLICT | email/license مكررة؛ Expected 400.
+SEC-067-F04 | NOT_FOUND | id/clinic غير موجود؛ Expected 404.
+
+Endpoint API-068: DELETE /api/Secretaries/my-clinic/laboratory-technologists/{id}
+SEC-068-S01 | SUCCESS | Lab CL-A بلا علاقات؛ Expected 204.
+SEC-068-F01 | AUTHORIZATION | Lab CL-B؛ Expected 403.
+SEC-068-F02 | NOT_FOUND | غير موجود؛ Expected 404.
+SEC-068-F03 | FAILURE | FK relation؛ Expected احتمال 500 وتسجيل defect.
+
+Endpoint API-069: GET /api/Secretaries/my-clinic/radiology-technologists
+SEC-069-S01 | SUCCESS | U-SEC-A؛ Expected Rad CL-A فقط.
+SEC-069-S02 | EMPTY | لا نتائج؛ Expected [].
+SEC-069-F01 | AUTHORIZATION | Secretary بلا عيادة؛ Expected 403.
+
+Endpoint API-070: PUT /api/Secretaries/my-clinic/radiology-technologists/{id}
+SEC-070-S01 | SUCCESS | تعديل U-RAD-A ضمن CL-A؛ Expected 200.
+SEC-070-F01 | AUTHORIZATION | U-RAD-B/target CL-B؛ Expected 403.
+SEC-070-F02 | VALIDATION | required invalid؛ Expected 400.
+SEC-070-F03 | CONFLICT | email/license مكررة؛ Expected 400.
+SEC-070-F04 | NOT_FOUND | id/clinic غير موجود؛ Expected 404.
+
+Endpoint API-071: DELETE /api/Secretaries/my-clinic/radiology-technologists/{id}
+SEC-071-S01 | SUCCESS | Rad CL-A بلا علاقات؛ Expected 204.
+SEC-071-F01 | AUTHORIZATION | Rad CL-B؛ Expected 403.
+SEC-071-F02 | NOT_FOUND | غير موجود؛ Expected 404.
+SEC-071-F03 | FAILURE | FK relation؛ Expected احتمال 500 وتسجيل defect.
+
+
+CONTROLLER: AuthorizedMembersController (API-072 .. API-076)
+==========================================================
+
+Endpoint API-072: GET /api/AuthorizedMembers/me
+AM-072-S01 | SUCCESS | U-AM؛ Expected 200 profile مطابق NameIdentifier.
+AM-072-F01 | AUTHORIZATION | role آخر؛ Expected 403.
+AM-072-F02 | NOT_FOUND | role موجود بلا profile؛ Expected 404.
+
+Endpoint API-073: GET /api/AuthorizedMembers/my-patients
+AM-073-S01 | SUCCESS | U-AM لديه علاقة مقبولة؛ Expected patients list مرتبة AuthorizedAt desc.
+AM-073-S02 | EMPTY | لا علاقات؛ Expected 200 [].
+AM-073-F01 | SECURITY | دعوة Pending فقط بلا relation؛ Expected المريض لا يظهر.
+
+Endpoint API-074: GET /api/AuthorizedMembers/my-invites
+AM-074-S01 | SUCCESS | Pending/Accepted/Rejected fixtures؛ Expected جميعها مرتبة SentAt desc.
+AM-074-S02 | EMPTY | لا invites؛ Expected [].
+
+Endpoint API-075: POST /api/AuthorizedMembers/my-invites/{inviteId}/accept
+AM-075-S01 | SUCCESS | INV-PENDING تخص U-AM؛ Expected 200 status=Accepted وRespondedAt وrelation واحدة.
+AM-075-S02 | IDEMPOTENCY/INTEGRITY | relation موجودة مسبقاً مع invite Pending؛ Expected قبول دون relation مكررة.
+AM-075-F01 | NOT_FOUND | invite غير موجودة أو تخص AM آخر؛ Expected 404.
+AM-075-F02 | CONFLICT | invite Accepted/Rejected؛ Expected 400 already responded.
+
+Endpoint API-076: POST /api/AuthorizedMembers/my-invites/{inviteId}/reject
+AM-076-S01 | SUCCESS | Pending تخص U-AM؛ Expected 200 status=Rejected وبدون relation جديدة.
+AM-076-F01 | NOT_FOUND | غير موجودة/لا تخصه؛ Expected 404.
+AM-076-F02 | CONFLICT | سبق الرد؛ Expected 400.
+
+
+CONTROLLER: PatientProfileController (API-077 .. API-090)
+========================================================
+
+Endpoint API-077: GET /api/patient-profile/dashboard
+PP-077-S01 | SUCCESS | U-PAT-A لديه appointments/records/visits/chats/notifications؛ Expected كل counters مطابق DB.
+PP-077-S02 | EMPTY | مريض جديد؛ Expected 200 وcounts=0 وlists=[].
+PP-077-S03 | TIME | موعد اليوم قبل/بعد الوقت؛ Expected upcoming يشمل الوقت الحالي وما بعده فقط.
+PP-077-S04 | LIMIT | أكثر من 5 upcoming؛ Expected list أعلى 5 مع count الكامل.
+PP-077-F01 | NOT_FOUND | Patient role بلا profile؛ Expected 404.
+PP-077-F02 | AUTHORIZATION | role آخر؛ Expected 403.
+
+Endpoint API-078: GET /api/patient-profile/notifications
+PP-078-S01 | SUCCESS | status=all/page=1/pageSize=20؛ Expected PagedResponse صحيح.
+PP-078-S02 | FILTER | status=read؛ Expected read فقط.
+PP-078-S03 | FILTER | status=unread؛ Expected unread فقط.
+PP-078-S04 | PAGING | page<=0/pageSize<=0؛ Expected 1/20.
+PP-078-S05 | PAGING | pageSize>100؛ Expected 100.
+PP-078-S06 | EMPTY | صفحة بعد النهاية؛ Expected items=[] مع total ثابت.
+PP-078-F01 | VALIDATION | status غير all/read/unread؛ Expected 400.
+
+Endpoint API-079: PATCH /api/patient-profile/notifications/{id}/read
+PP-079-S01 | SUCCESS | unread يخص U-PAT-A؛ Expected 200 isRead=true وDB updated.
+PP-079-S02 | IDEMPOTENCY | read مسبقاً؛ Expected 200 يبقى true.
+PP-079-F01 | NOT_FOUND | id غير موجود أو يخص Patient آخر؛ Expected 404.
+
+Endpoint API-080: PATCH /api/patient-profile/notifications/read-all
+PP-080-S01 | SUCCESS | 3 unread؛ Expected 200 {updated:3} وكلها true.
+PP-080-S02 | IDEMPOTENCY | لا unread؛ Expected 200 {updated:0}.
+
+Endpoint API-081: GET /api/patient-profile/medical-records
+PP-081-S01 | SUCCESS | type=all؛ Expected كل سجلات U-PAT-A فقط.
+PP-081-S02 | FILTER | type=lab/labs/lab-results؛ Expected lab فقط لكل alias.
+PP-081-S03 | FILTER | type=imaging/imaging-results؛ Expected imaging فقط.
+PP-081-S04 | CURRENT_LIMITATION | prescription/prescriptions/rx؛ Expected 200 items=[] حالياً.
+PP-081-S05 | SEARCH | query يطابق doctor/clinic/test/file path؛ Expected النتائج المطابقة.
+PP-081-S06 | SEARCH | query لا يطابق؛ Expected [].
+PP-081-S07 | PAGING | defaults/max/page beyond؛ Expected 20/max100/empty page.
+PP-081-F01 | VALIDATION | type غير معروف؛ Expected 400.
+PP-081-F02 | SECURITY | سجل Patient آخر؛ Expected لا يظهر.
+
+Endpoint API-082: GET /api/patient-profile/medical-records/{id}
+PP-082-S01 | SUCCESS | record يخص U-PAT-A؛ Expected 200 detail وكل الحقول.
+PP-082-F01 | NOT_FOUND | id غير موجود؛ Expected 404.
+PP-082-F02 | SECURITY | record يخص Patient آخر؛ Expected 404 وليس 403 لمنع الكشف.
+
+Endpoint API-083: GET /api/patient-profile/medical-records/{id}/download
+PP-083-S01 | FILE | MF-LOW وله ملف؛ Expected 200 binary وContent-Type/FileDownloadName صحيحان.
+PP-083-F01 | CONFLICT | MF-HIGH؛ Expected 400 requires approved request.
+PP-083-F02 | NOT_FOUND | record غير موجود/لا يخصه؛ Expected 404.
+PP-083-F03 | NOT_FOUND | DB row موجود لكن physical file مفقود؛ Expected 404.
+PP-083-F04 | CURRENT_LIMITATION | High مع Approved request؛ Expected ما زال 400 حالياً؛ تسجيل gap.
+
+Endpoint API-084: POST /api/patient-profile/medical-records/{id}/download-requests
+PP-084-S01 | SUCCESS | MF-HIGH وreason/purpose؛ Expected 201 Pending request.
+PP-084-S02 | IDEMPOTENCY | Pending موجود لنفس الملف؛ Expected 200 وإرجاعه دون duplicate.
+PP-084-F01 | VALIDATION | reason فارغ؛ Expected 400.
+PP-084-F02 | VALIDATION | purposeDescription فارغ؛ Expected 400.
+PP-084-F03 | NOT_FOUND | record غير موجود/لا يخصه؛ Expected 404.
+PP-084-F04 | CONFLICT | MF-LOW؛ Expected 400 can download directly.
+
+Endpoint API-085: GET /api/patient-profile/download-requests
+PP-085-S01 | SUCCESS | status=all؛ Expected PagedResponse لكل طلبات المريض.
+PP-085-S02 | FILTER | pending/approved/rejected case-insensitive؛ Expected كل فلتر صحيح.
+PP-085-S03 | PAGING | default/max/out-of-range؛ Expected نفس قواعد 20/100.
+PP-085-F01 | VALIDATION | status غير معروف؛ Expected 400.
+PP-085-F02 | SECURITY | طلب Patient آخر؛ Expected لا يظهر.
+
+Endpoint API-086: GET /api/patient-profile/authorized-members
+PP-086-S01 | SUCCESS | علاقات مقبولة؛ Expected list مرتبة AuthorizedAt desc.
+PP-086-S02 | EMPTY | لا علاقات؛ Expected [].
+PP-086-S03 | SECURITY | Pending invite فقط؛ Expected لا يظهر كعضو.
+
+Endpoint API-087: GET /api/patient-profile/authorized-member-invites
+PP-087-S01 | SUCCESS | عدة حالات؛ Expected list مرتبة SentAt desc.
+PP-087-S02 | EMPTY | لا دعوات؛ Expected [].
+PP-087-S03 | SECURITY | دعوات Patient آخر؛ Expected لا تظهر.
+
+Endpoint API-088: POST /api/patient-profile/authorized-member-invites
+PP-088-S01 | SUCCESS | email U-AM وRelationship=Guardian؛ Expected 201 Pending.
+PP-088-S02 | IDEMPOTENCY | Pending موجود؛ Expected 200 نفس invite دون duplicate.
+PP-088-S03 | CURRENT_BEHAVIOR | fullName مختلف؛ Expected تجاهله لأن الخدمة لا تستخدمه.
+PP-088-F01 | VALIDATION | email فارغ؛ Expected 400.
+PP-088-F02 | VALIDATION | relationshipType غير صالح؛ Expected 400.
+PP-088-F03 | NOT_FOUND | email ليس AuthorizedMember مسجلاً؛ Expected 404.
+PP-088-F04 | CONFLICT | relation موجودة؛ Expected 400 already has access.
+PP-088-F05 | SECURITY | email Patient/Doctor بدل AuthorizedMember؛ Expected 404.
+
+Endpoint API-089: DELETE /api/patient-profile/authorized-members/{id}
+PP-089-S01 | SUCCESS | relation تخص U-PAT-A؛ Expected 204 وحذف relation فقط لا User.
+PP-089-F01 | NOT_FOUND | relation غير موجودة أو تخص Patient آخر؛ Expected 404.
+
+Endpoint API-090: DELETE /api/patient-profile/authorized-member-invites/{id}
+PP-090-S01 | SUCCESS | Pending تخص U-PAT-A؛ Expected 204 وحذف invite.
+PP-090-F01 | NOT_FOUND | غير موجودة/تخص Patient آخر؛ Expected 404.
+PP-090-F02 | CONFLICT | Accepted/Rejected؛ Expected 400 only pending can be cancelled.
+
+
+CONTROLLER: ChatsController (API-091 .. API-096)
+================================================
+
+Endpoint API-091: POST /api/chats/open
+CHAT-091-S01 | SUCCESS
+Preconditions: طرفان موجودان ولا Chat بينهما.
+Input: recipientUserId للطرف الثاني.
+Expected: 200 ChatResponse؛ Chat row واحد normalized؛ folder wwwroot/chats/{chatId:N}.
+Execution: PASS - OpenChat_CreatesOneNormalizedChatAndServerFolder.
+
+CHAT-091-S02 | IDEMPOTENCY
+Input: فتح نفس الطرفين بالاتجاهين وبالتكرار.
+Expected: نفس ChatId وChat row واحد.
+Execution: PASS.
+
+CHAT-091-F01 | VALIDATION | recipientUserId=Guid.Empty؛ Expected 400 ProblemDetails.
+Execution: covered by service validation path.
+
+CHAT-091-F02 | VALIDATION | recipient=self؛ Expected 400.
+Execution: PASS - OpenChat_RejectsSelf.
+
+CHAT-091-F03 | NOT_FOUND | recipient غير موجود؛ Expected 404.
+Execution: PASS - OpenChat_RejectsUnknownRecipient.
+
+CHAT-091-F04 | AUTH | invalid NameIdentifier؛ Expected 403 من middleware exception mapping أو 401 من auth pipeline.
+Execution: PASS على service - OpenChat_RejectsInvalidTokenIdentity.
+
+Endpoint API-092: GET /api/chats
+CHAT-092-S01 | SUCCESS | عدة chats؛ Expected 200 مرتبة LastMessageAt/CreatedAt desc.
+CHAT-092-S02 | SUCCESS | رسائل واردة unread؛ Expected unreadCount صحيح وpreview/type لآخر رسالة.
+Execution: PASS - GetChats_ReportsLatestMessageAndUnreadCount.
+CHAT-092-S03 | EMPTY | لا Chats؛ Expected 200 [].
+CHAT-092-F01 | SECURITY | لا يظهر أي Chat لا يكون المستخدم UserOne/UserTwo.
+
+Endpoint API-093: GET /api/chats/{chatId}/messages
+CHAT-093-S01 | SUCCESS | عضو، page=1,pageSize=50؛ Expected أحدث page بترتيب chronological داخل items.
+CHAT-093-S02 | PAGING | 105 messages,page=0,pageSize=1000؛ Expected page=1,pageSize=100,totalPages=2.
+Execution: PASS - GetMessages_NormalizesPagingAndReturnsChronologicalPage.
+CHAT-093-S03 | PAGING | page=2؛ Expected الرسائل الأقدم الخاصة بتلك الصفحة مرتبة داخلها.
+CHAT-093-S04 | EMPTY | Chat بلا messages أو page beyond؛ Expected items=[].
+CHAT-093-F01 | NOT_FOUND | chat غير موجود؛ Expected 404.
+CHAT-093-F02 | AUTHORIZATION | OUTSIDER؛ Expected 403.
+Execution: PASS - NonMember_CannotReadSendMarkReadOrDownload.
+
+Endpoint API-094: POST /api/chats/{chatId}/messages
+CHAT-094-S01 | SUCCESS | multipart messageType=Text,text="  hello  "؛ Expected 200 Text trimmed، DB row، Notification، ReceiveMessage/ReceiveNotification.
+Execution: PASS - SendText_TrimsPersistsNotifiesAndBroadcasts.
+
+CHAT-094-S02 | SUCCESS | PNG صحيح؛ Expected 200 Image metadata، file generated، protected fileUrl.
+Execution: PASS - SendImage_PersistsProtectedFileMetadataAndReturnsDownloadRoute.
+
+CHAT-094-S03 | SUCCESS | MP3 ID3؛ Expected 200 Audio/audio-mpeg/.mp3.
+Execution: PASS - SendAudio_PersistsSupportedVoiceFile.
+
+CHAT-094-S04 | FILE | JPEG/PNG/GIF/WebP signatures كل على حدة؛ Expected قبول وحفظ extension آمن.
+Execution: PNG PASS؛ باقي formats PLANNED.
+
+CHAT-094-S05 | FILE | MP3/WAV/OGG/WebM/M4A/AAC signatures كل على حدة؛ Expected قبول.
+Execution: MP3/WAV/OGG/WebM PASS؛ M4A/AAC PLANNED.
+
+CHAT-094-F01 | VALIDATION | Text فارغ/whitespace؛ Expected 400 ولا DB/Notification.
+Execution: PASS - SendText_RejectsWhitespaceOnlyText.
+
+CHAT-094-F02 | VALIDATION | Text مع file؛ Expected 400.
+Execution: PASS - SendText_RejectsAttachedFile.
+
+CHAT-094-F03 | VALIDATION | Image بلا file؛ Expected 400.
+Execution: PASS - SendMedia_RequiresAFile(Image).
+
+CHAT-094-F04 | VALIDATION | Audio بلا file؛ Expected 400.
+Execution: PASS - SendMedia_RequiresAFile(Audio).
+
+CHAT-094-F05 | VALIDATION | Media مع text/caption؛ Expected 400.
+Execution: PASS - SendMedia_RejectsTextCaption.
+
+CHAT-094-F06 | VALIDATION | messageType=999؛ Expected 400.
+Execution: PASS - SendMessage_RejectsUndefinedMessageType.
+
+CHAT-094-F07 | SECURITY | Content-Type image/png وbytes مزيفة؛ Expected 400، لا file/message/notification.
+Execution: PASS - RejectedSpoofedFile_DoesNotCreateMessageOrNotification.
+
+CHAT-094-F08 | FILE | unsupported image application/pdf؛ Expected 400.
+Execution: PASS - Save_RejectsUnsupportedContentType(Image).
+
+CHAT-094-F09 | FILE | unsupported audio octet-stream؛ Expected 400.
+Execution: PASS - Save_RejectsUnsupportedContentType(Audio).
+
+CHAT-094-F10 | LIMIT | image=10MB+1؛ Expected 400.
+Execution: PASS - Save_RejectsOversizedFiles(Image).
+
+CHAT-094-F11 | LIMIT | audio=25MB+1؛ Expected 400.
+Execution: PASS - Save_RejectsOversizedFiles(Audio).
+
+CHAT-094-F12 | LIMIT | multipart request>27MB؛ Expected 413 من server request limit.
+Execution: PLANNED HTTP integration.
+
+CHAT-094-F13 | AUTHORIZATION | OUTSIDER يرسل؛ Expected 403 ولا أثر.
+Execution: PASS.
+
+CHAT-094-F14 | NOT_FOUND | chat غير موجود؛ Expected 404.
+Execution: PLANNED controller integration.
+
+CHAT-094-F15 | FAILURE | file write يفشل منتصف النسخ؛ Expected حذف partial file وعدم DB row.
+Execution: PLANNED fault injection.
+
+CHAT-094-F16 | FAILURE | DB SaveChanges يفشل بعد file save؛ Expected حذف stored file وعدم message.
+Execution: PLANNED fault injection.
+
+CHAT-094-S06 | FAILURE-TOLERANCE | SignalR broadcast يفشل بعد DB commit؛ Expected response success وبقاء message/file مع warning log.
+Execution: PASS - BroadcastFailure_DoesNotRollbackSavedMessageOrDeleteMedia.
+
+Endpoint API-095: POST /api/chats/{chatId}/read
+CHAT-095-S01 | SUCCESS | رسالتان واردتان unread ورسالة صادرة؛ Expected updatedMessages=2 والواردة فقط ReadAt.
+CHAT-095-S02 | IDEMPOTENCY | لا unread؛ Expected updatedMessages=0.
+CHAT-095-S03 | EVENT | نجاح؛ Expected MessagesRead للطرفين مع chatId/readByUserId/readAt.
+Execution: PASS - MarkAsRead_OnlyMarksIncomingUnreadMessages.
+CHAT-095-F01 | NOT_FOUND | chat غير موجود؛ Expected 404.
+CHAT-095-F02 | AUTHORIZATION | OUTSIDER؛ Expected 403.
+Execution: PASS.
+
+Endpoint API-096: GET /api/chats/{chatId}/messages/{messageId}/file
+CHAT-096-S01 | FILE | عضو يطلب Image؛ Expected 200، Content-Type، FileDownloadName، EnableRangeProcessing=true.
+Execution: PASS - ChatsController_ReturnsRangeEnabledProtectedPhysicalFile.
+CHAT-096-S02 | FILE | Range bytes=0-1023 على Audio؛ Expected 206 وContent-Range صحيح.
+Execution: PLANNED HTTP integration.
+CHAT-096-F01 | VALIDATION | message Text؛ Expected 400.
+Execution: PASS - GetFile_RejectsTextMessageAndMissingPhysicalFile.
+CHAT-096-F02 | NOT_FOUND | message غير موجود؛ Expected 404.
+CHAT-096-F03 | NOT_FOUND | DB metadata موجود والملف الفيزيائي مفقود؛ Expected 404.
+Execution: PASS.
+CHAT-096-F04 | AUTHORIZATION | OUTSIDER؛ Expected 403 حتى لو يعرف URL.
+Execution: PASS.
+CHAT-096-F05 | SECURITY | relativePath traversal؛ Expected رفض Invalid chat file path وعدم قراءة خارج chats.
+Execution: PASS - ResolvePhysicalPath_RejectsTraversalOutsideChatsRoot.
+
+
+HUB: ChatHub
+============
+
+HUB-CHAT-001 | SUCCESS | اتصال token صالح وله Chats؛ Expected auto-join لكل chat group.
+Execution: PASS - ChatHub_OnConnectedJoinsEveryExistingChatGroup.
+
+HUB-CHAT-002 | AUTH | اتصال بلا token/expired token؛ Expected handshake 401/close.
+Execution: PLANNED integration.
+
+HUB-CHAT-003 | AUTH | Context بلا Guid NameIdentifier؛ Expected abort وHubException Invalid token.
+Execution: covered by identity security tests/service.
+
+HUB-CHAT-004 | SUCCESS | JoinChat لعضو؛ Expected group add.
+Execution: PLANNED positive direct assertion.
+
+HUB-CHAT-005 | AUTHORIZATION | JoinChat لOUTSIDER؛ Expected HubException.
+Execution: PASS - ChatHub_JoinChatRejectsNonMember.
+
+HUB-CHAT-006 | SUCCESS | LeaveChat؛ Expected remove connection from group.
+Execution: PLANNED.
+
+HUB-CHAT-007 | SUCCESS | SendTextMessage valid؛ Expected ChatMessageResponse وDB/notification/event.
+Execution: PASS - ChatHub_SendTextUsesTokenIdentityAndPersistsMessage.
+
+HUB-CHAT-008 | VALIDATION | SendTextMessage whitespace/>4000؛ Expected invocation error وعدم save.
+Execution: whitespace path PASS؛ >4000 PLANNED.
+
+HUB-CHAT-009 | AUTHORIZATION | SendTextMessage لغير عضو؛ Expected invocation error.
+Execution: service PASS.
+
+HUB-CHAT-010 | SUCCESS | MarkAsRead عضو؛ Expected MarkChatReadResponse وMessagesRead.
+Execution: service PASS.
+
+HUB-CHAT-011 | SUCCESS | SetTyping true/false لعضو؛ Expected TypingChanged إلى OthersInGroup فقط.
+Execution: PASS - ChatHub_SetTypingBroadcastsOnlyAfterMembershipCheck.
+
+HUB-CHAT-012 | AUTHORIZATION | SetTyping لغير عضو؛ Expected HubException ولا event.
+Execution: PLANNED direct assertion.
+
+HUB-CHAT-013 | RECONNECT | reconnect token صالح؛ Expected connection restored وJoinChat للمحادثة المفتوحة.
+Execution: PLANNED end-to-end client.
+
+HUB-CHAT-014 | DUPLICATION | sender يحصل return + ReceiveMessage؛ Expected frontend dedupe by chatMessageId.
+Execution: PLANNED frontend integration.
+
+
+HUB: NotificationHub
+====================
+
+HUB-NOTIF-001 | SUCCESS | اتصال token/UserIdentifier صالح؛ Expected connection active.
+Execution: PLANNED positive direct test.
+
+HUB-NOTIF-002 | AUTH | لا UserIdentifier؛ Expected abort وHubException.
+Execution: PASS - NotificationHub_AbortsConnectionWithoutTokenIdentity.
+
+HUB-NOTIF-003 | EVENT | إرسال chat message للطرف الآخر؛ Expected ReceiveNotification مرة واحدة للrecipient user فقط.
+Execution: PASS - SendText_TrimsPersistsNotifiesAndBroadcasts.
+
+HUB-NOTIF-004 | SECURITY | مستخدم ثالث متصل؛ Expected لا يستقبل notification.
+Execution: PLANNED integration.
+
+HUB-NOTIF-005 | PAYLOAD | event payload؛ Expected notificationId/chatId/senderId/title صحيحة.
+Execution: PASS على recording proxy payload creation path.
+
+
+SCHEMA / MIGRATION / STORAGE CASES
+==================================
+
+SCHEMA-001 | Unique Chat pair؛ Expected unique(UserOneId,UserTwoId).
+Execution: PASS - ChatSchema_HasUniqueParticipantPairAndDifferentUsersConstraint.
+
+SCHEMA-002 | Same user pair؛ Expected CK_Chats_DifferentUsers يمنع DB insert.
+Execution: metadata PASS؛ SQL DB execution PLANNED.
+
+SCHEMA-003 | Text message دون Text أو مع File؛ Expected CK_ChatMessages_Content يمنع insert.
+Execution: metadata PASS؛ SQL DB execution PLANNED.
+
+SCHEMA-004 | Media دون metadata/size<=0؛ Expected check constraint يمنع insert.
+Execution: metadata PASS؛ SQL DB execution PLANNED.
+
+SCHEMA-005 | Delete Chat؛ Expected ChatMessages cascade.
+Execution: PASS metadata.
+
+SCHEMA-006 | Delete User له Chats؛ Expected Restrict وليس cascade.
+Execution: PASS metadata.
+
+SCHEMA-007 | Migration Up؛ Expected CREATE Chats/ChatMessages/indexes/checks/FKs.
+Execution: PASS من migration SQL generation السابق.
+
+SCHEMA-008 | Migration Down؛ Expected Drop ChatMessages ثم Chats.
+Execution: PLANNED على DB-TEST.
+
+STORAGE-001 | Constructor؛ Expected إنشاء ContentRootPath/wwwroot/chats.
+Execution: PASS.
+STORAGE-002 | اسم ../private.png؛ Expected original private.png واسم stored generated.
+Execution: PASS.
+STORAGE-003 | signature matrix؛ Expected قبول الأنواع المدعومة ورفض spoof.
+Execution: PASS جزئياً كما هو مفصل في CHAT-094.
+
+
+EXECUTION SUMMARY
+=================
+
+تاريخ التنفيذ: 2026-06-20
+الأمر المنفذ:
+dotnet test HSCSAPI.Tests/HSCSAPI.Tests.csproj --logger "console;verbosity=minimal" --collect:"XPlat Code Coverage"
+
+النتيجة الفعلية للاختبارات الآلية الموجودة:
+- Build: PASS (لا توجد أخطاء بناء).
+- Total: 44.
+- Passed: 44.
+- Failed: 0.
+- Skipped: 0.
+- Test duration: 5 seconds.
+- Process wall time including restore/build/coverage: 59.1 seconds.
+- المكونات المغطاة: Chat storage/service/controller/hubs/schema/security.
+- Line coverage لمكونات المحادثة المحددة في التقرير: 606/685 = 88.47%.
+
+ملاحظات البناء:
+- ظهر التحذير NU1510 لأن Microsoft.AspNetCore.SignalR.Common قد يكون PackageReference غير ضروري.
+- ظهرت تحذيرات CS8981 لأسماء بعض migrations المكتوبة بحروف ASCII صغيرة فقط.
+- التحذيرات لم تمنع البناء أو نجاح الاختبارات.
+
+Full HTTP integration matrix:
+- يحتوي هذا الملف على 96 endpoint sections و540 test-case rows تغطي المسارات المنطقية المهمة في الكود، إضافة إلى ChatHub وNotificationHub والسكيما والتخزين.
+- الحالات الموسومة PLANNED ليست مدّعى أنها نُفذت؛ تنفيذها الحي يتطلب DB-TEST معزولة ومجهزة بالـfixtures المذكورة أعلى الملف.
+- لم يتم تشغيل حالات HTTP الكتابية على قاعدة التطوير/الإنتاج حتى لا تتغير بياناتها.
+- لا توضع نتيجة PASS لأي حالة لم تنفذ فعلياً.
+
+
+EXIT CRITERIA
+=============
+
+1. Build: 0 errors.
+2. Automated unit/component tests: 0 failed.
+3. كل API-001..API-096 لديه success case واحد على الأقل وحالات failure المناسبة.
+4. كل endpoint محمي يمر missing/expired/wrong-role tests.
+5. لا اختبار يغيّر production DB.
+6. لا orphan files بعد فشل upload/DB.
+7. لا وصول cross-clinic أو cross-user للبيانات والملفات.
+8. كل 204 يعالج بلا JSON parsing.
+9. كل error shape يعالج في frontend parser.
+10. العيوب الحالية توثق ولا تحول إلى PASS وهمي.
+
+نهاية الملف
+===========
