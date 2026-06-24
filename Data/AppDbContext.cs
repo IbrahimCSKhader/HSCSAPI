@@ -57,6 +57,8 @@ public class AppDbContext : AppIdentityDbContextBase
     public DbSet<LabTestRequest> LabTestRequests => Set<LabTestRequest>();
     public DbSet<ImagingTestRequest> ImagingTestRequests => Set<ImagingTestRequest>();
     public DbSet<LoincCode> LoincCodes => Set<LoincCode>();
+    public DbSet<DiagnosisCode> DiagnosisCodes => Set<DiagnosisCode>();
+    public DbSet<RadiologyExamCatalog> RadiologyExamCatalogs => Set<RadiologyExamCatalog>();
 
     public DbSet<AvailabilitySlot> AvailabilitySlots => Set<AvailabilitySlot>();
     public DbSet<Appointment> Appointments => Set<Appointment>();

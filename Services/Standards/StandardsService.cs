@@ -1,9 +1,7 @@
-using System.Collections.Concurrent;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Standards;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic.FileIO;
 
 namespace HSCSAPI.Services.Standards;
 
@@ -12,6 +10,8 @@ public class StandardsService : IStandardsService
     private const int DefaultPage = 1;
     private const int DefaultPageSize = 25;
     private const int MaxPageSize = 100;
+    private const string Icd10CodeSystem = "ICD-10";
+    private const string RadiologyStandardSystem = "RadLexPlaybook";
 
     private static readonly string[] PreferredLabCodes =
     [
@@ -22,26 +22,11 @@ public class StandardsService : IStandardsService
         "24356-8"
     ];
 
-    private static readonly IReadOnlyList<ImagingTypeResponse> ImagingTypes =
-    [
-        new ImagingTypeResponse { Code = "XRAY", Display = "XRAY - X-Ray", Modality = "XR" },
-        new ImagingTypeResponse { Code = "MRI", Display = "MRI - MRI", Modality = "MR" },
-        new ImagingTypeResponse { Code = "CT", Display = "CT - CT Scan", Modality = "CT" },
-        new ImagingTypeResponse { Code = "US", Display = "US - Ultrasound", Modality = "US" },
-        new ImagingTypeResponse { Code = "MAMMO", Display = "MAMMO - Mammography", Modality = "MG" }
-    ];
-
-    private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<LoincCodeResponse>>> LoincCache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<Icd10CodeResponse>>> Icd10Cache = new(StringComparer.OrdinalIgnoreCase);
-    private static readonly ConcurrentDictionary<string, Lazy<IReadOnlyList<RadiologyPlaybookResponse>>> RadiologyCache = new(StringComparer.OrdinalIgnoreCase);
-
     private readonly AppDbContext _dbContext;
-    private readonly IWebHostEnvironment _environment;
 
-    public StandardsService(AppDbContext dbContext, IWebHostEnvironment environment)
+    public StandardsService(AppDbContext dbContext, IWebHostEnvironment? _ = null)
     {
         _dbContext = dbContext;
-        _environment = environment;
     }
 
     public async Task<StandardPagedResponse<LoincCodeResponse>> SearchLoincAsync(
@@ -54,31 +39,44 @@ public class StandardsService : IStandardsService
         var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var trimmedQuery = NormalizeQuery(query);
 
-        var dbResult = await TrySearchLoincTableAsync(trimmedQuery, normalizedPage, normalizedPageSize, activeOnly, cancellationToken);
-        if (dbResult is not null)
+        var recordsQuery = _dbContext.LoincCodes.AsNoTracking();
+        if (activeOnly)
         {
-            return dbResult;
+            recordsQuery = recordsQuery.Where(record =>
+                record.IsActive
+                && (record.Status == null || record.Status == "ACTIVE"));
         }
 
-        var records = GetLoincFileRecords();
-        var filtered = records
-            .Where(record => !activeOnly || IsActive(record.Status))
-            .Where(record => MatchesLoinc(record, trimmedQuery));
-
-        if (string.IsNullOrWhiteSpace(trimmedQuery))
+        if (!string.IsNullOrWhiteSpace(trimmedQuery))
         {
-            filtered = filtered
-                .OrderBy(record => PreferredLabRank(record.Code))
-                .ThenBy(record => record.Display);
-        }
-        else
-        {
-            filtered = filtered
-                .OrderBy(record => ExactOrPrefixRank(record, trimmedQuery))
-                .ThenBy(record => record.Display);
+            var loweredQuery = trimmedQuery.ToLower();
+            recordsQuery = recordsQuery.Where(record =>
+                record.Code.ToLower().Contains(loweredQuery)
+                || (record.LongCommonName != null && record.LongCommonName.ToLower().Contains(loweredQuery))
+                || (record.ShortName != null && record.ShortName.ToLower().Contains(loweredQuery))
+                || (record.Component != null && record.Component.ToLower().Contains(loweredQuery))
+                || (record.Class != null && record.Class.ToLower().Contains(loweredQuery)));
         }
 
-        return Page(filtered, normalizedPage, normalizedPageSize);
+        var projected = recordsQuery.Select(record => new LoincCodeResponse
+        {
+            Code = record.Code,
+            Display = record.LongCommonName ?? record.ShortName ?? record.Component ?? record.Code,
+            Component = record.Component,
+            Property = record.Property,
+            TimeAspect = record.TimeAspect,
+            System = record.System,
+            ScaleType = record.ScaleType,
+            MethodType = record.MethodType,
+            Class = record.Class,
+            ClassType = record.ClassType == null ? null : record.ClassType.Value.ToString(),
+            LongCommonName = record.LongCommonName,
+            ShortName = record.ShortName,
+            Status = record.Status
+        });
+
+        var ordered = OrderLoinc(projected, trimmedQuery);
+        return await PageAsync(ordered, normalizedPage, normalizedPageSize, cancellationToken);
     }
 
     public async Task<LoincCodeResponse?> GetLoincByCodeAsync(
@@ -91,111 +89,193 @@ public class StandardsService : IStandardsService
             return null;
         }
 
-        var dbResult = await TryGetLoincFromTableAsync(normalizedCode, cancellationToken);
-        if (dbResult is not null)
-        {
-            return dbResult;
-        }
-
-        return GetLoincFileRecords()
-            .FirstOrDefault(record => record.Code.Equals(normalizedCode, StringComparison.OrdinalIgnoreCase));
+        return await _dbContext.LoincCodes
+            .AsNoTracking()
+            .Where(record => record.Code == normalizedCode)
+            .Select(record => new LoincCodeResponse
+            {
+                Code = record.Code,
+                Display = record.LongCommonName ?? record.ShortName ?? record.Component ?? record.Code,
+                Component = record.Component,
+                Property = record.Property,
+                TimeAspect = record.TimeAspect,
+                System = record.System,
+                ScaleType = record.ScaleType,
+                MethodType = record.MethodType,
+                Class = record.Class,
+                ClassType = record.ClassType == null ? null : record.ClassType.Value.ToString(),
+                LongCommonName = record.LongCommonName,
+                ShortName = record.ShortName,
+                Status = record.Status
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<StandardPagedResponse<Icd10CodeResponse>> SearchIcd10Async(
+    public async Task<StandardPagedResponse<Icd10CodeResponse>> SearchIcd10Async(
         string? query,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var trimmedQuery = NormalizeQuery(query);
-        var records = GetIcd10FileRecords()
-            .Where(record => Matches(record.Code, trimmedQuery)
-                || Matches(record.Description, trimmedQuery)
-                || Matches(record.Display, trimmedQuery))
-            .OrderBy(record => ExactOrPrefixRank(record.Code, record.Display, trimmedQuery))
-            .ThenBy(record => record.Code);
 
-        return Task.FromResult(Page(records, normalizedPage, normalizedPageSize));
+        var recordsQuery = _dbContext.DiagnosisCodes
+            .AsNoTracking()
+            .Where(record => record.IsActive && record.CodeSystem == Icd10CodeSystem);
+
+        if (!string.IsNullOrWhiteSpace(trimmedQuery))
+        {
+            var loweredQuery = trimmedQuery.ToLower();
+            recordsQuery = recordsQuery.Where(record =>
+                record.Code.ToLower().Contains(loweredQuery)
+                || (record.DisplayCode != null && record.DisplayCode.ToLower().Contains(loweredQuery))
+                || record.Name.ToLower().Contains(loweredQuery)
+                || (record.Description != null && record.Description.ToLower().Contains(loweredQuery)));
+        }
+
+        var projected = recordsQuery.Select(record => new Icd10CodeResponse
+        {
+            Code = record.DisplayCode ?? record.Code,
+            Description = record.Description ?? record.Name,
+            Display = (record.DisplayCode ?? record.Code) + " - " + record.Name
+        });
+
+        var ordered = OrderByExactOrPrefix(projected, trimmedQuery);
+        return await PageAsync(ordered, normalizedPage, normalizedPageSize, cancellationToken);
     }
 
-    public Task<Icd10CodeResponse?> GetIcd10ByCodeAsync(
+    public async Task<Icd10CodeResponse?> GetIcd10ByCodeAsync(
         string code,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var normalizedCode = NormalizeCode(code);
         if (string.IsNullOrWhiteSpace(normalizedCode))
         {
-            return Task.FromResult<Icd10CodeResponse?>(null);
+            return null;
         }
 
-        var record = GetIcd10FileRecords()
-            .FirstOrDefault(item => item.Code.Equals(normalizedCode, StringComparison.OrdinalIgnoreCase));
-
-        return Task.FromResult(record);
+        return await _dbContext.DiagnosisCodes
+            .AsNoTracking()
+            .Where(record => record.IsActive
+                && record.CodeSystem == Icd10CodeSystem
+                && (record.Code == normalizedCode || record.DisplayCode == normalizedCode))
+            .Select(record => new Icd10CodeResponse
+            {
+                Code = record.DisplayCode ?? record.Code,
+                Description = record.Description ?? record.Name,
+                Display = (record.DisplayCode ?? record.Code) + " - " + record.Name
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<StandardPagedResponse<RadiologyPlaybookResponse>> SearchRadiologyPlaybookAsync(
+    public async Task<StandardPagedResponse<RadiologyPlaybookResponse>> SearchRadiologyPlaybookAsync(
         string? query,
         int page,
         int pageSize,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
         var trimmedQuery = NormalizeQuery(query);
-        var records = GetRadiologyFileRecords()
-            .Where(record => Matches(record.Rpid, trimmedQuery)
-                || Matches(record.LetterCode, trimmedQuery)
-                || Matches(record.ShortName, trimmedQuery)
-                || Matches(record.LongName, trimmedQuery)
-                || Matches(record.Modality, trimmedQuery)
-                || Matches(record.BodyRegion, trimmedQuery))
-            .OrderBy(record => ExactOrPrefixRank(record.Rpid, record.Display, trimmedQuery))
+
+        var recordsQuery = _dbContext.RadiologyExamCatalogs
+            .AsNoTracking()
+            .Where(record => record.IsActive && record.StandardSystem == RadiologyStandardSystem);
+
+        if (!string.IsNullOrWhiteSpace(trimmedQuery))
+        {
+            var loweredQuery = trimmedQuery.ToLower();
+            recordsQuery = recordsQuery.Where(record =>
+                record.Rpid.ToLower().Contains(loweredQuery)
+                || (record.LetterCode != null && record.LetterCode.ToLower().Contains(loweredQuery))
+                || (record.ShortName != null && record.ShortName.ToLower().Contains(loweredQuery))
+                || (record.LongName != null && record.LongName.ToLower().Contains(loweredQuery))
+                || (record.Modality != null && record.Modality.ToLower().Contains(loweredQuery))
+                || (record.BodyRegion != null && record.BodyRegion.ToLower().Contains(loweredQuery)));
+        }
+
+        var projected = recordsQuery.Select(record => new RadiologyPlaybookResponse
+        {
+            Rpid = record.Rpid,
+            Display = record.LongName ?? record.ShortName ?? record.LetterCode ?? record.Rpid,
+            LetterCode = record.LetterCode,
+            ShortName = record.ShortName,
+            LongName = record.LongName,
+            Modality = record.Modality,
+            PlaybookType = record.PlaybookType,
+            BodyRegion = record.BodyRegion,
+            Laterality = record.Laterality,
+            ReasonForExam = record.ReasonForExam
+        });
+
+        var ordered = projected
+            .OrderBy(record => !string.IsNullOrWhiteSpace(trimmedQuery) && record.Rpid == trimmedQuery
+                ? 0
+                : !string.IsNullOrWhiteSpace(trimmedQuery) && record.Display.StartsWith(trimmedQuery)
+                    ? 1
+                    : 2)
             .ThenBy(record => record.Display);
 
-        return Task.FromResult(Page(records, normalizedPage, normalizedPageSize));
+        return await PageAsync(ordered, normalizedPage, normalizedPageSize, cancellationToken);
     }
 
-    public Task<RadiologyPlaybookResponse?> GetRadiologyPlaybookByRpidAsync(
+    public async Task<RadiologyPlaybookResponse?> GetRadiologyPlaybookByRpidAsync(
         string rpid,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var normalizedRpid = NormalizeCode(rpid);
         if (string.IsNullOrWhiteSpace(normalizedRpid))
         {
-            return Task.FromResult<RadiologyPlaybookResponse?>(null);
+            return null;
         }
 
-        var record = GetRadiologyFileRecords()
-            .FirstOrDefault(item => item.Rpid.Equals(normalizedRpid, StringComparison.OrdinalIgnoreCase));
-
-        return Task.FromResult(record);
+        return await _dbContext.RadiologyExamCatalogs
+            .AsNoTracking()
+            .Where(record => record.IsActive
+                && record.StandardSystem == RadiologyStandardSystem
+                && record.Rpid == normalizedRpid)
+            .Select(record => new RadiologyPlaybookResponse
+            {
+                Rpid = record.Rpid,
+                Display = record.LongName ?? record.ShortName ?? record.LetterCode ?? record.Rpid,
+                LetterCode = record.LetterCode,
+                ShortName = record.ShortName,
+                LongName = record.LongName,
+                Modality = record.Modality,
+                PlaybookType = record.PlaybookType,
+                BodyRegion = record.BodyRegion,
+                Laterality = record.Laterality,
+                ReasonForExam = record.ReasonForExam
+            })
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
-    public Task<List<ImagingTypeResponse>> GetImagingTypesAsync(
+    public async Task<List<ImagingTypeResponse>> GetImagingTypesAsync(
         string? query,
         CancellationToken cancellationToken = default)
     {
-        cancellationToken.ThrowIfCancellationRequested();
-
         var trimmedQuery = NormalizeQuery(query);
-        var records = ImagingTypes
+
+        var modalities = await _dbContext.RadiologyExamCatalogs
+            .AsNoTracking()
+            .Where(record => record.IsActive
+                && record.StandardSystem == RadiologyStandardSystem
+                && record.Modality != null
+                && record.Modality != string.Empty)
+            .Select(record => record.Modality!)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        return modalities
+            .Select(ToImagingType)
+            .GroupBy(item => item.Code, StringComparer.OrdinalIgnoreCase)
+            .Select(group => group.First())
             .Where(item => Matches(item.Code, trimmedQuery)
                 || Matches(item.Display, trimmedQuery)
                 || Matches(item.Modality, trimmedQuery))
             .OrderBy(item => ExactOrPrefixRank(item.Code, item.Display, trimmedQuery))
             .ThenBy(item => item.Display)
             .ToList();
-
-        return Task.FromResult(records);
     }
 
     public async Task<StandardPagedResponse<StandardSearchItemResponse>> SearchAllAsync(
@@ -240,318 +320,86 @@ public class StandardsService : IStandardsService
         return Page(combined, normalizedPage, normalizedPageSize);
     }
 
-    private async Task<StandardPagedResponse<LoincCodeResponse>?> TrySearchLoincTableAsync(
-        string? query,
-        int page,
-        int pageSize,
-        bool activeOnly,
-        CancellationToken cancellationToken)
+    private static IQueryable<LoincCodeResponse> OrderLoinc(
+        IQueryable<LoincCodeResponse> source,
+        string? query)
     {
-        try
+        if (string.IsNullOrWhiteSpace(query))
         {
-            if (!await _dbContext.LoincCodes.AsNoTracking().AnyAsync(cancellationToken))
-            {
-                return null;
-            }
-
-            var recordsQuery = _dbContext.LoincCodes.AsNoTracking();
-            if (activeOnly)
-            {
-                recordsQuery = recordsQuery.Where(record => record.Status == "ACTIVE");
-            }
-
-            if (!string.IsNullOrWhiteSpace(query))
-            {
-                recordsQuery = recordsQuery.Where(record =>
-                    record.Code.Contains(query)
-                    || (record.LongCommonName != null && record.LongCommonName.Contains(query))
-                    || (record.ShortName != null && record.ShortName.Contains(query))
-                    || (record.Component != null && record.Component.Contains(query)));
-            }
-
-            var projected = recordsQuery.Select(record => new LoincCodeResponse
-            {
-                Code = record.Code,
-                Display = record.LongCommonName ?? record.ShortName ?? record.Component ?? record.Code,
-                Component = record.Component,
-                Property = record.Property,
-                TimeAspect = record.TimeAspect,
-                System = record.System,
-                ScaleType = record.ScaleType,
-                MethodType = record.MethodType,
-                Class = record.Class,
-                ClassType = record.ClassType,
-                LongCommonName = record.LongCommonName,
-                ShortName = record.ShortName,
-                Status = record.Status
-            });
-
-            var totalCount = await projected.CountAsync(cancellationToken);
-            var items = await projected
-                .OrderBy(record => record.Display)
-                .Skip((page - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
-
-            return new StandardPagedResponse<LoincCodeResponse>
-            {
-                Page = page,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = CalculateTotalPages(totalCount, pageSize),
-                Items = items
-            };
+            return source
+                .OrderBy(record => record.Code == PreferredLabCodes[0]
+                    ? 0
+                    : record.Code == PreferredLabCodes[1]
+                        ? 1
+                        : record.Code == PreferredLabCodes[2]
+                            ? 2
+                            : record.Code == PreferredLabCodes[3]
+                                ? 3
+                                : record.Code == PreferredLabCodes[4]
+                                    ? 4
+                                    : 5)
+                .ThenBy(record => record.Display);
         }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            return null;
-        }
+
+        return source
+            .OrderBy(record => record.Code == query
+                ? 0
+                : record.Code.StartsWith(query)
+                    ? 1
+                    : record.Display.StartsWith(query)
+                        ? 2
+                        : 3)
+            .ThenBy(record => record.Display);
     }
 
-    private async Task<LoincCodeResponse?> TryGetLoincFromTableAsync(
-        string code,
-        CancellationToken cancellationToken)
+    private static IQueryable<Icd10CodeResponse> OrderByExactOrPrefix(
+        IQueryable<Icd10CodeResponse> source,
+        string? query)
     {
-        try
+        if (string.IsNullOrWhiteSpace(query))
         {
-            return await _dbContext.LoincCodes
-                .AsNoTracking()
-                .Where(record => record.Code == code)
-                .Select(record => new LoincCodeResponse
-                {
-                    Code = record.Code,
-                    Display = record.LongCommonName ?? record.ShortName ?? record.Component ?? record.Code,
-                    Component = record.Component,
-                    Property = record.Property,
-                    TimeAspect = record.TimeAspect,
-                    System = record.System,
-                    ScaleType = record.ScaleType,
-                    MethodType = record.MethodType,
-                    Class = record.Class,
-                    ClassType = record.ClassType,
-                    LongCommonName = record.LongCommonName,
-                    ShortName = record.ShortName,
-                    Status = record.Status
-                })
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-        catch (Exception exception) when (exception is not OperationCanceledException)
-        {
-            return null;
-        }
-    }
-
-    private IReadOnlyList<LoincCodeResponse> GetLoincFileRecords()
-    {
-        var path = ResolveFilePath("LoincTableCore.csv");
-        return LoincCache.GetOrAdd(path, filePath => new Lazy<IReadOnlyList<LoincCodeResponse>>(() => LoadLoinc(filePath))).Value;
-    }
-
-    private IReadOnlyList<Icd10CodeResponse> GetIcd10FileRecords()
-    {
-        var path = ResolveFilePath("ICD 10.csv");
-        return Icd10Cache.GetOrAdd(path, filePath => new Lazy<IReadOnlyList<Icd10CodeResponse>>(() => LoadIcd10(filePath))).Value;
-    }
-
-    private IReadOnlyList<RadiologyPlaybookResponse> GetRadiologyFileRecords()
-    {
-        var path = ResolveFilePath("core-playbook-dev.csv");
-        return RadiologyCache.GetOrAdd(path, filePath => new Lazy<IReadOnlyList<RadiologyPlaybookResponse>>(() => LoadRadiology(filePath))).Value;
-    }
-
-    private string ResolveFilePath(string fileName)
-    {
-        return Path.Combine(_environment.ContentRootPath, "Files", fileName);
-    }
-
-    private static IReadOnlyList<LoincCodeResponse> LoadLoinc(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return [];
+            return source.OrderBy(record => record.Code);
         }
 
-        using var parser = CreateParser(path);
-        var headers = parser.ReadFields() ?? [];
-        var headerIndex = BuildHeaderIndex(headers);
-        var records = new List<LoincCodeResponse>();
+        return source
+            .OrderBy(record => record.Code == query
+                ? 0
+                : record.Code.StartsWith(query)
+                    ? 1
+                    : record.Display.StartsWith(query)
+                        ? 2
+                        : 3)
+            .ThenBy(record => record.Code);
+    }
 
-        while (!parser.EndOfData)
+    private static ImagingTypeResponse ToImagingType(string modality)
+    {
+        var normalized = modality.Trim().ToUpperInvariant();
+        return normalized switch
         {
-            var fields = parser.ReadFields();
-            if (fields is null || fields.Length == 0)
+            "XR" => new ImagingTypeResponse { Code = "XRAY", Display = "XRAY - X-Ray", Modality = "XR" },
+            "MR" => new ImagingTypeResponse { Code = "MRI", Display = "MRI - MRI", Modality = "MR" },
+            "CT" => new ImagingTypeResponse { Code = "CT", Display = "CT - CT Scan", Modality = "CT" },
+            "ULTRASOUND" => new ImagingTypeResponse { Code = "US", Display = "US - Ultrasound", Modality = "ULTRASOUND" },
+            "MAMMOGRAPHY" => new ImagingTypeResponse { Code = "MAMMO", Display = "MAMMO - Mammography", Modality = "MAMMOGRAPHY" },
+            _ => new ImagingTypeResponse
             {
-                continue;
+                Code = normalized,
+                Display = $"{normalized} - {ToFriendlyDisplay(normalized)}",
+                Modality = normalized
             }
-
-            var code = GetField(fields, headerIndex, "LOINC_NUM");
-            if (string.IsNullOrWhiteSpace(code))
-            {
-                continue;
-            }
-
-            var longCommonName = GetField(fields, headerIndex, "LONG_COMMON_NAME");
-            var shortName = GetField(fields, headerIndex, "SHORTNAME");
-            var component = GetField(fields, headerIndex, "COMPONENT");
-
-            records.Add(new LoincCodeResponse
-            {
-                Code = code,
-                Display = FirstNonBlank(longCommonName, shortName, component, code),
-                Component = component,
-                Property = GetField(fields, headerIndex, "PROPERTY"),
-                TimeAspect = GetField(fields, headerIndex, "TIME_ASPCT"),
-                System = GetField(fields, headerIndex, "SYSTEM"),
-                ScaleType = GetField(fields, headerIndex, "SCALE_TYP"),
-                MethodType = GetField(fields, headerIndex, "METHOD_TYP"),
-                Class = GetField(fields, headerIndex, "CLASS"),
-                ClassType = GetField(fields, headerIndex, "CLASSTYPE"),
-                LongCommonName = longCommonName,
-                ShortName = shortName,
-                Status = GetField(fields, headerIndex, "STATUS")
-            });
-        }
-
-        return records;
-    }
-
-    private static IReadOnlyList<Icd10CodeResponse> LoadIcd10(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return [];
-        }
-
-        using var parser = CreateParser(path);
-        var records = new List<Icd10CodeResponse>();
-
-        while (!parser.EndOfData)
-        {
-            var fields = parser.ReadFields();
-            if (fields is null || fields.Length < 2)
-            {
-                continue;
-            }
-
-            var code = fields[0].Trim();
-            var description = fields[1].Trim();
-            if (string.IsNullOrWhiteSpace(code) || string.IsNullOrWhiteSpace(description))
-            {
-                continue;
-            }
-
-            records.Add(new Icd10CodeResponse
-            {
-                Code = code,
-                Description = description,
-                Display = $"{code} - {description}"
-            });
-        }
-
-        return records;
-    }
-
-    private static IReadOnlyList<RadiologyPlaybookResponse> LoadRadiology(string path)
-    {
-        if (!File.Exists(path))
-        {
-            return [];
-        }
-
-        using var parser = CreateParser(path);
-        var headers = parser.ReadFields() ?? [];
-        var headerIndex = BuildHeaderIndex(headers);
-        var records = new List<RadiologyPlaybookResponse>();
-
-        while (!parser.EndOfData)
-        {
-            var fields = parser.ReadFields();
-            if (fields is null || fields.Length == 0)
-            {
-                continue;
-            }
-
-            var rpid = GetField(fields, headerIndex, "RPID");
-            if (string.IsNullOrWhiteSpace(rpid))
-            {
-                continue;
-            }
-
-            var longName = GetField(fields, headerIndex, "LONG_NAME");
-            var shortName = GetField(fields, headerIndex, "SHORT_NAME");
-            var letterCode = GetField(fields, headerIndex, "LETTER_CODE");
-
-            records.Add(new RadiologyPlaybookResponse
-            {
-                Rpid = rpid,
-                Display = FirstNonBlank(longName, shortName, letterCode, rpid),
-                LetterCode = letterCode,
-                ShortName = shortName,
-                LongName = longName,
-                Modality = GetField(fields, headerIndex, "MODALITY"),
-                PlaybookType = GetField(fields, headerIndex, "PLAYBOOK_TYPE"),
-                BodyRegion = GetField(fields, headerIndex, "BODY_REGION"),
-                Laterality = GetField(fields, headerIndex, "LATERALITY"),
-                ReasonForExam = GetField(fields, headerIndex, "REASON_FOR_EXAM")
-            });
-        }
-
-        return records;
-    }
-
-    private static TextFieldParser CreateParser(string path)
-    {
-        var parser = new TextFieldParser(path)
-        {
-            TextFieldType = FieldType.Delimited,
-            HasFieldsEnclosedInQuotes = true,
-            TrimWhiteSpace = true
         };
-        parser.SetDelimiters(",");
-        return parser;
     }
 
-    private static Dictionary<string, int> BuildHeaderIndex(string[] headers)
+    private static string ToFriendlyDisplay(string value)
     {
-        var index = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
-        for (var i = 0; i < headers.Length; i++)
-        {
-            var header = headers[i].Trim();
-            if (!string.IsNullOrWhiteSpace(header) && !index.ContainsKey(header))
-            {
-                index[header] = i;
-            }
-        }
-
-        return index;
-    }
-
-    private static string? GetField(string[] fields, IReadOnlyDictionary<string, int> headerIndex, string headerName)
-    {
-        return headerIndex.TryGetValue(headerName, out var index) && index < fields.Length
-            ? Clean(fields[index])
-            : null;
-    }
-
-    private static string? Clean(string? value)
-    {
-        var trimmed = value?.Trim();
-        return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
-    }
-
-    private static string FirstNonBlank(params string?[] values)
-    {
-        return values.FirstOrDefault(value => !string.IsNullOrWhiteSpace(value)) ?? string.Empty;
-    }
-
-    private static bool MatchesLoinc(LoincCodeResponse record, string? query)
-    {
-        return Matches(record.Code, query)
-            || Matches(record.Display, query)
-            || Matches(record.Component, query)
-            || Matches(record.ShortName, query)
-            || Matches(record.LongCommonName, query)
-            || Matches(record.Class, query);
+        return string.Join(
+            ' ',
+            value
+                .Replace('&', ' ')
+                .Replace('-', ' ')
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Select(word => word.Length == 0 ? word : word[0] + word[1..].ToLowerInvariant()));
     }
 
     private static bool Matches(string? value, string? query)
@@ -559,11 +407,6 @@ public class StandardsService : IStandardsService
         return string.IsNullOrWhiteSpace(query)
             || (!string.IsNullOrWhiteSpace(value)
                 && value.Contains(query, StringComparison.OrdinalIgnoreCase));
-    }
-
-    private static int ExactOrPrefixRank(LoincCodeResponse record, string? query)
-    {
-        return ExactOrPrefixRank(record.Code, record.Display, query);
     }
 
     private static int ExactOrPrefixRank(string code, string? display, string? query)
@@ -587,17 +430,6 @@ public class StandardsService : IStandardsService
         return 2;
     }
 
-    private static int PreferredLabRank(string code)
-    {
-        var index = Array.FindIndex(PreferredLabCodes, preferred => preferred.Equals(code, StringComparison.OrdinalIgnoreCase));
-        return index >= 0 ? index : PreferredLabCodes.Length;
-    }
-
-    private static bool IsActive(string? status)
-    {
-        return status?.Equals("ACTIVE", StringComparison.OrdinalIgnoreCase) != false;
-    }
-
     private static string? NormalizeQuery(string? query)
     {
         return string.IsNullOrWhiteSpace(query) ? null : query.Trim();
@@ -613,6 +445,28 @@ public class StandardsService : IStandardsService
         var normalizedPage = page <= 0 ? DefaultPage : page;
         var normalizedPageSize = pageSize <= 0 ? DefaultPageSize : Math.Min(pageSize, MaxPageSize);
         return (normalizedPage, normalizedPageSize);
+    }
+
+    private static async Task<StandardPagedResponse<T>> PageAsync<T>(
+        IQueryable<T> source,
+        int page,
+        int pageSize,
+        CancellationToken cancellationToken)
+    {
+        var totalCount = await source.CountAsync(cancellationToken);
+        var items = await source
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .ToListAsync(cancellationToken);
+
+        return new StandardPagedResponse<T>
+        {
+            Page = page,
+            PageSize = pageSize,
+            TotalCount = totalCount,
+            TotalPages = CalculateTotalPages(totalCount, pageSize),
+            Items = items
+        };
     }
 
     private static StandardPagedResponse<T> Page<T>(IEnumerable<T> source, int page, int pageSize)

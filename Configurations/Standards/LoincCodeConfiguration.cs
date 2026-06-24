@@ -8,64 +8,68 @@ public class LoincCodeConfiguration : IEntityTypeConfiguration<LoincCode>
 {
     public void Configure(EntityTypeBuilder<LoincCode> builder)
     {
-        builder.ToTable("LOINCCODE", table => table.ExcludeFromMigrations());
+        builder.ToTable("LoincCodes", table => table.ExcludeFromMigrations());
 
-        builder.HasKey(x => x.Code);
+        builder.HasKey(x => x.Id);
 
         builder.Property(x => x.Code)
-            .HasColumnName("LOINC_NUM")
-            .HasMaxLength(20);
+            .HasColumnName("LoincNum")
+            .HasMaxLength(64)
+            .IsRequired();
 
         builder.Property(x => x.Component)
-            .HasColumnName("COMPONENT")
-            .HasMaxLength(500);
+            .HasColumnName("Component");
 
         builder.Property(x => x.Property)
-            .HasColumnName("PROPERTY")
-            .HasMaxLength(100);
+            .HasColumnName("Property");
 
         builder.Property(x => x.TimeAspect)
-            .HasColumnName("TIME_ASPCT")
-            .HasMaxLength(100);
+            .HasColumnName("TimeAspect");
 
         builder.Property(x => x.System)
-            .HasColumnName("SYSTEM")
-            .HasMaxLength(200);
+            .HasColumnName("System");
 
         builder.Property(x => x.ScaleType)
-            .HasColumnName("SCALE_TYP")
-            .HasMaxLength(100);
+            .HasColumnName("ScaleType");
 
         builder.Property(x => x.MethodType)
-            .HasColumnName("METHOD_TYP")
-            .HasMaxLength(200);
+            .HasColumnName("MethodType");
 
         builder.Property(x => x.Class)
-            .HasColumnName("CLASS")
-            .HasMaxLength(100);
+            .HasColumnName("Class");
 
         builder.Property(x => x.ClassType)
-            .HasColumnName("CLASSTYPE")
-            .HasMaxLength(20);
+            .HasColumnName("ClassType");
 
         builder.Property(x => x.LongCommonName)
-            .HasColumnName("LONG_COMMON_NAME")
-            .HasMaxLength(1000);
+            .HasColumnName("LongCommonName");
 
         builder.Property(x => x.ShortName)
-            .HasColumnName("SHORTNAME")
-            .HasMaxLength(255);
+            .HasColumnName("ShortName");
 
         builder.Property(x => x.Status)
-            .HasColumnName("STATUS")
-            .HasMaxLength(50);
+            .HasColumnName("Status")
+            .HasMaxLength(64);
 
         builder.Property(x => x.VersionFirstReleased)
             .HasColumnName("VersionFirstReleased")
-            .HasMaxLength(20);
+            .HasMaxLength(64);
 
         builder.Property(x => x.VersionLastChanged)
             .HasColumnName("VersionLastChanged")
-            .HasMaxLength(20);
+            .HasMaxLength(64);
+
+        builder.Property(x => x.IsActive)
+            .HasColumnName("IsActive")
+            .IsRequired();
+
+        builder.Property(x => x.CreatedAt)
+            .HasColumnName("CreatedAt")
+            .IsRequired();
+
+        builder.Property(x => x.UpdatedAt)
+            .HasColumnName("UpdatedAt");
+
+        builder.HasIndex(x => x.Code);
     }
 }

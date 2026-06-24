@@ -26,10 +26,10 @@ namespace HSCSAPI.Tests;
 public class StandardsAndLabRequestTests
 {
     [Fact]
-    public async Task StandardsService_SearchesLocalStandardsFiles()
+    public async Task StandardsService_SearchesDatabaseStandardsTables()
     {
         using var context = new StandardsTestContext();
-        context.WriteStandardsFiles();
+        context.SeedStandardsRows();
         var service = new StandardsService(context.DbContext, new TestWebHostEnvironment(context.ContentRootPath));
 
         var loinc = await service.SearchLoincAsync("lipid", page: 1, pageSize: 10);
@@ -45,6 +45,7 @@ public class StandardsAndLabRequestTests
     public async Task StandardsService_ReturnsImagingTypesForDropdown()
     {
         using var context = new StandardsTestContext();
+        context.SeedStandardsRows();
         var service = new StandardsService(context.DbContext, new TestWebHostEnvironment(context.ContentRootPath));
 
         var imagingTypes = await service.GetImagingTypesAsync("xray");
@@ -160,6 +161,7 @@ public class StandardsAndLabRequestTests
         var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Lina Haddad");
         var patient = context.AddPatient(clinic.ClinicId, "pat-004", "David Chen");
         var technologist = context.AddRadiologyTechnologist(clinic.ClinicId, "Omar Haddad");
+        context.AddRadiologyExam("RPID-MRI", "MR", "MRI left knee");
         await context.DbContext.SaveChangesAsync();
 
         var response = await context.Service.CreateMyRequestAsync(
@@ -332,6 +334,7 @@ public class StandardsAndLabRequestTests
         var clinic = context.AddClinic("Advanced Imaging Center");
         var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Omar Faris");
         var patient = context.AddPatient(clinic.ClinicId, "pat-004", "David Chen");
+        context.AddRadiologyExam("RPID-MRI", "MR", "MRI left knee");
         context.AddAppointment(
             doctor.DoctorId,
             patient.PatientId,
@@ -402,7 +405,7 @@ internal sealed class StandardsTestContext : IDisposable
     public StandardsTestContext()
     {
         ContentRootPath = Path.Combine(Path.GetTempPath(), "hscsapi-standards-tests", Guid.NewGuid().ToString("N"));
-        Directory.CreateDirectory(Path.Combine(ContentRootPath, "Files"));
+        Directory.CreateDirectory(ContentRootPath);
 
         var options = new DbContextOptionsBuilder<AppDbContext>()
             .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
@@ -415,28 +418,59 @@ internal sealed class StandardsTestContext : IDisposable
     public string ContentRootPath { get; }
     public AppDbContext DbContext { get; }
 
-    public void WriteStandardsFiles()
+    public void SeedStandardsRows()
     {
-        File.WriteAllText(
-            Path.Combine(ContentRootPath, "Files", "LoincTableCore.csv"),
-            """
-            "LOINC_NUM","COMPONENT","PROPERTY","TIME_ASPCT","SYSTEM","SCALE_TYP","METHOD_TYP","CLASS","CLASSTYPE","LONG_COMMON_NAME","SHORTNAME","EXTERNAL_COPYRIGHT_NOTICE","STATUS","VersionFirstReleased","VersionLastChanged"
-            "24331-1","Lipid 1996 panel","-","Pt","Ser/Plas","Qn","","PANEL.CHEM","1","Lipid 1996 panel - Serum or Plasma","Lipid 1996 Pnl SerPl","","ACTIVE","1.0o","2.73"
-            """,
-            Encoding.UTF8);
+        DbContext.LoincCodes.Add(new LoincCode
+        {
+            Code = "24331-1",
+            Component = "Lipid 1996 panel",
+            LongCommonName = "Lipid 1996 panel - Serum or Plasma",
+            ShortName = "Lipid 1996 Pnl SerPl",
+            Class = "PANEL.CHEM",
+            ClassType = 1,
+            Status = "ACTIVE",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
 
-        File.WriteAllText(
-            Path.Combine(ContentRootPath, "Files", "ICD 10.csv"),
-            "A00,\"Cholera\"" + Environment.NewLine,
-            Encoding.UTF8);
+        DbContext.DiagnosisCodes.Add(new DiagnosisCode
+        {
+            CodeSystem = "ICD-10",
+            Code = "A00",
+            DisplayCode = "A00",
+            Name = "Cholera",
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
 
-        File.WriteAllText(
-            Path.Combine(ContentRootPath, "Files", "core-playbook-dev.csv"),
-            """
-            RPID,LETTER_CODE,SHORT_NAME,LONG_NAME,MODALITY,PLAYBOOK_TYPE,POPULATION,BODY_REGION,LATERALITY,REASON_FOR_EXAM,RIDS
-            RPID2,CTABCA,"CT Abd Angio w/wo","CT Abdomen Angio w and wo IV Contrast",CT,"RADIOLOGY ORDERABLE"," ",ABDOMEN," "," ","RID10321"
-            """,
-            Encoding.UTF8);
+        DbContext.RadiologyExamCatalogs.AddRange(
+            new RadiologyExamCatalog
+            {
+                StandardSystem = "RadLexPlaybook",
+                Rpid = "RPID2",
+                LetterCode = "CTABCA",
+                ShortName = "CT Abd Angio w/wo",
+                LongName = "CT Abdomen Angio w and wo IV Contrast",
+                Modality = "CT",
+                PlaybookType = "RADIOLOGY ORDERABLE",
+                BodyRegion = "ABDOMEN",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            },
+            new RadiologyExamCatalog
+            {
+                StandardSystem = "RadLexPlaybook",
+                Rpid = "RPID3",
+                LetterCode = "XRCH",
+                ShortName = "XR Chest",
+                LongName = "XR Chest",
+                Modality = "XR",
+                BodyRegion = "CHEST",
+                IsActive = true,
+                CreatedAt = DateTime.UtcNow
+            });
+
+        DbContext.SaveChanges();
     }
 
     public void Dispose()
@@ -649,6 +683,19 @@ internal sealed class ImagingRequestTestContext : IDisposable
         return technologist;
     }
 
+    public void AddRadiologyExam(string rpid, string modality, string longName)
+    {
+        DbContext.RadiologyExamCatalogs.Add(new RadiologyExamCatalog
+        {
+            StandardSystem = "RadLexPlaybook",
+            Rpid = rpid,
+            LongName = longName,
+            Modality = modality,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
+        });
+    }
+
     public ImagingTestRequest AddImagingResult(
         Guid doctorId,
         Guid patientId,
@@ -846,6 +893,19 @@ internal sealed class MedicalFileUploadTestContext : IDisposable
             Code = code,
             LongCommonName = display,
             Status = "ACTIVE"
+        });
+    }
+
+    public void AddRadiologyExam(string rpid, string modality, string longName)
+    {
+        DbContext.RadiologyExamCatalogs.Add(new RadiologyExamCatalog
+        {
+            StandardSystem = "RadLexPlaybook",
+            Rpid = rpid,
+            LongName = longName,
+            Modality = modality,
+            IsActive = true,
+            CreatedAt = DateTime.UtcNow
         });
     }
 
