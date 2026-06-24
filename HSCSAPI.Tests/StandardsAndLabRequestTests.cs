@@ -3,6 +3,7 @@ using System.Security.Claims;
 using System.Text;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Laboratory;
+using HSCSAPI.DTOs.MedicalFiles;
 using HSCSAPI.DTOs.Radiology;
 using HSCSAPI.Models.Appointments;
 using HSCSAPI.Models.Clinics;
@@ -13,8 +14,10 @@ using HSCSAPI.Models.Profiles;
 using HSCSAPI.Models.Radiology;
 using HSCSAPI.Models.Standards;
 using HSCSAPI.Services.Laboratory;
+using HSCSAPI.Services.MedicalFiles;
 using HSCSAPI.Services.Radiology;
 using HSCSAPI.Services.Standards;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -247,10 +250,150 @@ public class StandardsAndLabRequestTests
         Assert.True(file.EnableRangeProcessing);
     }
 
+    [Fact]
+    public async Task UploadMyMedicalFileAsync_StoresLabResultFromLoincStandard()
+    {
+        using var context = new MedicalFileUploadTestContext();
+        var clinic = context.AddClinic("SHCS Main Clinic");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Amira Nasser");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-002", "James Mitchell");
+        var appointment = context.AddAppointment(
+            doctor.DoctorId,
+            patient.PatientId,
+            new DateOnly(2026, 6, 21),
+            new TimeOnly(16, 0));
+        context.AddLoinc("24331-1", "LIPID - Lipid Panel");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.UploadMyMedicalFileAsync(
+            new CreateMedicalFileUploadRequest
+            {
+                PatientId = patient.UserID,
+                AppointmentId = appointment.AppointmentId,
+                Category = "Lab Test",
+                StandardCode = "24331-1",
+                DisplayName = "Wrong lab name from frontend",
+                Notes = "Uploaded for cross-clinic lipid review.",
+                File = CreateFormFile("%PDF-1.7\nlab"u8.ToArray(), "lipid-panel.pdf", "application/pdf")
+            },
+            MedicalFileUploadTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        var uploaded = OkValue(response);
+        Assert.Equal("Lab Test", uploaded.Category);
+        Assert.Equal("24331-1", uploaded.StandardCode);
+        Assert.Equal("LIPID - Lipid Panel", uploaded.StandardDisplay);
+        Assert.Equal(appointment.AppointmentId, uploaded.AppointmentId);
+
+        var labRequest = await context.DbContext.LabTestRequests.SingleAsync();
+        Assert.Equal("LIPID - Lipid Panel", labRequest.TestName);
+        Assert.Equal("24331-1", labRequest.LoincCode);
+        Assert.Equal(uploaded.MedicalFileId, labRequest.ResultMedicalFileId);
+        Assert.Equal("Uploaded for cross-clinic lipid review.", labRequest.ClinicalNotes);
+
+        var medicalFile = await context.DbContext.MedicalFiles.SingleAsync();
+        Assert.Equal(MedicalFileType.Pdf, medicalFile.FileType);
+        Assert.True(File.Exists(Path.Combine(context.ContentRootPath, medicalFile.FilePath)));
+    }
+
+    [Fact]
+    public async Task UploadMyMedicalFileAsync_RejectsLabUploadWithoutLoincCode()
+    {
+        using var context = new MedicalFileUploadTestContext();
+        var clinic = context.AddClinic("SHCS Main Clinic");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Amira Nasser");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-002", "James Mitchell");
+        context.AddAppointment(
+            doctor.DoctorId,
+            patient.PatientId,
+            new DateOnly(2026, 6, 21),
+            new TimeOnly(16, 0));
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.UploadMyMedicalFileAsync(
+            new CreateMedicalFileUploadRequest
+            {
+                PatientId = patient.UserID,
+                Category = "LabTest",
+                File = CreateFormFile("%PDF-1.7\nlab"u8.ToArray(), "lipid-panel.pdf", "application/pdf")
+            },
+            MedicalFileUploadTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        Assert.IsType<BadRequestObjectResult>(response.Result);
+        Assert.Empty(context.DbContext.MedicalFiles);
+        Assert.Empty(context.DbContext.LabTestRequests);
+    }
+
+    [Fact]
+    public async Task UploadMyMedicalFileAsync_StoresImagingResultFromStandard()
+    {
+        using var context = new MedicalFileUploadTestContext();
+        var clinic = context.AddClinic("Advanced Imaging Center");
+        var doctor = context.AddDoctor(clinic.ClinicId, "Dr. Omar Faris");
+        var patient = context.AddPatient(clinic.ClinicId, "pat-004", "David Chen");
+        context.AddAppointment(
+            doctor.DoctorId,
+            patient.PatientId,
+            new DateOnly(2026, 6, 16),
+            new TimeOnly(16, 0));
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.UploadMyMedicalFileAsync(
+            new CreateMedicalFileUploadRequest
+            {
+                PatientId = patient.UserID,
+                Category = "Imaging Test",
+                StandardCode = "MRI",
+                Notes = "Partial medial meniscus tear.",
+                File = CreateFormFile(
+                    [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00],
+                    "left-knee-mri.png",
+                    "image/png")
+            },
+            MedicalFileUploadTestContext.Principal(doctor.DoctorId),
+            CancellationToken.None);
+
+        var uploaded = OkValue(response);
+        Assert.Equal("Imaging Test", uploaded.Category);
+        Assert.Equal("MRI", uploaded.StandardCode);
+        Assert.Equal("MRI - MRI", uploaded.StandardDisplay);
+
+        var imagingRequest = await context.DbContext.ImagingTestRequests.SingleAsync();
+        Assert.Equal("MRI - MRI", imagingRequest.TestName);
+        Assert.Equal("MRI", imagingRequest.ImagingCode);
+        Assert.Equal(uploaded.MedicalFileId, imagingRequest.ResultMedicalFileId);
+        Assert.Equal("Partial medial meniscus tear.", imagingRequest.ClinicalNotes);
+    }
+
+    [Fact]
+    public async Task GetUploadCategoriesAsync_ReturnsStandardBackedOptions()
+    {
+        using var context = new MedicalFileUploadTestContext();
+
+        var response = await context.Service.GetUploadCategoriesAsync(CancellationToken.None);
+
+        var categories = OkValue(response);
+        var lab = Assert.Single(categories, item => item.Category == "LabTest");
+        Assert.True(lab.RequiresStandardCode);
+        Assert.Equal("LOINC", lab.StandardSource);
+        Assert.Equal("/api/Standards/lab-tests", lab.StandardsEndpoint);
+    }
+
     private static T OkValue<T>(ActionResult<T> response)
     {
         var ok = Assert.IsType<OkObjectResult>(response.Result);
         return Assert.IsType<T>(ok.Value);
+    }
+
+    private static IFormFile CreateFormFile(byte[] content, string fileName, string contentType)
+    {
+        var stream = new MemoryStream(content);
+        return new FormFile(stream, 0, stream.Length, "File", fileName)
+        {
+            Headers = new HeaderDictionary(),
+            ContentType = contentType
+        };
     }
 }
 
@@ -565,6 +708,145 @@ internal sealed class ImagingRequestTestContext : IDisposable
         DbContext.MedicalFiles.Add(medicalFile);
         DbContext.ImagingTestRequests.Add(request);
         return request;
+    }
+
+    public static ClaimsPrincipal Principal(Guid userId)
+    {
+        return new ClaimsPrincipal(new ClaimsIdentity(
+            [
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()),
+                new Claim(ClaimTypes.Role, nameof(UserSystemRole.Doctor))
+            ],
+            "Test"));
+    }
+
+    public void Dispose()
+    {
+        DbContext.Dispose();
+        if (Directory.Exists(ContentRootPath))
+        {
+            Directory.Delete(ContentRootPath, recursive: true);
+        }
+    }
+
+    private User AddUser(string name, Guid clinicId)
+    {
+        var id = Guid.NewGuid();
+        var email = $"{id:N}@test.local";
+        var user = new User
+        {
+            Id = id,
+            Name = name,
+            UserName = email,
+            NormalizedUserName = email.ToUpperInvariant(),
+            Email = email,
+            NormalizedEmail = email.ToUpperInvariant(),
+            EmailConfirmed = true,
+            RegisteredAt = DateTime.UtcNow,
+            ClinicId = clinicId
+        };
+        DbContext.Users.Add(user);
+        return user;
+    }
+}
+
+internal sealed class MedicalFileUploadTestContext : IDisposable
+{
+    public MedicalFileUploadTestContext()
+    {
+        ContentRootPath = Path.Combine(Path.GetTempPath(), "hscsapi-medical-file-upload-tests", Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(ContentRootPath);
+
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseInMemoryDatabase(Guid.NewGuid().ToString("N"))
+            .Options;
+
+        DbContext = new AppDbContext(options);
+        DbContext.Database.EnsureCreated();
+        StandardsService = new StandardsService(DbContext, new TestWebHostEnvironment(ContentRootPath));
+        Service = new MedicalFileUploadsService(DbContext, StandardsService, new TestWebHostEnvironment(ContentRootPath));
+    }
+
+    public string ContentRootPath { get; }
+    public AppDbContext DbContext { get; }
+    public StandardsService StandardsService { get; }
+    public MedicalFileUploadsService Service { get; }
+
+    public Clinic AddClinic(string name)
+    {
+        var clinic = new Clinic
+        {
+            ClinicId = Guid.NewGuid(),
+            Name = name,
+            CreatedBySuperAdminUserId = Guid.NewGuid()
+        };
+        DbContext.Clinics.Add(clinic);
+        return clinic;
+    }
+
+    public Doctor AddDoctor(Guid clinicId, string name)
+    {
+        var user = AddUser(name, clinicId);
+        var doctor = new Doctor
+        {
+            DoctorId = user.Id,
+            ProfessionalLicenseNumber = $"DOC-{Guid.NewGuid():N}",
+            User = user
+        };
+        DbContext.Doctors.Add(doctor);
+        return doctor;
+    }
+
+    public Patient AddPatient(Guid clinicId, string userId, string name)
+    {
+        var user = AddUser(name, clinicId);
+        var patient = new Patient
+        {
+            PatientId = user.Id,
+            UserID = userId,
+            Gender = Gender.Male,
+            BloodType = BloodType.OPositive,
+            User = user
+        };
+        DbContext.Patients.Add(patient);
+        return patient;
+    }
+
+    public Appointment AddAppointment(Guid doctorId, Guid patientId, DateOnly date, TimeOnly time)
+    {
+        var slot = new AvailabilitySlot
+        {
+            AvailabilitySlotId = Guid.NewGuid(),
+            DoctorId = doctorId,
+            DayOfWeek = date.DayOfWeek,
+            StartTime = time,
+            EndTime = time.AddMinutes(45),
+            IsAvailable = false
+        };
+        var appointment = new Appointment
+        {
+            AppointmentId = Guid.NewGuid(),
+            DoctorId = doctorId,
+            PatientId = patientId,
+            AvailabilitySlotId = slot.AvailabilitySlotId,
+            AppointmentDate = date,
+            AppointmentTime = time,
+            Notes = "Follow-up visit"
+        };
+
+        DbContext.AvailabilitySlots.Add(slot);
+        DbContext.Appointments.Add(appointment);
+        return appointment;
+    }
+
+    public void AddLoinc(string code, string display)
+    {
+        DbContext.LoincCodes.Add(new LoincCode
+        {
+            Code = code,
+            LongCommonName = display,
+            Status = "ACTIVE"
+        });
     }
 
     public static ClaimsPrincipal Principal(Guid userId)

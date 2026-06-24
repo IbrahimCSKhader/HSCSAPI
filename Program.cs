@@ -13,6 +13,7 @@ using HSCSAPI.Services.Email;
 using HSCSAPI.Services.Identity;
 using HSCSAPI.Services.Laboratory;
 using HSCSAPI.Services.LaboratoryTechnologists;
+using HSCSAPI.Services.MedicalFiles;
 using HSCSAPI.Services.PatientProfile;
 using HSCSAPI.Services.Patients;
 using HSCSAPI.Services.Radiology;
@@ -133,6 +134,7 @@ namespace HSCSAPI
             builder.Services.AddScoped<IStandardsService, StandardsService>();
             builder.Services.AddScoped<ILabTestRequestsService, LabTestRequestsService>();
             builder.Services.AddScoped<IImagingRequestsService, ImagingRequestsService>();
+            builder.Services.AddScoped<IMedicalFileUploadsService, MedicalFileUploadsService>();
             builder.Services.AddHttpClient<IRxNormService, RxNormService>(client =>
             {
                 client.BaseAddress = new Uri("https://rxnav.nlm.nih.gov/REST/");

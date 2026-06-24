@@ -750,9 +750,17 @@ public class DoctorsService : IDoctorsService
                     .OrderBy(test => test.TestName)
                     .Select(test => test.TestName)
                     .FirstOrDefault(),
+                LabClinicalNotes = file.LabTestRequestsAsResult
+                    .OrderBy(test => test.TestName)
+                    .Select(test => test.ClinicalNotes)
+                    .FirstOrDefault(),
                 ImagingTestName = file.ImagingTestRequestsAsResult
                     .OrderBy(test => test.TestName)
                     .Select(test => test.TestName)
+                    .FirstOrDefault(),
+                ImagingClinicalNotes = file.ImagingTestRequestsAsResult
+                    .OrderBy(test => test.TestName)
+                    .Select(test => test.ClinicalNotes)
                     .FirstOrDefault(),
                 HasLabResult = file.LabTestRequestsAsResult.Any(),
                 HasImagingResult = file.ImagingTestRequestsAsResult.Any()
@@ -792,6 +800,8 @@ public class DoctorsService : IDoctorsService
                 || record.RecordedByDoctorName.Contains(normalizedQuery)
                 || (record.ClinicName != null && record.ClinicName.Contains(normalizedQuery))
                 || (record.AppointmentNotes != null && record.AppointmentNotes.Contains(normalizedQuery))
+                || (record.LabClinicalNotes != null && record.LabClinicalNotes.Contains(normalizedQuery))
+                || (record.ImagingClinicalNotes != null && record.ImagingClinicalNotes.Contains(normalizedQuery))
                 || (record.LabTestName != null && record.LabTestName.Contains(normalizedQuery))
                 || (record.ImagingTestName != null && record.ImagingTestName.Contains(normalizedQuery))
                 || record.FilePath.Contains(normalizedQuery));
@@ -971,6 +981,8 @@ public class DoctorsService : IDoctorsService
     private static DoctorMedicalRecordResponse MapDoctorMedicalRecord(
         DoctorMedicalRecordProjection record)
     {
+        var notes = GetDoctorMedicalRecordNotes(record);
+
         return new DoctorMedicalRecordResponse
         {
             MedicalFileId = record.MedicalFileId,
@@ -978,7 +990,7 @@ public class DoctorsService : IDoctorsService
             RecordCode = BuildDoctorMedicalRecordCode(record),
             RecordType = GetDoctorMedicalRecordType(record),
             Title = GetDoctorMedicalRecordTitle(record),
-            Description = record.AppointmentNotes,
+            Description = notes,
             FileName = Path.GetFileName(record.FilePath),
             FileType = record.FileType.ToString(),
             FileSizeInBytes = record.FileSizeInBytes,
@@ -1002,7 +1014,8 @@ public class DoctorsService : IDoctorsService
     private static DoctorMedicalRecordDetailResponse MapDoctorMedicalRecordDetail(
         DoctorMedicalRecordProjection record)
     {
-        var summary = record.AppointmentNotes
+        var notes = GetDoctorMedicalRecordNotes(record);
+        var summary = notes
             ?? $"{GetDoctorMedicalRecordTitle(record)} recorded by {record.RecordedByDoctorName}.";
 
         return new DoctorMedicalRecordDetailResponse
@@ -1012,7 +1025,7 @@ public class DoctorsService : IDoctorsService
             RecordCode = BuildDoctorMedicalRecordCode(record),
             RecordType = GetDoctorMedicalRecordType(record),
             Title = GetDoctorMedicalRecordTitle(record),
-            Description = record.AppointmentNotes,
+            Description = notes,
             FileName = Path.GetFileName(record.FilePath),
             FileType = record.FileType.ToString(),
             FileSizeInBytes = record.FileSizeInBytes,
@@ -1032,8 +1045,15 @@ public class DoctorsService : IDoctorsService
             FileUrl = $"/api/Doctors/me/medical-records/{record.MedicalFileId}/download",
             AppointmentNotes = record.AppointmentNotes,
             Summary = summary,
-            ClinicalDetails = record.AppointmentNotes
+            ClinicalDetails = notes
         };
+    }
+
+    private static string? GetDoctorMedicalRecordNotes(DoctorMedicalRecordProjection record)
+    {
+        return record.LabClinicalNotes
+            ?? record.ImagingClinicalNotes
+            ?? record.AppointmentNotes;
     }
 
     private static string GetDoctorMedicalRecordType(DoctorMedicalRecordProjection record)
@@ -1289,7 +1309,9 @@ public class DoctorsService : IDoctorsService
         public Guid RecordedByDoctorId { get; set; }
         public string RecordedByDoctorName { get; set; } = string.Empty;
         public string? LabTestName { get; set; }
+        public string? LabClinicalNotes { get; set; }
         public string? ImagingTestName { get; set; }
+        public string? ImagingClinicalNotes { get; set; }
         public bool HasLabResult { get; set; }
         public bool HasImagingResult { get; set; }
     }

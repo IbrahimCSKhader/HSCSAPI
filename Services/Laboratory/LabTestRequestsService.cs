@@ -323,7 +323,7 @@ public class LabTestRequestsService : ILabTestRequestsService
             ResultFileName = resultFile is null ? null : Path.GetFileName(resultFile.FilePath),
             ResultFileSizeInBytes = resultFile?.FileSizeInBytes,
             ResultUploadedAt = resultFile?.UploadedAt,
-            ResultSummary = resultFile?.Appointment.Notes,
+            ResultSummary = request.ClinicalNotes ?? resultFile?.Appointment.Notes,
             ResultFileUrl = resultFile is null
                 ? null
                 : $"/api/Doctors/me/lab-requests/{request.LabTestRequestId}/result-file"
