@@ -12,12 +12,30 @@ public class ReminderConfiguration : IEntityTypeConfiguration<Reminder>
 
         builder.HasKey(x => x.ReminderId);
 
+        builder.Property(x => x.Title)
+            .IsRequired()
+            .HasMaxLength(200)
+            .HasDefaultValue("Reminder");
+
         builder.Property(x => x.ReminderText)
             .IsRequired()
             .HasMaxLength(500);
 
+        builder.Property(x => x.Category)
+            .IsRequired()
+            .HasMaxLength(50)
+            .HasDefaultValue("General");
+
         builder.Property(x => x.ReminderAt)
             .IsRequired();
+
+        builder.Property(x => x.CreatedAt)
+            .IsRequired()
+            .HasDefaultValueSql("SYSUTCDATETIME()");
+
+        builder.HasIndex(x => new { x.DoctorId, x.DismissedAt, x.ReminderAt });
+        builder.HasIndex(x => new { x.PatientId, x.DismissedAt, x.ReminderAt });
+        builder.HasIndex(x => new { x.AuthorizedMemberId, x.DismissedAt, x.ReminderAt });
 
         builder.HasOne(x => x.Patient)
             .WithMany(x => x.Reminders)

@@ -8,8 +8,12 @@ public class Reminder
     public Guid PatientId { get; set; }
     public Guid DoctorId { get; set; }
     public Guid? AuthorizedMemberId { get; set; }
+    public string Title { get; set; } = string.Empty;
     public string ReminderText { get; set; } = string.Empty;
+    public string Category { get; set; } = string.Empty;
     public DateTime ReminderAt { get; set; }
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime? DismissedAt { get; set; }
 
     public Patient Patient { get; set; } = null!;
     public Doctor Doctor { get; set; } = null!;

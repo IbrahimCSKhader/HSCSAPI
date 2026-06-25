@@ -239,6 +239,7 @@ public class ChatService : IChatService
         {
             UserId = recipientUserId,
             Title = $"New message from {currentSenderName}.",
+            Message = $"{currentSenderName} sent you a message.",
             IsRead = false
         };
 
@@ -290,7 +291,11 @@ public class ChatService : IChatService
                         NotificationId = notification.NotificationId,
                         ChatId = chatId,
                         SenderId = currentUserId,
-                        Title = notification.Title
+                        Title = notification.Title,
+                        Message = notification.Message,
+                        IsRead = notification.IsRead,
+                        Category = "Message",
+                        CreatedAt = notification.CreatedAt
                     },
                     CancellationToken.None);
         }

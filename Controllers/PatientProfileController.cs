@@ -24,30 +24,6 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetDashboardAsync(User, cancellationToken);
     }
 
-    [HttpGet("notifications")]
-    public async Task<ActionResult<PagedResponse<PatientNotificationResponse>>> GetNotifications(
-        [FromQuery] string? status,
-        [FromQuery] int page,
-        [FromQuery] int pageSize,
-        CancellationToken cancellationToken)
-    {
-        return await _patientProfileService.GetNotificationsAsync(status, page, pageSize, User, cancellationToken);
-    }
-
-    [HttpPatch("notifications/{notificationId:guid}/read")]
-    public async Task<ActionResult<PatientNotificationResponse>> MarkNotificationAsRead(
-        Guid notificationId,
-        CancellationToken cancellationToken)
-    {
-        return await _patientProfileService.MarkNotificationAsReadAsync(notificationId, User, cancellationToken);
-    }
-
-    [HttpPatch("notifications/read-all")]
-    public async Task<IActionResult> MarkAllNotificationsAsRead(CancellationToken cancellationToken)
-    {
-        return await _patientProfileService.MarkAllNotificationsAsReadAsync(User, cancellationToken);
-    }
-
     [HttpGet("medical-records")]
     public async Task<ActionResult<PagedResponse<PatientMedicalRecordResponse>>> GetMedicalRecords(
         [FromQuery] string? type,

@@ -845,8 +845,8 @@ PP-077-S04 | LIMIT | أكثر من 5 upcoming؛ Expected list أعلى 5 مع co
 PP-077-F01 | NOT_FOUND | Patient role بلا profile؛ Expected 404.
 PP-077-F02 | AUTHORIZATION | role آخر؛ Expected 403.
 
-Endpoint API-078: GET /api/patient-profile/notifications
-PP-078-S01 | SUCCESS | status=all/page=1/pageSize=20؛ Expected PagedResponse صحيح.
+Endpoint API-078: GET /api/notifications
+PP-078-S01 | SUCCESS | status=all/page=1/pageSize=20؛ Expected NotificationListResponse صحيح.
 PP-078-S02 | FILTER | status=read؛ Expected read فقط.
 PP-078-S03 | FILTER | status=unread؛ Expected unread فقط.
 PP-078-S04 | PAGING | page<=0/pageSize<=0؛ Expected 1/20.
@@ -854,14 +854,14 @@ PP-078-S05 | PAGING | pageSize>100؛ Expected 100.
 PP-078-S06 | EMPTY | صفحة بعد النهاية؛ Expected items=[] مع total ثابت.
 PP-078-F01 | VALIDATION | status غير all/read/unread؛ Expected 400.
 
-Endpoint API-079: PATCH /api/patient-profile/notifications/{id}/read
-PP-079-S01 | SUCCESS | unread يخص U-PAT-A؛ Expected 200 isRead=true وDB updated.
-PP-079-S02 | IDEMPOTENCY | read مسبقاً؛ Expected 200 يبقى true.
-PP-079-F01 | NOT_FOUND | id غير موجود أو يخص Patient آخر؛ Expected 404.
+Endpoint API-079: PATCH /api/notifications/{id}/read-status
+PP-079-S01 | SUCCESS | unread يخص U-PAT-A with Body isRead=true؛ Expected 200 isRead=true وDB updated.
+PP-079-S02 | SUCCESS | read مسبقاً with Body isRead=false؛ Expected 200 isRead=false وDB updated.
+PP-079-F01 | NOT_FOUND | id غير موجود أو يخص user آخر؛ Expected 404.
 
-Endpoint API-080: PATCH /api/patient-profile/notifications/read-all
-PP-080-S01 | SUCCESS | 3 unread؛ Expected 200 {updated:3} وكلها true.
-PP-080-S02 | IDEMPOTENCY | لا unread؛ Expected 200 {updated:0}.
+Endpoint API-080: PATCH /api/notifications/read-all
+PP-080-S01 | SUCCESS | 3 unread؛ Expected 200 {updatedNotifications:3} وكلها true.
+PP-080-S02 | IDEMPOTENCY | لا unread؛ Expected 200 {updatedNotifications:0}.
 
 Endpoint API-081: GET /api/patient-profile/medical-records
 PP-081-S01 | SUCCESS | type=all؛ Expected كل سجلات U-PAT-A فقط.
@@ -1165,6 +1165,61 @@ STORAGE-002 | اسم ../private.png؛ Expected original private.png واسم sto
 Execution: PASS.
 STORAGE-003 | signature matrix؛ Expected قبول الأنواع المدعومة ورفض spoof.
 Execution: PASS جزئياً كما هو مفصل في CHAT-094.
+
+
+CONTROLLER: RemindersController (API-R01 .. API-R07)
+===================================================
+
+Endpoint API-R01: GET /api/reminders
+REM-R01-S01 | SUCCESS | status=all/page=1/pageSize=20; Expected 200 ReminderListResponse with all/upcoming/past counts.
+REM-R01-S02 | FILTER | status=upcoming; Expected upcoming active reminders only.
+REM-R01-S03 | FILTER | status=past; Expected past active reminders only.
+REM-R01-S04 | PAGING | page<=0/pageSize>100; Expected normalized page=1/pageSize=100.
+REM-R01-F01 | VALIDATION | invalid status; Expected 400.
+REM-R01-F02 | AUTH | missing token identity; Expected 401.
+Execution: PASS - GetMyReminders_ReturnsDoctorVisibleActiveCounts; GetMyReminders_FiltersUpcomingPastAndRejectsInvalidStatus.
+
+Endpoint API-R02: POST /api/reminders
+REM-R02-S01 | SUCCESS | current doctor creates reminder for patient; Expected 201 and DB row.
+REM-R02-S02 | CATEGORY | no category with lab text; Expected inferred category=Lab.
+REM-R02-F01 | VALIDATION | missing title/message/date/ids; Expected 400.
+REM-R02-F02 | AUTHORIZATION | token user is not patient/doctor/authorizedMember; Expected 403.
+REM-R02-F03 | RELATION | authorizedMember not linked to patient; Expected 400.
+Execution: PASS - CreateReminder_CreatesForParticipantAndInfersCategory; CreateReminder_RejectsInvalidBodyForeignUserAndUnlinkedMember.
+
+Endpoint API-R03: GET /api/reminders/{id}
+REM-R03-S01 | SUCCESS | patient/doctor/member participant; Expected 200 ReminderResponse.
+REM-R03-F01 | SECURITY | foreign participant; Expected 404.
+Execution: PASS - GetReminder_ReturnsOwnReminderAndHidesForeignReminder.
+
+Endpoint API-R04: PUT /api/reminders/{id}
+REM-R04-S01 | SUCCESS | update title/message/category/date/member; Expected 200 updated fields.
+REM-R04-F01 | RELATION | unlinked authorizedMember; Expected 400.
+REM-R04-F02 | SECURITY | foreign reminder; Expected 404.
+Execution: PASS - UpdateReminder_UpdatesFieldsAndRejectsUnlinkedAuthorizedMember.
+
+Endpoint API-R05: PATCH /api/reminders/{id}/dismiss
+REM-R05-S01 | SUCCESS | active reminder; Expected 200 dismissedAt set.
+REM-R05-S02 | LISTING | dismissed reminder after list; Expected hidden from GET /api/reminders.
+REM-R05-S03 | IDEMPOTENCY | dismiss already dismissed; Expected 200 remains dismissed.
+REM-R05-F01 | SECURITY | missing or foreign reminder; Expected 404.
+Execution: PASS - DismissReminder_MarksReminderAndHidesItFromList.
+
+Endpoint API-R06: GET /api/reminders/preferences
+REM-R06-S01 | DEFAULTS | no stored preferences; Expected appointment/lab/message/inApp=true, email=false.
+REM-R06-S02 | STORED | after update; Expected persisted preferences.
+REM-R06-F01 | AUTH | missing token identity; Expected 401.
+Execution: PASS - Preferences_GetDefaultsAndUpdatePersists; Preferences_RejectsMissingFlagsAndMissingIdentity.
+
+Endpoint API-R07: PUT /api/reminders/preferences
+REM-R07-S01 | SUCCESS | all flags provided; Expected 200 and DB upsert.
+REM-R07-F01 | VALIDATION | one flag missing; Expected 400.
+REM-R07-F02 | AUTH | user id missing from Users; Expected 404.
+Execution: PASS - Preferences_GetDefaultsAndUpdatePersists; Preferences_RejectsMissingFlagsAndMissingIdentity.
+
+Route duplicate check:
+REM-ROUTE-001 | ROUTING | all controller routes; Expected no duplicate HTTP method/path and no reminders route outside RemindersController.
+Execution: PASS - ReminderRoutes_AreCentralizedAndNotDuplicated.
 
 
 EXECUTION SUMMARY

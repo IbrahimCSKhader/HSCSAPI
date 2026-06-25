@@ -16,11 +16,18 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
             .IsRequired()
             .HasMaxLength(200);
 
+        builder.Property(x => x.Message)
+            .HasMaxLength(1000);
+
         builder.Property(x => x.IsRead)
             .IsRequired()
             .HasDefaultValue(false);
 
-        builder.HasIndex(x => new { x.UserId, x.IsRead });
+        builder.Property(x => x.CreatedAt)
+            .IsRequired()
+            .HasDefaultValueSql("SYSUTCDATETIME()");
+
+        builder.HasIndex(x => new { x.UserId, x.IsRead, x.CreatedAt });
 
         builder.HasOne(x => x.User)
             .WithMany(x => x.Notifications)

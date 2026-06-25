@@ -57,14 +57,16 @@ public sealed record SeedInvite(
     int SentDaysOffset,
     int? RespondedDaysOffset);
 
-public sealed record SeedNotification(string UserKey, string Title, bool IsRead);
+public sealed record SeedNotification(string UserKey, string Title, bool IsRead, string? Message = null);
 
 public sealed record SeedReminder(
     string PatientKey,
     string DoctorKey,
     string? AuthorizedMemberKey,
     string ReminderText,
-    int ReminderDaysOffset);
+    int ReminderDaysOffset,
+    string? Title = null,
+    string? Category = null);
 
 public sealed record SeedFileDownloadRequest(
     string PatientKey,

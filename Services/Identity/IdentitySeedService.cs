@@ -237,6 +237,7 @@ public class IdentitySeedService
             await EnsureNotificationAsync(
                 usersByKey[notificationData.UserKey].Id,
                 notificationData.Title,
+                notificationData.Message,
                 notificationData.IsRead,
                 cancellationToken);
         }
@@ -248,6 +249,8 @@ public class IdentitySeedService
             reminderData.AuthorizedMemberKey is null ? null : usersByKey[reminderData.AuthorizedMemberKey].Id,
             reminderData.ReminderText,
             utcNow.AddDays(reminderData.ReminderDaysOffset),
+            reminderData.Title,
+            reminderData.Category,
             cancellationToken);
 
         var fileDownloadRequestData = ApplicationSeedData.PrimaryFileDownloadRequest;
@@ -791,6 +794,7 @@ public class IdentitySeedService
     private async Task EnsureNotificationAsync(
         Guid userId,
         string title,
+        string? message,
         bool isRead,
         CancellationToken cancellationToken)
     {
@@ -803,12 +807,14 @@ public class IdentitySeedService
             {
                 UserId = userId,
                 Title = title,
+                Message = message,
                 IsRead = isRead
             });
 
             return;
         }
 
+        notification.Message = message;
         notification.IsRead = isRead;
     }
 
@@ -818,6 +824,8 @@ public class IdentitySeedService
         Guid? authorizedMemberId,
         string reminderText,
         DateTime reminderAt,
+        string? title,
+        string? category,
         CancellationToken cancellationToken)
     {
         var reminder = await _dbContext.Reminders
@@ -834,7 +842,9 @@ public class IdentitySeedService
                 PatientId = patientId,
                 DoctorId = doctorId,
                 AuthorizedMemberId = authorizedMemberId,
+                Title = string.IsNullOrWhiteSpace(title) ? "Reminder" : title.Trim(),
                 ReminderText = reminderText,
+                Category = string.IsNullOrWhiteSpace(category) ? "General" : category.Trim(),
                 ReminderAt = reminderAt
             });
 
@@ -842,6 +852,8 @@ public class IdentitySeedService
         }
 
         reminder.AuthorizedMemberId = authorizedMemberId;
+        reminder.Title = string.IsNullOrWhiteSpace(title) ? reminder.Title : title.Trim();
+        reminder.Category = string.IsNullOrWhiteSpace(category) ? reminder.Category : category.Trim();
         reminder.ReminderAt = reminderAt;
     }
 

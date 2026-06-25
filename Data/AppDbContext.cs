@@ -47,6 +47,7 @@ public class AppDbContext : AppIdentityDbContextBase
     public DbSet<Invite> Invites => Set<Invite>();
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
+    public DbSet<ReminderPreference> ReminderPreferences => Set<ReminderPreference>();
 
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<ReportInformation> ReportInformations => Set<ReportInformation>();

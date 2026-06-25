@@ -768,24 +768,24 @@ visitsByClinic: totalVisits, clinicsCount, clinics[{clinicId?,clinicName,visitsC
 ملاحظة: prescriptionsCount حالياً يساوي 0 لأن تدفق الوصفات غير مطبق.
 
 API-078
-GET /api/patient-profile/notifications?status=&page=&pageSize=
-الحماية: Patient.
+GET /api/notifications?status=&page=&pageSize=
+الحماية: Any authenticated user.
 status المقبول: all أو read أو unread؛ null يعامل all.
 Pagination: page<=0 يصبح 1، pageSize<=0 يصبح 20، والحد الأعلى 100.
-النجاح 200: PagedResponse<PatientNotificationResponse>.
-Notification item: notificationId, title, isRead, category.
+النجاح 200: NotificationListResponse.
+Notification item: notificationId, title, message, isRead, category, createdAt. Response also includes unreadCount/readCount.
 الفشل 400 عند status غير صالح.
 
 API-079
-PATCH /api/patient-profile/notifications/{notificationId}/read
-Body: لا يوجد.
-النجاح 200: PatientNotificationResponse بعد isRead=true.
-الفشل 404 إذا الإشعار غير موجود أو لا يخص المريض.
+PATCH /api/notifications/{notificationId}/read-status
+Body: { "isRead": true } or { "isRead": false }.
+النجاح 200: NotificationResponse بعد تحديث isRead.
+الفشل 404 إذا الإشعار غير موجود أو لا يخص المستخدم صاحب التوكين.
 
 API-080
-PATCH /api/patient-profile/notifications/read-all
+PATCH /api/notifications/read-all
 Body: لا يوجد.
-النجاح 200: { "updated": number } بعد تعليم جميع إشعارات المريض غير المقروءة.
+النجاح 200: { "updatedNotifications": number, "markedAsReadAt": "..." } بعد تعليم جميع إشعارات المستخدم غير المقروءة.
 
 API-081
 GET /api/patient-profile/medical-records?type=&query=&page=&pageSize=
@@ -1016,7 +1016,7 @@ notificationConnection.on("ReceiveNotification", (notification) => {
 await notificationConnection.start();
 
 NotificationHub لا يحتوي client-invokable methods حالياً؛ وظيفته استقبال ReceiveNotification فقط.
-تعليم إشعار المريض كمقروء يتم عبر API-079 أو API-080، وليس عبر Hub.
+تحديث حالة الإشعار read/unread يتم عبر API-079 أو API-080، وليس عبر Hub.
 
 
 19) أمثلة Frontend عملية
@@ -1076,6 +1076,52 @@ async function loadProtectedFile(fileUrl) {
 URL.revokeObjectURL(objectUrl);
 
 
+20) Reminders APIs
+==================
+
+All endpoints require Authorization and use the current token user. A reminder is visible only to its Patient, Doctor, or linked AuthorizedMember.
+
+API-R01
+GET /api/reminders?status=&page=&pageSize=
+status: all, upcoming, or past. null means all.
+Success 200: ReminderListResponse with page, pageSize, totalCount, totalPages, allCount, upcomingCount, pastCount, items[].
+Reminder item: reminderId, patientId, patientName, doctorId, doctorName, authorizedMemberId?, authorizedMemberName?, title, message, category, status, reminderAt, createdAt, dismissedAt?.
+Failure 400 for invalid status, 401 for invalid token.
+
+API-R02
+POST /api/reminders
+Body: patientId, doctorId, authorizedMemberId?, title, message, category?, reminderAt.
+Success 201: ReminderResponse.
+Failure 400 for invalid body/profile/member relation, 403 when the token user is not one of the reminder participants.
+
+API-R03
+GET /api/reminders/{reminderId}
+Success 200: ReminderResponse for an accessible reminder.
+Failure 404 if not found or belongs to another user.
+
+API-R04
+PUT /api/reminders/{reminderId}
+Body: title, message, category?, reminderAt, authorizedMemberId?.
+Success 200: updated ReminderResponse.
+Failure 400 for invalid body/member relation, 404 for missing or foreign reminder.
+
+API-R05
+PATCH /api/reminders/{reminderId}/dismiss
+Body: none.
+Success 200: ReminderResponse with dismissedAt set. Dismissed reminders are hidden from the main list.
+Failure 404 for missing or foreign reminder.
+
+API-R06
+GET /api/reminders/preferences
+Success 200: ReminderPreferencesResponse. Defaults are appointment/lab/message/in-app=true and email=false when no row exists yet.
+
+API-R07
+PUT /api/reminders/preferences
+Body: appointmentRemindersEnabled, labResultRemindersEnabled, messageRemindersEnabled, inAppNotificationsEnabled, emailRemindersEnabled.
+Success 200: persisted ReminderPreferencesResponse.
+Failure 400 when any flag is missing, 404 if token user is not in Users.
+
+
 20) نقاط ناقصة أو غير موحدة يجب أن يعرفها الفرونت إند
 =====================================================
 
@@ -1089,7 +1135,7 @@ URL.revokeObjectURL(objectUrl);
 8. fileUrl للمحادثات يحتاج Authorization؛ استخدم Blob ولا تعتبره رابطاً عاماً.
 9. لا يوجد refresh-token endpoint حالياً. عند انتهاء JWT يجب إعادة login.
 10. CORS الحالي AllowAnyOrigin؛ لا تعتمد عليه كسياسة production نهائية.
-11. قائمة الإشعارات وmark-as-read عبر HTTP موجودة فقط في PatientProfile. الأدوار الأخرى تستقبل إشعار الرسالة لحظياً عبر NotificationHub لكن لا تملك حالياً endpoint عاماً لاسترجاع سجل إشعاراتها.
+11. قائمة الإشعارات وread/unread عبر HTTP صارت في /api/notifications كـ endpoint عام لأي authenticated user، وNotificationHub باقي للتحديث اللحظي.
 
 
 21) Checklist قبل ربط أي شاشة

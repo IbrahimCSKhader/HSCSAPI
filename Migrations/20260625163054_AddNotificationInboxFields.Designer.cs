@@ -4,6 +4,7 @@ using HSCSAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HSCSAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260625163054_AddNotificationInboxFields")]
+    partial class AddNotificationInboxFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -822,21 +825,6 @@ namespace HSCSAPI.Migrations
                     b.Property<Guid?>("AuthorizedMemberId")
                         .HasColumnType("uniqueidentifier");
 
-                    b.Property<string>("Category")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(50)
-                        .HasColumnType("nvarchar(50)")
-                        .HasDefaultValue("General");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.Property<DateTime?>("DismissedAt")
-                        .HasColumnType("datetime2");
-
                     b.Property<Guid>("DoctorId")
                         .HasColumnType("uniqueidentifier");
 
@@ -851,62 +839,15 @@ namespace HSCSAPI.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("nvarchar(500)");
 
-                    b.Property<string>("Title")
-                        .IsRequired()
-                        .ValueGeneratedOnAdd()
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)")
-                        .HasDefaultValue("Reminder");
-
                     b.HasKey("ReminderId");
 
-                    b.HasIndex("AuthorizedMemberId", "DismissedAt", "ReminderAt");
+                    b.HasIndex("AuthorizedMemberId");
 
-                    b.HasIndex("DoctorId", "DismissedAt", "ReminderAt");
+                    b.HasIndex("DoctorId");
 
-                    b.HasIndex("PatientId", "DismissedAt", "ReminderAt");
+                    b.HasIndex("PatientId");
 
                     b.ToTable("Reminders", (string)null);
-                });
-
-            modelBuilder.Entity("HSCSAPI.Models.Reminders.ReminderPreference", b =>
-                {
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<bool>("AppointmentRemindersEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("EmailRemindersEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(false);
-
-                    b.Property<bool>("InAppNotificationsEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("LabResultRemindersEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<bool>("MessageRemindersEnabled")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<DateTime>("UpdatedAt")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("datetime2")
-                        .HasDefaultValueSql("SYSUTCDATETIME()");
-
-                    b.HasKey("UserId");
-
-                    b.ToTable("ReminderPreferences", (string)null);
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Secretaries.Report", b =>
@@ -1661,17 +1602,6 @@ namespace HSCSAPI.Migrations
                     b.Navigation("Doctor");
 
                     b.Navigation("Patient");
-                });
-
-            modelBuilder.Entity("HSCSAPI.Models.Reminders.ReminderPreference", b =>
-                {
-                    b.HasOne("HSCSAPI.Models.Identity.User", "User")
-                        .WithOne()
-                        .HasForeignKey("HSCSAPI.Models.Reminders.ReminderPreference", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Secretaries.Report", b =>

@@ -55,14 +55,6 @@ public class PatientProfileAppointmentSummaryResponse
     public string? Notes { get; set; }
 }
 
-public class PatientNotificationResponse
-{
-    public Guid NotificationId { get; set; }
-    public string Title { get; set; } = string.Empty;
-    public bool IsRead { get; set; }
-    public string Category { get; set; } = string.Empty;
-}
-
 public class PatientMedicalRecordResponse
 {
     public Guid MedicalFileId { get; set; }

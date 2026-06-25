@@ -7,11 +7,13 @@ public static partial class ApplicationSeedData
         new SeedNotification(
             UserKey: PatientKey,
             Title: "Your seeded appointment is ready.",
-            IsRead: false),
+            IsRead: false,
+            Message: "Open your notification center to review the upcoming appointment."),
         new SeedNotification(
             UserKey: DoctorKey,
             Title: "You have a seeded appointment on Monday.",
-            IsRead: true)
+            IsRead: true,
+            Message: "The patient appointment is available in your doctor dashboard.")
     ];
 
     public static readonly SeedReminder PrimaryReminder = new(
@@ -19,5 +21,7 @@ public static partial class ApplicationSeedData
         DoctorKey: DoctorKey,
         AuthorizedMemberKey: AuthorizedMemberKey,
         ReminderText: "Take your prescribed medication after breakfast.",
-        ReminderDaysOffset: 1);
+        ReminderDaysOffset: 1,
+        Title: "Medication reminder",
+        Category: "Appointment");
 }

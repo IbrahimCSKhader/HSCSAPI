@@ -10,22 +10,6 @@ public interface IPatientProfileService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<ActionResult<PagedResponse<PatientNotificationResponse>>> GetNotificationsAsync(
-        string? status,
-        int page,
-        int pageSize,
-        ClaimsPrincipal user,
-        CancellationToken cancellationToken = default);
-
-    Task<ActionResult<PatientNotificationResponse>> MarkNotificationAsReadAsync(
-        Guid notificationId,
-        ClaimsPrincipal user,
-        CancellationToken cancellationToken = default);
-
-    Task<IActionResult> MarkAllNotificationsAsReadAsync(
-        ClaimsPrincipal user,
-        CancellationToken cancellationToken = default);
-
     Task<ActionResult<PagedResponse<PatientMedicalRecordResponse>>> GetMedicalRecordsAsync(
         string? type,
         string? query,

@@ -14,10 +14,12 @@ using HSCSAPI.Services.Identity;
 using HSCSAPI.Services.Laboratory;
 using HSCSAPI.Services.LaboratoryTechnologists;
 using HSCSAPI.Services.MedicalFiles;
+using HSCSAPI.Services.Notifications;
 using HSCSAPI.Services.PatientProfile;
 using HSCSAPI.Services.Patients;
 using HSCSAPI.Services.Radiology;
 using HSCSAPI.Services.RadiologyTechnologists;
+using HSCSAPI.Services.Reminders;
 using HSCSAPI.Services.Secretaries;
 using HSCSAPI.Services.Standards;
 using Microsoft.AspNetCore.Identity;
@@ -135,6 +137,7 @@ namespace HSCSAPI
             builder.Services.AddScoped<ILabTestRequestsService, LabTestRequestsService>();
             builder.Services.AddScoped<IImagingRequestsService, ImagingRequestsService>();
             builder.Services.AddScoped<IMedicalFileUploadsService, MedicalFileUploadsService>();
+            builder.Services.AddScoped<INotificationsService, NotificationsService>();
             builder.Services.AddHttpClient<IRxNormService, RxNormService>(client =>
             {
                 client.BaseAddress = new Uri("https://rxnav.nlm.nih.gov/REST/");
@@ -144,6 +147,7 @@ namespace HSCSAPI
             builder.Services.AddScoped<IPatientProfileService, PatientProfileService>();
             builder.Services.AddScoped<IPatientsService, PatientsService>();
             builder.Services.AddScoped<IRadiologyTechnologistsService, RadiologyTechnologistsService>();
+            builder.Services.AddScoped<IRemindersService, RemindersService>();
             builder.Services.AddScoped<ISecretariesService, SecretariesService>();
             builder.Services.AddScoped<IdentitySeedService>();
             builder.Services.AddScoped<IServiceExceptionHandler, ServiceExceptionHandler>();
