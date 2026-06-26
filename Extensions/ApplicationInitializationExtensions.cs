@@ -1,5 +1,6 @@
 using HSCSAPI.Data;
 using HSCSAPI.Services.Identity;
+using HSCSAPI.Services.Laboratory;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSCSAPI.Extensions;
@@ -20,6 +21,9 @@ public static class ApplicationInitializationExtensions
 
             var seeder = scope.ServiceProvider.GetRequiredService<IdentitySeedService>();
             await seeder.SeedAsync();
+
+            var labTemplateSeeder = scope.ServiceProvider.GetRequiredService<LabTestTemplateSeeder>();
+            await labTemplateSeeder.SeedAsync();
         }
         catch (Exception ex)
         {

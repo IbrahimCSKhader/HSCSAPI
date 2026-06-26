@@ -37,6 +37,7 @@ public class LabTestRequestResponse
     public Guid? LaboratoryTechnologistId { get; set; }
     public string? LaboratoryTechnologistName { get; set; }
     public Guid? ResultMedicalFileId { get; set; }
+    public Guid? StructuredResultId { get; set; }
     public string? ResultFileName { get; set; }
     public long? ResultFileSizeInBytes { get; set; }
     public DateTime? ResultUploadedAt { get; set; }

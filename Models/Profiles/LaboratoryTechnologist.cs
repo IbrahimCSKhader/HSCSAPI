@@ -11,4 +11,5 @@ public class LaboratoryTechnologist
     public User User { get; set; } = null!;
 
     public ICollection<LabTestRequest> LabTestRequests { get; set; } = new HashSet<LabTestRequest>();
+    public ICollection<LabTestResult> LabTestResults { get; set; } = new HashSet<LabTestResult>();
 }

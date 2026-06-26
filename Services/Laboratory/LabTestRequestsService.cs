@@ -203,7 +203,27 @@ public class LabTestRequestsService : ILabTestRequestsService
 
         if (request.ResultMedicalFile is null)
         {
-            return new BadRequestObjectResult("This lab test request has no result file yet.");
+            if (request.StructuredResult is null)
+            {
+                return new BadRequestObjectResult("This lab test request has no result file yet.");
+            }
+
+            if (string.IsNullOrWhiteSpace(request.StructuredResult.PdfFilePath))
+            {
+                return new BadRequestObjectResult("The structured lab result PDF has not been generated yet.");
+            }
+
+            var generatedPdfPath = ResolvePhysicalPath(request.StructuredResult.PdfFilePath);
+            if (!System.IO.File.Exists(generatedPdfPath))
+            {
+                return new NotFoundObjectResult("Result file was not found on disk.");
+            }
+
+            return new PhysicalFileResult(generatedPdfPath, "application/pdf")
+            {
+                FileDownloadName = Path.GetFileName(generatedPdfPath),
+                EnableRangeProcessing = true
+            };
         }
 
         var filePath = ResolvePhysicalPath(request.ResultMedicalFile);
@@ -243,6 +263,7 @@ public class LabTestRequestsService : ILabTestRequestsService
                 .ThenInclude(file => file!.Appointment)
                     .ThenInclude(appointment => appointment.Doctor)
                         .ThenInclude(doctor => doctor.User)
+            .Include(request => request.StructuredResult)
             .Where(request =>
                 request.RequestedByDoctorId == doctorId
                 || (request.ResultMedicalFile != null
@@ -280,14 +301,14 @@ public class LabTestRequestsService : ILabTestRequestsService
         switch (status.Trim().ToLowerInvariant())
         {
             case "pending":
-                query = query.Where(request => request.ResultMedicalFileId == null);
+                query = query.Where(request => request.ResultMedicalFileId == null && request.StructuredResult == null);
                 return true;
             case "result":
             case "results":
             case "completed":
             case "results-available":
             case "result-available":
-                query = query.Where(request => request.ResultMedicalFileId != null);
+                query = query.Where(request => request.ResultMedicalFileId != null || request.StructuredResult != null);
                 return true;
             default:
                 error = "Invalid status. Use all, pending, or results-available.";
@@ -300,6 +321,7 @@ public class LabTestRequestsService : ILabTestRequestsService
         var patient = request.Patient ?? request.ResultMedicalFile?.Appointment.Patient;
         var doctor = request.RequestedByDoctor ?? request.ResultMedicalFile?.Appointment.Doctor;
         var resultFile = request.ResultMedicalFile;
+        var structuredResult = request.StructuredResult;
 
         return new LabTestRequestResponse
         {
@@ -307,7 +329,7 @@ public class LabTestRequestsService : ILabTestRequestsService
             TestName = request.TestName,
             LoincCode = request.LoincCode,
             Priority = request.Priority,
-            Status = resultFile is null ? "Pending" : "ResultsAvailable",
+            Status = resultFile is null && structuredResult is null ? "Pending" : "ResultsAvailable",
             ClinicalNotes = request.ClinicalNotes,
             RequestedAt = request.RequestedAt,
             PatientId = patient?.PatientId,
@@ -320,11 +342,14 @@ public class LabTestRequestsService : ILabTestRequestsService
             LaboratoryTechnologistId = request.LaboratoryTechnologistId,
             LaboratoryTechnologistName = request.LaboratoryTechnologist?.User.Name,
             ResultMedicalFileId = resultFile?.MedicalFileId,
-            ResultFileName = resultFile is null ? null : Path.GetFileName(resultFile.FilePath),
-            ResultFileSizeInBytes = resultFile?.FileSizeInBytes,
-            ResultUploadedAt = resultFile?.UploadedAt,
-            ResultSummary = request.ClinicalNotes ?? resultFile?.Appointment.Notes,
-            ResultFileUrl = resultFile is null
+            StructuredResultId = structuredResult?.LabTestResultId,
+            ResultFileName = resultFile is not null
+                ? Path.GetFileName(resultFile.FilePath)
+                : Path.GetFileName(structuredResult?.PdfFilePath),
+            ResultFileSizeInBytes = resultFile?.FileSizeInBytes ?? structuredResult?.PdfFileSizeInBytes,
+            ResultUploadedAt = resultFile?.UploadedAt ?? structuredResult?.PdfGeneratedAt,
+            ResultSummary = structuredResult?.Comments ?? request.ClinicalNotes ?? resultFile?.Appointment.Notes,
+            ResultFileUrl = resultFile is null && structuredResult?.PdfFilePath is null
                 ? null
                 : $"/api/Doctors/me/lab-requests/{request.LabTestRequestId}/result-file"
         };
@@ -344,6 +369,22 @@ public class LabTestRequestsService : ILabTestRequestsService
             '\\');
 
         return Path.Combine(_environment.ContentRootPath, relativePath);
+    }
+
+    private string ResolvePhysicalPath(string filePath)
+    {
+        var contentRoot = Path.GetFullPath(_environment.ContentRootPath);
+        var resolvedPath = Path.IsPathRooted(filePath)
+            ? Path.GetFullPath(filePath)
+            : Path.GetFullPath(Path.Combine(
+                contentRoot,
+                filePath.TrimStart(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar, '/', '\\')));
+        if (!resolvedPath.StartsWith(contentRoot + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
+        {
+            throw new InvalidOperationException("Structured lab result path is outside the application content root.");
+        }
+
+        return resolvedPath;
     }
 
     private static Guid? GetCurrentUserId(ClaimsPrincipal user)

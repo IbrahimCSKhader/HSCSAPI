@@ -135,6 +135,9 @@ namespace HSCSAPI
             builder.Services.AddScoped<IDoctorsService, DoctorsService>();
             builder.Services.AddScoped<IStandardsService, StandardsService>();
             builder.Services.AddScoped<ILabTestRequestsService, LabTestRequestsService>();
+            builder.Services.AddScoped<ILaboratoryResultsService, LaboratoryResultsService>();
+            builder.Services.AddSingleton<ILabResultPdfGenerator, LabResultPdfGenerator>();
+            builder.Services.AddScoped<LabTestTemplateSeeder>();
             builder.Services.AddScoped<IImagingRequestsService, ImagingRequestsService>();
             builder.Services.AddScoped<IMedicalFileUploadsService, MedicalFileUploadsService>();
             builder.Services.AddScoped<INotificationsService, NotificationsService>();

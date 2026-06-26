@@ -23,4 +23,5 @@ public class LabTestRequest
     public Clinic? TestingClinic { get; set; }
     public LaboratoryTechnologist? LaboratoryTechnologist { get; set; }
     public MedicalFile? ResultMedicalFile { get; set; }
+    public LabTestResult? StructuredResult { get; set; }
 }

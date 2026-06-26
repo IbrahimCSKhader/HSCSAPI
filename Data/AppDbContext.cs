@@ -56,6 +56,10 @@ public class AppDbContext : AppIdentityDbContextBase
     public DbSet<FileDownloadRequest> FileDownloadRequests => Set<FileDownloadRequest>();
 
     public DbSet<LabTestRequest> LabTestRequests => Set<LabTestRequest>();
+    public DbSet<LabTestTemplate> LabTestTemplates => Set<LabTestTemplate>();
+    public DbSet<LabTestFieldDefinition> LabTestFieldDefinitions => Set<LabTestFieldDefinition>();
+    public DbSet<LabTestResult> LabTestResults => Set<LabTestResult>();
+    public DbSet<LabTestResultValue> LabTestResultValues => Set<LabTestResultValue>();
     public DbSet<ImagingTestRequest> ImagingTestRequests => Set<ImagingTestRequest>();
     public DbSet<LoincCode> LoincCodes => Set<LoincCode>();
     public DbSet<DiagnosisCode> DiagnosisCodes => Set<DiagnosisCode>();
