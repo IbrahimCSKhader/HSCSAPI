@@ -10,9 +10,13 @@ internal sealed class AuthorizedMemberPatientQueryResult
     public string? PhoneNumber { get; init; }
     public string? Address { get; init; }
     public DateOnly? DateOfBirth { get; init; }
+    public Gender Gender { get; init; }
+    public BloodType? BloodType { get; init; }
     public string PatientUserId { get; init; } = string.Empty;
     public Guid? ClinicId { get; init; }
     public string? ClinicName { get; init; }
     public RelationshipType RelationshipType { get; init; }
     public DateTime AuthorizedAt { get; init; }
+    public int MedicalRecordsCount { get; init; }
+    public int UpcomingAppointmentsCount { get; init; }
 }
