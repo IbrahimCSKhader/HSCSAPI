@@ -162,7 +162,8 @@ public class DoctorsService : IDoctorsService
             .AsNoTracking()
             .CountAsync(
                 appointment => appointment.DoctorId == doctor!.DoctorId
-                    && appointment.AppointmentDate == today,
+                    && appointment.AppointmentDate == today
+                    && appointment.IsActive,
                 cancellationToken);
 
         var pendingLabRequestsCount = await CountPendingLabRequestsForClinicAsync(
@@ -183,6 +184,7 @@ public class DoctorsService : IDoctorsService
         var weeklyCounts = await _dbContext.Appointments
             .AsNoTracking()
             .Where(appointment => appointment.DoctorId == doctor.DoctorId
+                && appointment.IsActive
                 && appointment.AppointmentDate >= weekStartDate
                 && appointment.AppointmentDate <= weekEndDate)
             .GroupBy(appointment => appointment.AppointmentDate)
@@ -469,11 +471,11 @@ public class DoctorsService : IDoctorsService
 
         var clinicExists = await _dbContext.Clinics
             .AsNoTracking()
-            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId, cancellationToken);
+            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId && clinic.IsActive, cancellationToken);
 
         if (!clinicExists)
         {
-            return new NotFoundObjectResult("Clinic not found.");
+            return new NotFoundObjectResult("Clinic not found or inactive.");
         }
 
         var normalizedEmail = NormalizeEmail(request.Email);
@@ -638,10 +640,27 @@ public class DoctorsService : IDoctorsService
         });
     }
 
-    public async Task<IActionResult> DeleteAsync(
+    public Task<IActionResult> DeactivateAsync(
         Guid doctorId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(doctorId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAsync(
+        Guid doctorId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(doctorId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetActiveStateAsync(
+        Guid doctorId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var doctor = await _dbContext.Doctors
             .Include(profile => profile.User)
@@ -654,22 +673,16 @@ public class DoctorsService : IDoctorsService
 
         if (!await CanCurrentUserManageDoctorAsync(doctor, user, cancellationToken))
         {
-            return ForbiddenAction("You are not allowed to delete this doctor.");
+            return ForbiddenAction("You are not allowed to change this doctor's active state.");
         }
 
-        var blockers = await GetDeleteBlockersAsync(doctorId, cancellationToken);
-        if (blockers.Count > 0)
+        if (doctor.User.IsActive == isActive)
         {
-            return new BadRequestObjectResult(
-                $"Cannot delete doctor because related {string.Join(", ", blockers)} exist.");
+            return new NoContentResult();
         }
 
-        var deleteResult = await _userManager.DeleteAsync(doctor.User);
-        if (!deleteResult.Succeeded)
-        {
-            return new BadRequestObjectResult(string.Join(" ", deleteResult.Errors.Select(error => error.Description)));
-        }
-
+        doctor.User.IsActive = isActive;
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return new NoContentResult();
     }
 
@@ -704,7 +717,7 @@ public class DoctorsService : IDoctorsService
     {
         return _dbContext.Appointments
             .AsNoTracking()
-            .Where(appointment => appointment.DoctorId == doctorId)
+            .Where(appointment => appointment.DoctorId == doctorId && appointment.IsActive)
             .Select(appointment => new DoctorAppointmentProjection
             {
                 AppointmentId = appointment.AppointmentId,
@@ -1133,7 +1146,8 @@ public class DoctorsService : IDoctorsService
                 ClinicId = doctor.User.ClinicId,
                 ClinicName = doctor.User.Clinic != null ? doctor.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = doctor.ProfessionalLicenseNumber,
-                EmailConfirmed = doctor.User.EmailConfirmed
+                EmailConfirmed = doctor.User.EmailConfirmed,
+                IsActive = doctor.User.IsActive
             });
     }
 

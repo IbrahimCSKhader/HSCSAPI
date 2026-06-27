@@ -53,9 +53,13 @@ public class ChatService : IChatService
             throw new ArgumentException("You cannot open a chat with yourself.");
         }
 
-        if (!await _dbContext.Users.AsNoTracking().AnyAsync(x => x.Id == recipientUserId, cancellationToken))
+        if (!await _dbContext.Users.AsNoTracking().AnyAsync(
+                x => x.Id == recipientUserId
+                    && x.IsActive
+                    && (x.ClinicId == null || (x.Clinic != null && x.Clinic.IsActive)),
+                cancellationToken))
         {
-            throw new KeyNotFoundException("Recipient user not found.");
+            throw new KeyNotFoundException("Recipient user not found or inactive.");
         }
 
         var (userOneId, userTwoId) = NormalizeParticipants(currentUserId, recipientUserId);

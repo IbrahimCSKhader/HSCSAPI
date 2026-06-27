@@ -82,6 +82,7 @@ public class SecretariesService : ISecretariesService
             .AsNoTracking()
             .Where(appointment =>
                 appointment.AppointmentDate == today
+                && appointment.IsActive
                 && appointment.Doctor.User.ClinicId == clinicId)
             .OrderBy(appointment => appointment.AppointmentTime)
             .Select(appointment => new SecretaryDashboardAppointmentResponse
@@ -228,11 +229,11 @@ public class SecretariesService : ISecretariesService
         }
 
         var clinic = await _dbContext.Clinics
-            .FirstOrDefaultAsync(c => c.ClinicId == request.ClinicId, cancellationToken);
+            .FirstOrDefaultAsync(c => c.ClinicId == request.ClinicId && c.IsActive, cancellationToken);
 
         if (clinic == null)
         {
-            return new NotFoundObjectResult("Clinic not found.");
+            return new NotFoundObjectResult("Clinic not found or inactive.");
         }
 
         if (!await CanCurrentUserManageClinicAsync(request.ClinicId, user, cancellationToken))
@@ -390,11 +391,30 @@ public class SecretariesService : ISecretariesService
             : new OkObjectResult(response);
     }
 
-    public async Task<IActionResult> DeleteInClinicAsync(
+    public Task<IActionResult> DeactivateInClinicAsync(
         Guid clinicId,
         Guid secretaryId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateInClinicAsync(clinicId, secretaryId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateInClinicAsync(
+        Guid clinicId,
+        Guid secretaryId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateInClinicAsync(clinicId, secretaryId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetActiveStateInClinicAsync(
+        Guid clinicId,
+        Guid secretaryId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var clinicExists = await _dbContext.Clinics
             .AsNoTracking()
@@ -412,7 +432,6 @@ public class SecretariesService : ISecretariesService
 
         var secretary = await _dbContext.Secretaries
             .Include(profile => profile.User)
-            .Include(profile => profile.ManagedClinic)
             .FirstOrDefaultAsync(
                 profile => profile.SecretaryId == secretaryId && profile.User.ClinicId == clinicId,
                 cancellationToken);
@@ -423,31 +442,21 @@ public class SecretariesService : ISecretariesService
         }
 
         var currentUserId = GetCurrentUserId(user);
-        if (!user.IsInRole(nameof(UserSystemRole.SuperAdmin))
+        if (!isActive
+            && !user.IsInRole(nameof(UserSystemRole.SuperAdmin))
             && currentUserId.HasValue
             && currentUserId.Value == secretaryId)
         {
-            return new BadRequestObjectResult("You cannot delete your own secretary account from this endpoint.");
+            return new BadRequestObjectResult("You cannot deactivate your own secretary account from this endpoint.");
         }
 
-        var blockers = await GetDeleteBlockersAsync(secretaryId, cancellationToken);
-        if (blockers.Count > 0)
+        if (secretary.User.IsActive == isActive)
         {
-            return new BadRequestObjectResult(
-                $"Cannot delete secretary because related {string.Join(", ", blockers)} exist.");
+            return new NoContentResult();
         }
 
-        if (secretary.ManagedClinic is not null)
-        {
-            secretary.ManagedClinic.AdminSecretaryId = null;
-        }
-
-        var deleteResult = await _userManager.DeleteAsync(secretary.User);
-        if (!deleteResult.Succeeded)
-        {
-            return new BadRequestObjectResult(string.Join(" ", deleteResult.Errors.Select(error => error.Description)));
-        }
-
+        secretary.User.IsActive = isActive;
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return new NoContentResult();
     }
 
@@ -467,7 +476,8 @@ public class SecretariesService : ISecretariesService
                 ClinicName = s.User.Clinic != null ? s.User.Clinic.Name : null,
                 ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : null,
                 ManagedClinicName = s.ManagedClinic != null ? s.ManagedClinic.Name : null,
-                IsClinicAdmin = s.ManagedClinic != null
+                IsClinicAdmin = s.ManagedClinic != null,
+                IsActive = s.User.IsActive
             });
     }
 

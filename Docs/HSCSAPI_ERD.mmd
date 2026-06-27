@@ -1,0 +1,394 @@
+erDiagram
+    %% HSCSAPI ERD generated from Data/AppDbContext.cs and the current EF Core model.
+    %% Paste this file into https://mermaid.live or diagrams.net Mermaid.
+    %% Standard code tables are mapped by EF but excluded from migrations and have no FK relationship configured.
+
+    Roles {
+        guid RoleId PK
+        string Name
+        string NormalizedName
+        string ConcurrencyStamp
+    }
+
+    RoleClaims {
+        int Id PK
+        guid RoleId FK
+        string ClaimType
+        string ClaimValue
+    }
+
+    Users {
+        guid UserId PK
+        string Name
+        datetime RegisteredAt
+        date DateOfBirth
+        string Address
+        guid ClinicId FK
+        string UserName
+        string NormalizedUserName
+        string Email
+        string NormalizedEmail
+        bool EmailConfirmed
+        string PasswordHash
+        string SecurityStamp
+        string ConcurrencyStamp
+        string PhoneNumber
+        bool PhoneNumberConfirmed
+        bool TwoFactorEnabled
+        datetimeoffset LockoutEnd
+        bool LockoutEnabled
+        int AccessFailedCount
+    }
+
+    UserClaims {
+        int Id PK
+        guid UserId FK
+        string ClaimType
+        string ClaimValue
+    }
+
+    UserLogins {
+        string LoginProvider PK
+        string ProviderKey PK
+        string ProviderDisplayName
+        guid UserId FK
+    }
+
+    UserRoles {
+        guid UserId PK, FK
+        guid RoleId PK, FK
+    }
+
+    UserTokens {
+        guid UserId PK, FK
+        string LoginProvider PK
+        string Name PK
+        string Value
+    }
+
+    UserVerificationCodes {
+        guid UserVerificationCodeId PK
+        guid UserId FK
+        string Code
+        int Purpose
+        datetime ExpiresAt
+        bool IsUsed
+    }
+
+    Clinics {
+        guid ClinicId PK
+        string Name
+        string Address
+        guid CreatedBySuperAdminUserId FK
+        guid AdminSecretaryId FK
+    }
+
+    Patients {
+        guid PatientId PK, FK
+        string UserID UK
+        string Gender
+        string BloodType
+    }
+
+    Doctors {
+        guid DoctorId PK, FK
+        string ProfessionalLicenseNumber UK
+    }
+
+    Secretaries {
+        guid SecretaryId PK, FK
+    }
+
+    AuthorizedMembers {
+        guid AuthorizedMemberId PK, FK
+    }
+
+    LaboratoryTechnologists {
+        guid LaboratoryTechnologistId PK, FK
+        string ProfessionalLicenseNumber UK
+    }
+
+    RadiologyTechnologists {
+        guid RadiologyTechnologistId PK, FK
+        string ProfessionalLicenseNumber UK
+    }
+
+    Notifications {
+        guid NotificationId PK
+        guid UserId FK
+        string Title
+        string Message
+        bool IsRead
+        datetime CreatedAt
+    }
+
+    ReminderPreferences {
+        guid UserId PK, FK
+        bool AppointmentRemindersEnabled
+        bool LabResultRemindersEnabled
+        bool MessageRemindersEnabled
+        bool InAppNotificationsEnabled
+        bool EmailRemindersEnabled
+        datetime UpdatedAt
+    }
+
+    AvailabilitySlots {
+        guid AvailabilitySlotId PK
+        guid DoctorId FK
+        int DayOfWeek
+        time StartTime
+        time EndTime
+        bool IsAvailable
+    }
+
+    Appointments {
+        guid AppointmentId PK
+        guid DoctorId FK
+        guid PatientId FK
+        guid AvailabilitySlotId FK
+        date AppointmentDate
+        time AppointmentTime
+        string Notes
+    }
+
+    MedicalFiles {
+        guid MedicalFileId PK
+        guid AppointmentId FK
+        guid UploadedByDoctorId FK
+        string FileType
+        string FilePath
+        string EncryptedChecksum
+        long FileSizeInBytes
+        string SeverityLevel
+        datetime UploadedAt
+    }
+
+    FileDownloadRequests {
+        guid FileDownloadRequestId PK
+        guid PatientId FK
+        guid MedicalFileId FK
+        guid ReviewedBySecretaryId FK
+        string Reason
+        string PurposeDescription
+        string Status
+        datetime SubmittedAt
+        datetime ReviewedAt
+        string RejectionReason
+    }
+
+    Invites {
+        guid InviteId PK
+        guid PatientId FK
+        guid AuthorizedMemberId FK
+        string RelationshipType
+        string Status
+        datetime SentAt
+        datetime RespondedAt
+    }
+
+    PatientAuthorizedMembers {
+        guid PatientId PK, FK
+        guid AuthorizedMemberId PK, FK
+        string RelationshipType
+        datetime AuthorizedAt
+    }
+
+    Reminders {
+        guid ReminderId PK
+        guid PatientId FK
+        guid DoctorId FK
+        guid AuthorizedMemberId FK
+        string Title
+        string ReminderText
+        string Category
+        datetime ReminderAt
+        datetime CreatedAt
+        datetime DismissedAt
+    }
+
+    Reports {
+        guid ReportId PK
+        guid SecretaryId FK
+        datetime GeneratedAt
+    }
+
+    ReportInformations {
+        guid ReportInformationId PK
+        guid ReportId FK
+        string FileFormat
+        string FilePath
+        long FileSizeInBytes
+    }
+
+    Chats {
+        guid ChatId PK
+        guid UserOneId FK
+        guid UserTwoId FK
+        datetime CreatedAt
+        datetime LastMessageAt
+    }
+
+    ChatMessages {
+        guid ChatMessageId PK
+        guid ChatId FK
+        guid SenderId FK
+        string MessageType
+        string Text
+        string FilePath
+        string OriginalFileName
+        string ContentType
+        long FileSizeInBytes
+        datetime CreatedAt
+        datetime ReadAt
+    }
+
+    LabTestRequests {
+        guid LabTestRequestId PK
+        string TestName
+        guid PatientId FK
+        guid RequestedByDoctorId FK
+        guid TestingClinicId FK
+        string LoincCode
+        string Priority
+        string ClinicalNotes
+        datetime RequestedAt
+        guid LaboratoryTechnologistId FK
+        guid ResultMedicalFileId FK
+    }
+
+    ImagingTestRequests {
+        guid ImagingTestRequestId PK
+        string TestName
+        guid PatientId FK
+        guid RequestedByDoctorId FK
+        guid RadiologyClinicId FK
+        string ImagingCode
+        string BodyRegion
+        string Priority
+        string ClinicalNotes
+        datetime RequestedAt
+        guid RadiologyTechnologistId FK
+        guid ResultMedicalFileId FK
+    }
+
+    DiagnosisCodes {
+        guid Id PK
+        string CodeSystem
+        string Code
+        string DisplayCode
+        string Name
+        string Description
+        bool IsActive
+        datetime CreatedAt
+        datetime UpdatedAt
+    }
+
+    LoincCodes {
+        guid Id PK
+        string LoincNum
+        string Component
+        string Property
+        string TimeAspect
+        string System
+        string ScaleType
+        string MethodType
+        string Class
+        int ClassType
+        string LongCommonName
+        string ShortName
+        string Status
+        string VersionFirstReleased
+        string VersionLastChanged
+        bool IsActive
+        datetime CreatedAt
+        datetime UpdatedAt
+    }
+
+    RadiologyExamCatalogs {
+        guid Id PK
+        string StandardSystem
+        string Rpid
+        string LetterCode
+        string ShortName
+        string LongName
+        string Modality
+        string PlaybookType
+        string BodyRegion
+        string BodyRegion2
+        string ModalityModifier
+        string ProcedureModifier
+        string AnatomicFocus
+        string Laterality
+        string ReasonForExam
+        string Technique
+        string Pharmaceutical
+        string View
+        string Rids
+        bool IsActive
+        datetime CreatedAt
+        datetime UpdatedAt
+    }
+
+    Roles ||--o{ RoleClaims : has
+    Roles ||--o{ UserRoles : assigned
+
+    Users ||--o{ UserClaims : has
+    Users ||--o{ UserLogins : has
+    Users ||--o{ UserRoles : assigned
+    Users ||--o{ UserTokens : has
+    Users ||--o{ UserVerificationCodes : verifies
+    Users ||--o{ Clinics : creates
+    Clinics |o--o{ Users : contains
+
+    Users ||--o| Patients : patient_profile
+    Users ||--o| Doctors : doctor_profile
+    Users ||--o| Secretaries : secretary_profile
+    Users ||--o| AuthorizedMembers : authorized_profile
+    Users ||--o| LaboratoryTechnologists : lab_profile
+    Users ||--o| RadiologyTechnologists : radiology_profile
+    Users ||--o{ Notifications : receives
+    Users ||--o| ReminderPreferences : reminder_settings
+
+    Secretaries |o--o| Clinics : manages
+
+    Doctors ||--o{ AvailabilitySlots : defines
+    Doctors ||--o{ Appointments : has
+    Patients ||--o{ Appointments : books
+    AvailabilitySlots ||--o{ Appointments : used_by
+
+    Appointments ||--o{ MedicalFiles : contains
+    Doctors ||--o{ MedicalFiles : uploads
+
+    MedicalFiles ||--o{ FileDownloadRequests : requested
+    Patients ||--o{ FileDownloadRequests : requests
+    Secretaries |o--o{ FileDownloadRequests : reviews
+
+    Patients ||--o{ Invites : sends
+    AuthorizedMembers ||--o{ Invites : receives
+
+    Patients ||--o{ PatientAuthorizedMembers : grants
+    AuthorizedMembers ||--o{ PatientAuthorizedMembers : accesses
+
+    Patients ||--o{ Reminders : has
+    Doctors ||--o{ Reminders : creates
+    AuthorizedMembers |o--o{ Reminders : may_receive
+
+    Secretaries ||--o{ Reports : generates
+    Reports ||--o{ ReportInformations : files
+
+    Users ||--o{ Chats : user_one
+    Users ||--o{ Chats : user_two
+    Chats ||--o{ ChatMessages : messages
+    Users ||--o{ ChatMessages : sends
+
+    Clinics |o--o{ LabTestRequests : testing_site
+    Doctors |o--o{ LabTestRequests : requested_by
+    LaboratoryTechnologists |o--o{ LabTestRequests : assigned_to
+    MedicalFiles |o--o{ LabTestRequests : result_file
+    Patients |o--o{ LabTestRequests : for_patient
+
+    Clinics |o--o{ ImagingTestRequests : radiology_site
+    Doctors |o--o{ ImagingTestRequests : requested_by
+    RadiologyTechnologists |o--o{ ImagingTestRequests : assigned_to
+    MedicalFiles |o--o{ ImagingTestRequests : result_file
+    Patients |o--o{ ImagingTestRequests : for_patient

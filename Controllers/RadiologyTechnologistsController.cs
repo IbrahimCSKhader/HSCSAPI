@@ -64,10 +64,17 @@ public class RadiologyTechnologistsController : ControllerBase
         return await _radiologyTechnologistsService.UpdateMyProfileAsync(request, User, cancellationToken);
     }
 
-    [HttpDelete("{radiologyTechnologistId:guid}")]
+    [HttpPatch("{radiologyTechnologistId:guid}/deactivate")]
     [Authorize(Roles = RadiologyTechnologistsService.SuperAdminOrSecretaryRoles)]
-    public async Task<IActionResult> Delete(Guid radiologyTechnologistId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid radiologyTechnologistId, CancellationToken cancellationToken)
     {
-        return await _radiologyTechnologistsService.DeleteAsync(radiologyTechnologistId, User, cancellationToken);
+        return await _radiologyTechnologistsService.DeactivateAsync(radiologyTechnologistId, User, cancellationToken);
+    }
+
+    [HttpPatch("{radiologyTechnologistId:guid}/activate")]
+    [Authorize(Roles = RadiologyTechnologistsService.SuperAdminOrSecretaryRoles)]
+    public async Task<IActionResult> Activate(Guid radiologyTechnologistId, CancellationToken cancellationToken)
+    {
+        return await _radiologyTechnologistsService.ActivateAsync(radiologyTechnologistId, User, cancellationToken);
     }
 }

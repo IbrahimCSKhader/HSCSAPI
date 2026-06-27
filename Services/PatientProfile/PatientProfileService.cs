@@ -62,6 +62,7 @@ public class PatientProfileService : IPatientProfileService
             .AsNoTracking()
             .Where(appointment =>
                 appointment.PatientId == patientId.Value
+                && appointment.IsActive
                 && (appointment.AppointmentDate > today
                     || (appointment.AppointmentDate == today && appointment.AppointmentTime >= currentTime)));
 
@@ -109,7 +110,7 @@ public class PatientProfileService : IPatientProfileService
 
         var visitsByClinic = await _dbContext.Appointments
             .AsNoTracking()
-            .Where(appointment => appointment.PatientId == patientId.Value)
+            .Where(appointment => appointment.PatientId == patientId.Value && appointment.IsActive)
             .GroupBy(appointment => new
             {
                 appointment.Doctor.User.ClinicId,
@@ -386,7 +387,8 @@ public class PatientProfileService : IPatientProfileService
                 Email = relation.AuthorizedMember.User.Email ?? string.Empty,
                 PhoneNumber = relation.AuthorizedMember.User.PhoneNumber,
                 RelationshipType = relation.RelationshipType.ToString(),
-                AuthorizedAt = relation.AuthorizedAt
+                AuthorizedAt = relation.AuthorizedAt,
+                IsActive = relation.IsActive
             })
             .ToListAsync(cancellationToken);
 
@@ -493,10 +495,27 @@ public class PatientProfileService : IPatientProfileService
                 value: response);
     }
 
-    public async Task<IActionResult> RemoveAuthorizedMemberAsync(
+    public Task<IActionResult> DeactivateAuthorizedMemberAsync(
         Guid authorizedMemberId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetAuthorizedMemberActiveStateAsync(authorizedMemberId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAuthorizedMemberAsync(
+        Guid authorizedMemberId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetAuthorizedMemberActiveStateAsync(authorizedMemberId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetAuthorizedMemberActiveStateAsync(
+        Guid authorizedMemberId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var patientId = GetCurrentUserId(user);
         if (patientId is null)
@@ -514,16 +533,33 @@ public class PatientProfileService : IPatientProfileService
             return new NotFoundObjectResult("Authorized member relation not found.");
         }
 
-        _dbContext.PatientAuthorizedMembers.Remove(relation);
+        relation.IsActive = isActive;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new NoContentResult();
     }
 
-    public async Task<IActionResult> CancelAuthorizedMemberInviteAsync(
+    public Task<IActionResult> DeactivateAuthorizedMemberInviteAsync(
         Guid inviteId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetInviteActiveStateAsync(inviteId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAuthorizedMemberInviteAsync(
+        Guid inviteId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetInviteActiveStateAsync(inviteId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetInviteActiveStateAsync(
+        Guid inviteId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var patientId = GetCurrentUserId(user);
         if (patientId is null)
@@ -543,10 +579,10 @@ public class PatientProfileService : IPatientProfileService
 
         if (invite.Status != InviteStatus.Pending)
         {
-            return new BadRequestObjectResult("Only pending invites can be cancelled.");
+            return new BadRequestObjectResult("Only pending invites can be activated or deactivated.");
         }
 
-        _dbContext.Invites.Remove(invite);
+        invite.IsActive = isActive;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new NoContentResult();
@@ -632,7 +668,8 @@ public class PatientProfileService : IPatientProfileService
                 RelationshipType = invite.RelationshipType.ToString(),
                 Status = invite.Status.ToString(),
                 SentAt = invite.SentAt,
-                RespondedAt = invite.RespondedAt
+                RespondedAt = invite.RespondedAt,
+                IsActive = invite.IsActive
             });
     }
 

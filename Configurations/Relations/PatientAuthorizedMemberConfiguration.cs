@@ -20,6 +20,10 @@ public class PatientAuthorizedMemberConfiguration : IEntityTypeConfiguration<Pat
         builder.Property(x => x.AuthorizedAt)
             .IsRequired();
 
+        builder.Property(x => x.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.HasOne(x => x.Patient)
             .WithMany(x => x.AuthorizedMembers)
             .HasForeignKey(x => x.PatientId)

@@ -43,11 +43,18 @@ public class ClinicsController : ControllerBase
         return await _clinicsService.UpdateAsync(clinicId, request, cancellationToken);
     }
 
-    [HttpDelete("{clinicId:guid}")]
+    [HttpPatch("{clinicId:guid}/deactivate")]
     [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
-    public async Task<IActionResult> Delete(Guid clinicId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid clinicId, CancellationToken cancellationToken)
     {
-        return await _clinicsService.DeleteAsync(clinicId, cancellationToken);
+        return await _clinicsService.DeactivateAsync(clinicId, cancellationToken);
+    }
+
+    [HttpPatch("{clinicId:guid}/activate")]
+    [Authorize(Roles = nameof(UserSystemRole.SuperAdmin))]
+    public async Task<IActionResult> Activate(Guid clinicId, CancellationToken cancellationToken)
+    {
+        return await _clinicsService.ActivateAsync(clinicId, cancellationToken);
     }
 
     [HttpPut("my-clinic")]
@@ -68,13 +75,23 @@ public class ClinicsController : ControllerBase
         return await _secretariesService.UpdateInClinicAsync(clinicId, secretaryId, request, User, cancellationToken);
     }
 
-    [HttpDelete("{clinicId:guid}/secretaries/{secretaryId:guid}")]
+    [HttpPatch("{clinicId:guid}/secretaries/{secretaryId:guid}/deactivate")]
     [Authorize(Roles = SecretariesService.SuperAdminOrSecretaryRoles)]
-    public async Task<IActionResult> DeleteSecretaryAccount(
+    public async Task<IActionResult> DeactivateSecretaryAccount(
         Guid clinicId,
         Guid secretaryId,
         CancellationToken cancellationToken)
     {
-        return await _secretariesService.DeleteInClinicAsync(clinicId, secretaryId, User, cancellationToken);
+        return await _secretariesService.DeactivateInClinicAsync(clinicId, secretaryId, User, cancellationToken);
+    }
+
+    [HttpPatch("{clinicId:guid}/secretaries/{secretaryId:guid}/activate")]
+    [Authorize(Roles = SecretariesService.SuperAdminOrSecretaryRoles)]
+    public async Task<IActionResult> ActivateSecretaryAccount(
+        Guid clinicId,
+        Guid secretaryId,
+        CancellationToken cancellationToken)
+    {
+        return await _secretariesService.ActivateInClinicAsync(clinicId, secretaryId, User, cancellationToken);
     }
 }

@@ -26,7 +26,8 @@ public class ClinicsService : IClinicsService
                 Name = c.Name,
                 Address = c.Address,
                 CreatedBySuperAdminUserId = c.CreatedBySuperAdminUserId,
-                AdminSecretaryId = c.AdminSecretaryId
+                AdminSecretaryId = c.AdminSecretaryId,
+                IsActive = c.IsActive
             })
             .ToListAsync(cancellationToken);
 
@@ -124,27 +125,14 @@ public class ClinicsService : IClinicsService
         return new OkObjectResult(ToResponse(clinic));
     }
 
-    public async Task<IActionResult> DeleteAsync(Guid clinicId, CancellationToken cancellationToken = default)
+    public Task<IActionResult> DeactivateAsync(Guid clinicId, CancellationToken cancellationToken = default)
     {
-        var clinic = await _dbContext.Clinics.FirstOrDefaultAsync(c => c.ClinicId == clinicId, cancellationToken);
-        if (clinic == null)
-        {
-            return new NotFoundObjectResult("Clinic not found.");
-        }
+        return SetActiveStateAsync(clinicId, false, cancellationToken);
+    }
 
-        var hasAssignedUsers = await _dbContext.Users
-            .AsNoTracking()
-            .AnyAsync(u => u.ClinicId == clinicId, cancellationToken);
-
-        if (hasAssignedUsers)
-        {
-            return new BadRequestObjectResult("Cannot delete a clinic while users are still assigned to it.");
-        }
-
-        _dbContext.Clinics.Remove(clinic);
-        await _dbContext.SaveChangesAsync(cancellationToken);
-
-        return new NoContentResult();
+    public Task<IActionResult> ActivateAsync(Guid clinicId, CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(clinicId, true, cancellationToken);
     }
 
     public async Task<ActionResult<ClinicResponse>> UpdateMyClinicAsync(
@@ -201,8 +189,32 @@ public class ClinicsService : IClinicsService
             Name = clinic.Name,
             Address = clinic.Address,
             CreatedBySuperAdminUserId = clinic.CreatedBySuperAdminUserId,
-            AdminSecretaryId = clinic.AdminSecretaryId
+            AdminSecretaryId = clinic.AdminSecretaryId,
+            IsActive = clinic.IsActive
         };
+    }
+
+    private async Task<IActionResult> SetActiveStateAsync(
+        Guid clinicId,
+        bool isActive,
+        CancellationToken cancellationToken)
+    {
+        var clinic = await _dbContext.Clinics
+            .FirstOrDefaultAsync(c => c.ClinicId == clinicId, cancellationToken);
+
+        if (clinic is null)
+        {
+            return new NotFoundObjectResult("Clinic not found.");
+        }
+
+        if (clinic.IsActive == isActive)
+        {
+            return new OkObjectResult(ToResponse(clinic));
+        }
+
+        clinic.IsActive = isActive;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return new OkObjectResult(ToResponse(clinic));
     }
 
     private async Task<(bool Success, string Message)> ValidateAdminSecretaryAsync(Guid secretaryId, CancellationToken cancellationToken)
@@ -213,6 +225,7 @@ public class ClinicsService : IClinicsService
             {
                 s.SecretaryId,
                 s.User.ClinicId,
+                s.User.IsActive,
                 ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : (Guid?)null
             })
             .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
@@ -220,6 +233,11 @@ public class ClinicsService : IClinicsService
         if (secretaryUser == null)
         {
             return (false, "Admin secretary not found.");
+        }
+
+        if (!secretaryUser.IsActive)
+        {
+            return (false, "Admin secretary account is inactive.");
         }
 
         if (secretaryUser.ManagedClinicId.HasValue)
@@ -246,6 +264,7 @@ public class ClinicsService : IClinicsService
             {
                 s.SecretaryId,
                 s.User.ClinicId,
+                s.User.IsActive,
                 ManagedClinicId = s.ManagedClinic != null ? s.ManagedClinic.ClinicId : (Guid?)null
             })
             .FirstOrDefaultAsync(s => s.SecretaryId == secretaryId, cancellationToken);
@@ -253,6 +272,11 @@ public class ClinicsService : IClinicsService
         if (secretaryUser == null)
         {
             return (false, "Admin secretary not found.");
+        }
+
+        if (!secretaryUser.IsActive)
+        {
+            return (false, "Admin secretary account is inactive.");
         }
 
         if (secretaryUser.ManagedClinicId.HasValue && secretaryUser.ManagedClinicId != clinicId)

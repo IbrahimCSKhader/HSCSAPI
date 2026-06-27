@@ -83,7 +83,7 @@ public class SecretariesController : ControllerBase
         return await _secretariesService.AssignToClinicAsync(secretaryId, request, User, cancellationToken);
     }
 
-    [HttpDelete("{secretaryId:guid}/remove-from-clinic")]
+    [HttpPatch("{secretaryId:guid}/remove-from-clinic")]
     [Authorize(Roles = SecretariesService.SuperAdminOrSecretaryRoles)]
     public async Task<ActionResult<SecretaryResponse>> RemoveFromClinic(Guid secretaryId, CancellationToken cancellationToken)
     {
@@ -107,11 +107,18 @@ public class SecretariesController : ControllerBase
         return await _patientsService.UpdateAsync(patientId, request, User, cancellationToken);
     }
 
-    [HttpDelete("my-clinic/patients/{patientId:guid}")]
+    [HttpPatch("my-clinic/patients/{patientId:guid}/deactivate")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
-    public async Task<IActionResult> DeleteMyClinicPatient(Guid patientId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeactivateMyClinicPatient(Guid patientId, CancellationToken cancellationToken)
     {
-        return await _patientsService.DeleteAsync(patientId, User, cancellationToken);
+        return await _patientsService.DeactivateAsync(patientId, User, cancellationToken);
+    }
+
+    [HttpPatch("my-clinic/patients/{patientId:guid}/activate")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> ActivateMyClinicPatient(Guid patientId, CancellationToken cancellationToken)
+    {
+        return await _patientsService.ActivateAsync(patientId, User, cancellationToken);
     }
 
     [HttpGet("my-clinic/doctors")]
@@ -131,11 +138,18 @@ public class SecretariesController : ControllerBase
         return await _doctorsService.UpdateAsync(doctorId, request, User, cancellationToken);
     }
 
-    [HttpDelete("my-clinic/doctors/{doctorId:guid}")]
+    [HttpPatch("my-clinic/doctors/{doctorId:guid}/deactivate")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
-    public async Task<IActionResult> DeleteMyClinicDoctor(Guid doctorId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeactivateMyClinicDoctor(Guid doctorId, CancellationToken cancellationToken)
     {
-        return await _doctorsService.DeleteAsync(doctorId, User, cancellationToken);
+        return await _doctorsService.DeactivateAsync(doctorId, User, cancellationToken);
+    }
+
+    [HttpPatch("my-clinic/doctors/{doctorId:guid}/activate")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> ActivateMyClinicDoctor(Guid doctorId, CancellationToken cancellationToken)
+    {
+        return await _doctorsService.ActivateAsync(doctorId, User, cancellationToken);
     }
 
     [HttpGet("my-clinic/laboratory-technologists")]
@@ -155,11 +169,18 @@ public class SecretariesController : ControllerBase
         return await _laboratoryTechnologistsService.UpdateAsync(laboratoryTechnologistId, request, User, cancellationToken);
     }
 
-    [HttpDelete("my-clinic/laboratory-technologists/{laboratoryTechnologistId:guid}")]
+    [HttpPatch("my-clinic/laboratory-technologists/{laboratoryTechnologistId:guid}/deactivate")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
-    public async Task<IActionResult> DeleteMyClinicLaboratoryTechnologist(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeactivateMyClinicLaboratoryTechnologist(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
     {
-        return await _laboratoryTechnologistsService.DeleteAsync(laboratoryTechnologistId, User, cancellationToken);
+        return await _laboratoryTechnologistsService.DeactivateAsync(laboratoryTechnologistId, User, cancellationToken);
+    }
+
+    [HttpPatch("my-clinic/laboratory-technologists/{laboratoryTechnologistId:guid}/activate")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> ActivateMyClinicLaboratoryTechnologist(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
+    {
+        return await _laboratoryTechnologistsService.ActivateAsync(laboratoryTechnologistId, User, cancellationToken);
     }
 
     [HttpGet("my-clinic/radiology-technologists")]
@@ -179,10 +200,17 @@ public class SecretariesController : ControllerBase
         return await _radiologyTechnologistsService.UpdateAsync(radiologyTechnologistId, request, User, cancellationToken);
     }
 
-    [HttpDelete("my-clinic/radiology-technologists/{radiologyTechnologistId:guid}")]
+    [HttpPatch("my-clinic/radiology-technologists/{radiologyTechnologistId:guid}/deactivate")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
-    public async Task<IActionResult> DeleteMyClinicRadiologyTechnologist(Guid radiologyTechnologistId, CancellationToken cancellationToken)
+    public async Task<IActionResult> DeactivateMyClinicRadiologyTechnologist(Guid radiologyTechnologistId, CancellationToken cancellationToken)
     {
-        return await _radiologyTechnologistsService.DeleteAsync(radiologyTechnologistId, User, cancellationToken);
+        return await _radiologyTechnologistsService.DeactivateAsync(radiologyTechnologistId, User, cancellationToken);
+    }
+
+    [HttpPatch("my-clinic/radiology-technologists/{radiologyTechnologistId:guid}/activate")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> ActivateMyClinicRadiologyTechnologist(Guid radiologyTechnologistId, CancellationToken cancellationToken)
+    {
+        return await _radiologyTechnologistsService.ActivateAsync(radiologyTechnologistId, User, cancellationToken);
     }
 }

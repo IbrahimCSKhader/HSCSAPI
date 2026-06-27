@@ -35,7 +35,12 @@ public interface IAppointmentsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> DeleteAsync(
+    Task<IActionResult> DeactivateAsync(
+        Guid appointmentId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> ActivateAsync(
         Guid appointmentId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

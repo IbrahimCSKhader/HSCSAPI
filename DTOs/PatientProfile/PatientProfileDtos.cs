@@ -113,6 +113,7 @@ public class PatientAuthorizedMemberResponse
     public string? PhoneNumber { get; set; }
     public string RelationshipType { get; set; } = string.Empty;
     public DateTime AuthorizedAt { get; set; }
+    public bool IsActive { get; set; }
 }
 
 public class CreateAuthorizedMemberInviteRequest
@@ -132,4 +133,5 @@ public class PatientAuthorizedMemberInviteResponse
     public string Status { get; set; } = string.Empty;
     public DateTime SentAt { get; set; }
     public DateTime? RespondedAt { get; set; }
+    public bool IsActive { get; set; }
 }

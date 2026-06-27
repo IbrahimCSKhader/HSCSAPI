@@ -244,10 +244,27 @@ public class AppointmentsService : IAppointmentsService
         return new OkObjectResult(response);
     }
 
-    public async Task<IActionResult> DeleteAsync(
+    public Task<IActionResult> DeactivateAsync(
         Guid appointmentId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(appointmentId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAsync(
+        Guid appointmentId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(appointmentId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetActiveStateAsync(
+        Guid appointmentId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var appointment = await _dbContext.Appointments
             .FirstOrDefaultAsync(x => x.AppointmentId == appointmentId, cancellationToken);
@@ -265,18 +282,27 @@ public class AppointmentsService : IAppointmentsService
 
         if (!await CanAccessAppointmentAsync(response, user, cancellationToken))
         {
-            throw new UnauthorizedAccessException("You are not allowed to delete this appointment.");
+            throw new UnauthorizedAccessException("You are not allowed to change this appointment's active state.");
         }
 
-        var hasMedicalFiles = await _dbContext.MedicalFiles
-            .AnyAsync(file => file.AppointmentId == appointmentId, cancellationToken);
-
-        if (hasMedicalFiles)
+        if (appointment.IsActive == isActive)
         {
-            throw new InvalidOperationException("Cannot delete an appointment that has medical files.");
+            return new NoContentResult();
         }
 
-        _dbContext.Appointments.Remove(appointment);
+        if (isActive)
+        {
+            await ValidateAppointmentRequestAsync(
+                appointment.DoctorId,
+                appointment.PatientId,
+                appointment.AppointmentDate,
+                appointment.AppointmentTime,
+                user,
+                appointmentId,
+                cancellationToken);
+        }
+
+        appointment.IsActive = isActive;
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new NoContentResult();
@@ -317,7 +343,9 @@ public class AppointmentsService : IAppointmentsService
             .Select(x => new
             {
                 x.DoctorId,
-                x.User.ClinicId
+                x.User.ClinicId,
+                x.User.IsActive,
+                IsClinicActive = x.User.Clinic != null && x.User.Clinic.IsActive
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -326,19 +354,30 @@ public class AppointmentsService : IAppointmentsService
             throw new KeyNotFoundException("Doctor not found.");
         }
 
+        if (!doctor.IsActive || !doctor.IsClinicActive)
+        {
+            throw new InvalidOperationException("Doctor account and clinic must be active.");
+        }
+
         var patient = await _dbContext.Patients
             .AsNoTracking()
             .Where(x => x.PatientId == patientId)
             .Select(x => new
             {
                 x.PatientId,
-                x.User.ClinicId
+                x.User.ClinicId,
+                x.User.IsActive
             })
             .FirstOrDefaultAsync(cancellationToken);
 
         if (patient is null)
         {
             throw new KeyNotFoundException("Patient not found.");
+        }
+
+        if (!patient.IsActive)
+        {
+            throw new InvalidOperationException("Patient account must be active.");
         }
 
         if (!doctor.ClinicId.HasValue || !patient.ClinicId.HasValue || doctor.ClinicId.Value != patient.ClinicId.Value)
@@ -355,6 +394,7 @@ public class AppointmentsService : IAppointmentsService
             .AsNoTracking()
             .AnyAsync(
                 x => x.DoctorId == doctorId
+                    && x.IsActive
                     && x.AppointmentDate == appointmentDate
                     && x.AppointmentTime == appointmentTime
                     && (!excludedAppointmentId.HasValue || x.AppointmentId != excludedAppointmentId.Value),
@@ -369,6 +409,7 @@ public class AppointmentsService : IAppointmentsService
             .AsNoTracking()
             .AnyAsync(
                 x => x.PatientId == patientId
+                    && x.IsActive
                     && x.AppointmentDate == appointmentDate
                     && x.AppointmentTime == appointmentTime
                     && (!excludedAppointmentId.HasValue || x.AppointmentId != excludedAppointmentId.Value),
@@ -431,7 +472,8 @@ public class AppointmentsService : IAppointmentsService
                 AppointmentDate = appointment.AppointmentDate,
                 DayOfWeek = appointment.AvailabilitySlot.DayOfWeek,
                 AppointmentTime = appointment.AppointmentTime,
-                Notes = appointment.Notes
+                Notes = appointment.Notes,
+                IsActive = appointment.IsActive
             });
     }
 

@@ -12,6 +12,7 @@ public class Appointment
     public DateOnly AppointmentDate { get; set; }
     public TimeOnly AppointmentTime { get; set; }
     public string? Notes { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public Doctor Doctor { get; set; } = null!;
     public Patient Patient { get; set; } = null!;

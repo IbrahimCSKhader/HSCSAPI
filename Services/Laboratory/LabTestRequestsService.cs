@@ -135,10 +135,10 @@ public class LabTestRequestsService : ILabTestRequestsService
 
         var testingClinicExists = await _dbContext.Clinics
             .AsNoTracking()
-            .AnyAsync(clinic => clinic.ClinicId == request.TestingClinicId, cancellationToken);
+            .AnyAsync(clinic => clinic.ClinicId == request.TestingClinicId && clinic.IsActive, cancellationToken);
         if (!testingClinicExists)
         {
-            return new BadRequestObjectResult("Testing clinic not found.");
+            return new BadRequestObjectResult("Testing clinic not found or inactive.");
         }
 
         var loinc = await _standardsService.GetLoincByCodeAsync(request.LoincCode, cancellationToken);
@@ -155,7 +155,7 @@ public class LabTestRequestsService : ILabTestRequestsService
 
         var laboratoryTechnologistId = await _dbContext.LaboratoryTechnologists
             .AsNoTracking()
-            .Where(technologist => technologist.User.ClinicId == request.TestingClinicId)
+            .Where(technologist => technologist.User.ClinicId == request.TestingClinicId && technologist.User.IsActive)
             .Select(technologist => (Guid?)technologist.LaboratoryTechnologistId)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -280,6 +280,7 @@ public class LabTestRequestsService : ILabTestRequestsService
         var trimmedPatientId = patientId.Trim();
         var query = _dbContext.Patients
             .Include(patient => patient.User)
+            .Where(patient => patient.User.IsActive)
             .AsQueryable();
 
         return Guid.TryParse(trimmedPatientId, out var patientGuid)

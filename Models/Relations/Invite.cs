@@ -12,6 +12,7 @@ public class Invite
     public InviteStatus Status { get; set; }
     public DateTime SentAt { get; set; }
     public DateTime? RespondedAt { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public Patient Patient { get; set; } = null!;
     public AuthorizedMember AuthorizedMember { get; set; } = null!;

@@ -54,12 +54,22 @@ public interface IPatientProfileService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> RemoveAuthorizedMemberAsync(
+    Task<IActionResult> DeactivateAuthorizedMemberAsync(
         Guid authorizedMemberId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> CancelAuthorizedMemberInviteAsync(
+    Task<IActionResult> ActivateAuthorizedMemberAsync(
+        Guid authorizedMemberId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> DeactivateAuthorizedMemberInviteAsync(
+        Guid inviteId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> ActivateAuthorizedMemberInviteAsync(
         Guid inviteId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

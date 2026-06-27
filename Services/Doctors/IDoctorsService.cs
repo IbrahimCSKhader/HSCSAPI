@@ -76,7 +76,12 @@ public interface IDoctorsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> DeleteAsync(
+    Task<IActionResult> DeactivateAsync(
+        Guid doctorId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> ActivateAsync(
         Guid doctorId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

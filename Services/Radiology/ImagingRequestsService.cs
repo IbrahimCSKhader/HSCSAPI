@@ -134,10 +134,10 @@ public class ImagingRequestsService : IImagingRequestsService
 
         var radiologyClinicExists = await _dbContext.Clinics
             .AsNoTracking()
-            .AnyAsync(clinic => clinic.ClinicId == request.RadiologyClinicId, cancellationToken);
+            .AnyAsync(clinic => clinic.ClinicId == request.RadiologyClinicId && clinic.IsActive, cancellationToken);
         if (!radiologyClinicExists)
         {
-            return new BadRequestObjectResult("Radiology clinic not found.");
+            return new BadRequestObjectResult("Radiology clinic not found or inactive.");
         }
 
         var imagingType = await ResolveImagingTypeAsync(request.ImagingCode, cancellationToken);
@@ -154,7 +154,7 @@ public class ImagingRequestsService : IImagingRequestsService
 
         var radiologyTechnologistId = await _dbContext.RadiologyTechnologists
             .AsNoTracking()
-            .Where(technologist => technologist.User.ClinicId == request.RadiologyClinicId)
+            .Where(technologist => technologist.User.ClinicId == request.RadiologyClinicId && technologist.User.IsActive)
             .Select(technologist => (Guid?)technologist.RadiologyTechnologistId)
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -259,6 +259,7 @@ public class ImagingRequestsService : IImagingRequestsService
         var trimmedPatientId = patientId.Trim();
         var query = _dbContext.Patients
             .Include(patient => patient.User)
+            .Where(patient => patient.User.IsActive)
             .AsQueryable();
 
         return Guid.TryParse(trimmedPatientId, out var patientGuid)

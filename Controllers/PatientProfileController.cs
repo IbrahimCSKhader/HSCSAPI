@@ -90,15 +90,27 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.CreateAuthorizedMemberInviteAsync(request, User, cancellationToken);
     }
 
-    [HttpDelete("authorized-members/{authorizedMemberId:guid}")]
-    public async Task<IActionResult> RemoveAuthorizedMember(Guid authorizedMemberId, CancellationToken cancellationToken)
+    [HttpPatch("authorized-members/{authorizedMemberId:guid}/deactivate")]
+    public async Task<IActionResult> DeactivateAuthorizedMember(Guid authorizedMemberId, CancellationToken cancellationToken)
     {
-        return await _patientProfileService.RemoveAuthorizedMemberAsync(authorizedMemberId, User, cancellationToken);
+        return await _patientProfileService.DeactivateAuthorizedMemberAsync(authorizedMemberId, User, cancellationToken);
     }
 
-    [HttpDelete("authorized-member-invites/{inviteId:guid}")]
-    public async Task<IActionResult> CancelAuthorizedMemberInvite(Guid inviteId, CancellationToken cancellationToken)
+    [HttpPatch("authorized-members/{authorizedMemberId:guid}/activate")]
+    public async Task<IActionResult> ActivateAuthorizedMember(Guid authorizedMemberId, CancellationToken cancellationToken)
     {
-        return await _patientProfileService.CancelAuthorizedMemberInviteAsync(inviteId, User, cancellationToken);
+        return await _patientProfileService.ActivateAuthorizedMemberAsync(authorizedMemberId, User, cancellationToken);
+    }
+
+    [HttpPatch("authorized-member-invites/{inviteId:guid}/deactivate")]
+    public async Task<IActionResult> DeactivateAuthorizedMemberInvite(Guid inviteId, CancellationToken cancellationToken)
+    {
+        return await _patientProfileService.DeactivateAuthorizedMemberInviteAsync(inviteId, User, cancellationToken);
+    }
+
+    [HttpPatch("authorized-member-invites/{inviteId:guid}/activate")]
+    public async Task<IActionResult> ActivateAuthorizedMemberInvite(Guid inviteId, CancellationToken cancellationToken)
+    {
+        return await _patientProfileService.ActivateAuthorizedMemberInviteAsync(inviteId, User, cancellationToken);
     }
 }

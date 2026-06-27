@@ -14,4 +14,5 @@ public class AppointmentResponse
     public DayOfWeek DayOfWeek { get; set; }
     public TimeOnly AppointmentTime { get; set; }
     public string? Notes { get; set; }
+    public bool IsActive { get; set; }
 }

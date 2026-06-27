@@ -409,7 +409,9 @@ public class RemindersService : IRemindersService
         var isAuthorizedForPatient = await _dbContext.PatientAuthorizedMembers
             .AsNoTracking()
             .AnyAsync(
-                x => x.PatientId == patientId && x.AuthorizedMemberId == authorizedMemberId.Value,
+                x => x.PatientId == patientId
+                    && x.AuthorizedMemberId == authorizedMemberId.Value
+                    && x.IsActive,
                 cancellationToken);
 
         return isAuthorizedForPatient

@@ -36,7 +36,12 @@ public interface IRadiologyTechnologistsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> DeleteAsync(
+    Task<IActionResult> DeactivateAsync(
+        Guid radiologyTechnologistId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> ActivateAsync(
         Guid radiologyTechnologistId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

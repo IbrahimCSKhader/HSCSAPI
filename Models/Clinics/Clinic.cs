@@ -10,6 +10,7 @@ public class Clinic
     public string? Address { get; set; }
     public Guid CreatedBySuperAdminUserId { get; set; }
     public Guid? AdminSecretaryId { get; set; }
+    public bool IsActive { get; set; } = true;
 
     public User CreatedBySuperAdminUser { get; set; } = null!;
     public Secretary? AdminSecretary { get; set; }

@@ -7,7 +7,6 @@ using Microsoft.AspNetCore.Mvc;
 namespace HSCSAPI.Controllers;
 
 [ApiController]
-[Authorize]
 [Route("api/[controller]")]
 public class StandardsController : ControllerBase
 {

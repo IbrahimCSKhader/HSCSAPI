@@ -55,6 +55,16 @@ public class AuthService : IAuthService
                 return new AuthResponse { Success = false, Message = "Invalid email or password." };
             }
 
+            if (!user.IsActive)
+            {
+                return new AuthResponse { Success = false, Message = "Account is inactive. Contact an administrator." };
+            }
+
+            if (user.Clinic is not null && !user.Clinic.IsActive)
+            {
+                return new AuthResponse { Success = false, Message = "Clinic is inactive. Contact an administrator." };
+            }
+
             if (!user.EmailConfirmed)
             {
                 return new AuthResponse { Success = false, Message = EmailNotVerifiedMessage };
@@ -494,11 +504,11 @@ public class AuthService : IAuthService
         {
             var clinicExists = await _context.Clinics
                 .AsNoTracking()
-                .AnyAsync(c => c.ClinicId == clinicId.Value, cancellationToken);
+                .AnyAsync(c => c.ClinicId == clinicId.Value && c.IsActive, cancellationToken);
 
             if (!clinicExists)
             {
-                throw new InvalidOperationException("Clinic not found.");
+                throw new InvalidOperationException("Clinic not found or inactive.");
             }
         }
 
@@ -540,7 +550,8 @@ public class AuthService : IAuthService
         var addToRoleResult = await _userManager.AddToRoleAsync(user, roleName);
         if (!addToRoleResult.Succeeded)
         {
-            await _userManager.DeleteAsync(user);
+            user.IsActive = false;
+            await _userManager.UpdateAsync(user);
             return new AuthResponse
             {
                 Success = false,
@@ -645,6 +656,7 @@ public class AuthService : IAuthService
             ClinicId = user.ClinicId,
             ClinicName = user.Clinic?.Name,
             EmailConfirmed = user.EmailConfirmed,
+            IsActive = user.IsActive,
             Role = role
         };
     }

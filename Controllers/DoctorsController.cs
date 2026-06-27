@@ -139,10 +139,17 @@ public class DoctorsController : ControllerBase
         return await _doctorsService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
-    [HttpDelete("{doctorId:guid}")]
+    [HttpPatch("{doctorId:guid}/deactivate")]
     [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryRoles)]
-    public async Task<IActionResult> Delete(Guid doctorId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid doctorId, CancellationToken cancellationToken)
     {
-        return await _doctorsService.DeleteAsync(doctorId, User, cancellationToken);
+        return await _doctorsService.DeactivateAsync(doctorId, User, cancellationToken);
+    }
+
+    [HttpPatch("{doctorId:guid}/activate")]
+    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryRoles)]
+    public async Task<IActionResult> Activate(Guid doctorId, CancellationToken cancellationToken)
+    {
+        return await _doctorsService.ActivateAsync(doctorId, User, cancellationToken);
     }
 }

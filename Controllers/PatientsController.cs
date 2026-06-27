@@ -64,10 +64,17 @@ public class PatientsController : ControllerBase
         return await _patientsService.UpdateMyProfileAsync(request, User, cancellationToken);
     }
 
-    [HttpDelete("{patientId:guid}")]
+    [HttpPatch("{patientId:guid}/deactivate")]
     [Authorize(Roles = PatientsService.SuperAdminOrSecretaryRoles)]
-    public async Task<IActionResult> Delete(Guid patientId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid patientId, CancellationToken cancellationToken)
     {
-        return await _patientsService.DeleteAsync(patientId, User, cancellationToken);
+        return await _patientsService.DeactivateAsync(patientId, User, cancellationToken);
+    }
+
+    [HttpPatch("{patientId:guid}/activate")]
+    [Authorize(Roles = PatientsService.SuperAdminOrSecretaryRoles)]
+    public async Task<IActionResult> Activate(Guid patientId, CancellationToken cancellationToken)
+    {
+        return await _patientsService.ActivateAsync(patientId, User, cancellationToken);
     }
 }

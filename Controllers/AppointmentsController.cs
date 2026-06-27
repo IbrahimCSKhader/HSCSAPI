@@ -65,10 +65,17 @@ public class AppointmentsController : ControllerBase
         return await _appointmentsService.UpdateAsync(appointmentId, request, User, cancellationToken);
     }
 
-    [HttpDelete("{appointmentId:guid}")]
+    [HttpPatch("{appointmentId:guid}/deactivate")]
     [Authorize(Roles = AppointmentsService.AllowedWriteRoles)]
-    public async Task<IActionResult> Delete(Guid appointmentId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid appointmentId, CancellationToken cancellationToken)
     {
-        return await _appointmentsService.DeleteAsync(appointmentId, User, cancellationToken);
+        return await _appointmentsService.DeactivateAsync(appointmentId, User, cancellationToken);
+    }
+
+    [HttpPatch("{appointmentId:guid}/activate")]
+    [Authorize(Roles = AppointmentsService.AllowedWriteRoles)]
+    public async Task<IActionResult> Activate(Guid appointmentId, CancellationToken cancellationToken)
+    {
+        return await _appointmentsService.ActivateAsync(appointmentId, User, cancellationToken);
     }
 }

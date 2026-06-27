@@ -189,11 +189,11 @@ public class RadiologyTechnologistsService : IRadiologyTechnologistsService
 
         var clinicExists = await _dbContext.Clinics
             .AsNoTracking()
-            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId, cancellationToken);
+            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId && clinic.IsActive, cancellationToken);
 
         if (!clinicExists)
         {
-            return new NotFoundObjectResult("Clinic not found.");
+            return new NotFoundObjectResult("Clinic not found or inactive.");
         }
 
         var normalizedEmail = NormalizeEmail(request.Email);
@@ -292,10 +292,27 @@ public class RadiologyTechnologistsService : IRadiologyTechnologistsService
             : new OkObjectResult(response);
     }
 
-    public async Task<IActionResult> DeleteAsync(
+    public Task<IActionResult> DeactivateAsync(
         Guid radiologyTechnologistId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(radiologyTechnologistId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAsync(
+        Guid radiologyTechnologistId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(radiologyTechnologistId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetActiveStateAsync(
+        Guid radiologyTechnologistId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var technologist = await _dbContext.RadiologyTechnologists
             .Include(profile => profile.User)
@@ -310,15 +327,16 @@ public class RadiologyTechnologistsService : IRadiologyTechnologistsService
 
         if (!await CanCurrentUserManageRadiologyTechnologistAsync(technologist, user, cancellationToken))
         {
-            return ForbiddenAction("You are not allowed to delete this radiology technologist.");
+            return ForbiddenAction("You are not allowed to change this radiology technologist's active state.");
         }
 
-        var deleteResult = await _userManager.DeleteAsync(technologist.User);
-        if (!deleteResult.Succeeded)
+        if (technologist.User.IsActive == isActive)
         {
-            return new BadRequestObjectResult(string.Join(" ", deleteResult.Errors.Select(error => error.Description)));
+            return new NoContentResult();
         }
 
+        technologist.User.IsActive = isActive;
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return new NoContentResult();
     }
 
@@ -337,7 +355,8 @@ public class RadiologyTechnologistsService : IRadiologyTechnologistsService
                 ClinicId = technologist.User.ClinicId,
                 ClinicName = technologist.User.Clinic != null ? technologist.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = technologist.ProfessionalLicenseNumber,
-                EmailConfirmed = technologist.User.EmailConfirmed
+                EmailConfirmed = technologist.User.EmailConfirmed,
+                IsActive = technologist.User.IsActive
             });
     }
 

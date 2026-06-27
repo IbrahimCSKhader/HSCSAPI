@@ -22,6 +22,10 @@ public class UserConfiguration : IEntityTypeConfiguration<User>
             .IsRequired()
             .HasDefaultValueSql("SYSUTCDATETIME()");
 
+        builder.Property(x => x.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.Property(x => x.UserName)
             .IsRequired()
             .HasMaxLength(256);

@@ -195,11 +195,11 @@ public class PatientsService : IPatientsService
 
         var clinicExists = await _dbContext.Clinics
             .AsNoTracking()
-            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId, cancellationToken);
+            .AnyAsync(clinic => clinic.ClinicId == request.ClinicId && clinic.IsActive, cancellationToken);
 
         if (!clinicExists)
         {
-            return new NotFoundObjectResult("Clinic not found.");
+            return new NotFoundObjectResult("Clinic not found or inactive.");
         }
 
         var normalizedEmail = NormalizeEmail(request.Email);
@@ -306,10 +306,27 @@ public class PatientsService : IPatientsService
             : new OkObjectResult(response);
     }
 
-    public async Task<IActionResult> DeleteAsync(
+    public Task<IActionResult> DeactivateAsync(
         Guid patientId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(patientId, false, user, cancellationToken);
+    }
+
+    public Task<IActionResult> ActivateAsync(
+        Guid patientId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        return SetActiveStateAsync(patientId, true, user, cancellationToken);
+    }
+
+    private async Task<IActionResult> SetActiveStateAsync(
+        Guid patientId,
+        bool isActive,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
     {
         var patient = await _dbContext.Patients
             .Include(profile => profile.User)
@@ -322,22 +339,16 @@ public class PatientsService : IPatientsService
 
         if (!await CanCurrentUserManagePatientAsync(patient, user, cancellationToken))
         {
-            return ForbiddenAction("You are not allowed to delete this patient.");
+            return ForbiddenAction("You are not allowed to change this patient's active state.");
         }
 
-        var blockers = await GetDeleteBlockersAsync(patientId, cancellationToken);
-        if (blockers.Count > 0)
+        if (patient.User.IsActive == isActive)
         {
-            return new BadRequestObjectResult(
-                $"Cannot delete patient because related {string.Join(", ", blockers)} exist.");
+            return new NoContentResult();
         }
 
-        var deleteResult = await _userManager.DeleteAsync(patient.User);
-        if (!deleteResult.Succeeded)
-        {
-            return new BadRequestObjectResult(string.Join(" ", deleteResult.Errors.Select(error => error.Description)));
-        }
-
+        patient.User.IsActive = isActive;
+        await _dbContext.SaveChangesAsync(cancellationToken);
         return new NoContentResult();
     }
 
@@ -358,7 +369,8 @@ public class PatientsService : IPatientsService
                 BloodType = patient.BloodType.HasValue ? patient.BloodType.Value.ToString() : null,
                 ClinicId = patient.User.ClinicId,
                 ClinicName = patient.User.Clinic != null ? patient.User.Clinic.Name : null,
-                EmailConfirmed = patient.User.EmailConfirmed
+                EmailConfirmed = patient.User.EmailConfirmed,
+                IsActive = patient.User.IsActive
             });
     }
 

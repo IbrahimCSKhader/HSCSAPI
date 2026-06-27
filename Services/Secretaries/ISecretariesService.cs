@@ -14,5 +14,6 @@ public interface ISecretariesService
     Task<ActionResult<SecretaryResponse>> AssignToClinicAsync(Guid secretaryId, AssignSecretaryToClinicRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<SecretaryResponse>> RemoveFromClinicAsync(Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<SecretaryResponse>> UpdateInClinicAsync(Guid clinicId, Guid secretaryId, UpdateSecretaryRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
-    Task<IActionResult> DeleteInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<IActionResult> DeactivateInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<IActionResult> ActivateInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }

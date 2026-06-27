@@ -36,7 +36,12 @@ public interface ILaboratoryTechnologistsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
-    Task<IActionResult> DeleteAsync(
+    Task<IActionResult> DeactivateAsync(
+        Guid laboratoryTechnologistId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> ActivateAsync(
         Guid laboratoryTechnologistId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

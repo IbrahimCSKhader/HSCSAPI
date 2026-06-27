@@ -31,6 +31,7 @@ using System.Text;
 using Microsoft.EntityFrameworkCore;
 using HSCSAPI.Hub;
 using Microsoft.AspNetCore.SignalR;
+using System.Security.Claims;
 
 namespace HSCSAPI
 {
@@ -116,6 +117,29 @@ namespace HSCSAPI
                             }
 
                             return Task.CompletedTask;
+                        },
+                        OnTokenValidated = async context =>
+                        {
+                            var userIdValue = context.Principal?.FindFirstValue(System.Security.Claims.ClaimTypes.NameIdentifier);
+                            if (!Guid.TryParse(userIdValue, out var userId))
+                            {
+                                context.Fail("Invalid user identifier.");
+                                return;
+                            }
+
+                            var dbContext = context.HttpContext.RequestServices.GetRequiredService<AppDbContext>();
+                            var canAccess = await dbContext.Users
+                                .AsNoTracking()
+                                .AnyAsync(
+                                    user => user.Id == userId
+                                        && user.IsActive
+                                        && (user.ClinicId == null || (user.Clinic != null && user.Clinic.IsActive)),
+                                    context.HttpContext.RequestAborted);
+
+                            if (!canAccess)
+                            {
+                                context.Fail("Account or clinic is inactive.");
+                            }
                         }
                     };
                 });

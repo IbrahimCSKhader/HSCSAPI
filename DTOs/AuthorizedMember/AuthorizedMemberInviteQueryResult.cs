@@ -15,4 +15,5 @@ internal sealed class AuthorizedMemberInviteQueryResult
     public InviteStatus Status { get; init; }
     public DateTime SentAt { get; init; }
     public DateTime? RespondedAt { get; init; }
+    public bool IsActive { get; init; }
 }

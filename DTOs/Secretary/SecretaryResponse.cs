@@ -13,4 +13,5 @@ public class SecretaryResponse
     public Guid? ManagedClinicId { get; set; }
     public string? ManagedClinicName { get; set; }
     public bool IsClinicAdmin { get; set; }
+    public bool IsActive { get; set; }
 }

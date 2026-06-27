@@ -284,7 +284,8 @@ public class MedicalFileUploadsService : IMedicalFileUploadsService
         var query = _dbContext.Appointments
             .AsNoTracking()
             .Where(appointment => appointment.DoctorId == doctorId
-                && appointment.PatientId == patientId);
+                && appointment.PatientId == patientId
+                && appointment.IsActive);
 
         if (appointmentId.HasValue)
         {

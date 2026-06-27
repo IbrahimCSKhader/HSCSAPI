@@ -289,11 +289,12 @@ Body: { name, address?, adminSecretaryId? }
 الفشل 404: Clinic not found. الفشل 400: adminSecretaryId غير صالح أو مستخدم في عيادة أخرى.
 
 API-015
-DELETE /api/Clinics/{clinicId}
+PATCH /api/Clinics/{clinicId}/deactivate
+مسار التفعيل: PATCH /api/Clinics/{clinicId}/activate
 الحماية: SuperAdmin.
-النجاح 204: بلا body.
-الفشل 404: العيادة غير موجودة. الفشل 400: لا يمكن الحذف إذا ما زال Users مرتبطين بالعيادة.
-تعامل الفرونت: لا تحذف العنصر من الواجهة إلا بعد 204.
+النجاح 200: ClinicResponse بعد تغيير IsActive مع بقاء العيادة وبياناتها محفوظة.
+الفشل 404: العيادة غير موجودة.
+تعامل الفرونت: حدّث IsActive في الواجهة؛ لا تزل العنصر نهائياً.
 
 API-016
 PUT /api/Clinics/my-clinic
@@ -312,17 +313,18 @@ Body: UpdateSecretaryRequest = name, email, phoneNumber?, address?, dateOfBirth?
 الفشل: 403 خارج النطاق، 404 للعيادة/السكرتير، 400 للاسم/البريد/البريد المكرر.
 
 API-018
-DELETE /api/Clinics/{clinicId}/secretaries/{secretaryId}
+PATCH /api/Clinics/{clinicId}/secretaries/{secretaryId}/deactivate
+مسار التفعيل: PATCH /api/Clinics/{clinicId}/secretaries/{secretaryId}/activate
 الحماية: SuperAdmin أو Secretary.
 النجاح 204.
-الفشل: 403 خارج النطاق، 404 إذا غير موجود في العيادة، 400 إذا حذف السكرتير نفسه أو لديه علاقات تمنع الحذف.
+الفشل: 403 خارج النطاق، 404 إذا غير موجود في العيادة، 400 إذا حاول السكرتير تعطيل حسابه بنفسه.
 
 
 8) Appointments APIs
 ====================
 
 الأدوار التي تقرأ: SuperAdmin, Secretary, Doctor, Patient.
-الأدوار التي تنشئ/تعدل/تحذف: SuperAdmin, Secretary, Patient. الطبيب لا يملك write حالياً.
+الأدوار التي تنشئ/تعدل/تعطّل/تفعّل: SuperAdmin, Secretary, Patient. الطبيب لا يملك write حالياً.
 
 Create/Update body:
 doctorId, patientId, appointmentDate, appointmentTime, notes? (حد notes هو 1000 حرف).
@@ -362,10 +364,11 @@ Body وشروط الحجز مثل POST.
 الفشل 404 للموعد/الطبيب/المريض، 400 للتعارض، 403 إذا لا يحق للمستخدم تعديل الموعد.
 
 API-024
-DELETE /api/Appointments/{appointmentId}
+PATCH /api/Appointments/{appointmentId}/deactivate
+مسار التفعيل: PATCH /api/Appointments/{appointmentId}/activate
 الحماية: أدوار الكتابة.
 النجاح 204.
-الفشل 404: الموعد غير موجود. 403: خارج النطاق. 400: الموعد لديه MedicalFiles ولا يمكن حذفه.
+الفشل 404: الموعد غير موجود. 403: خارج النطاق. إعادة التفعيل تفشل 400 عند وجود تعارض مع موعد نشط.
 
 
 9) Patients APIs
@@ -418,10 +421,11 @@ Body: UpdateMyPatientProfileRequest؛ لا يستطيع تغيير email أو cl
 الفشل 400 للاسم/gender/bloodType، 404 للبروفايل، 401 لتوكين غير صالح.
 
 API-031
-DELETE /api/Patients/{patientId}
+PATCH /api/Patients/{patientId}/deactivate
+مسار التفعيل: PATCH /api/Patients/{patientId}/activate
 الحماية: SuperAdmin أو Secretary.
 النجاح 204.
-الفشل: 403 خارج عيادة السكرتير، 404 غير موجود، 400 عند وجود علاقات مرتبطة تمنع الحذف مثل المواعيد أو السجلات/الدعوات.
+الفشل: 403 خارج عيادة السكرتير، 404 غير موجود. السجلات والعلاقات تبقى محفوظة.
 
 
 10) Doctors APIs
@@ -468,10 +472,11 @@ Body: UpdateMyDoctorProfileRequest؛ لا يغير البريد أو العيا�
 النجاح 200: DoctorResponse. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
 
 API-038
-DELETE /api/Doctors/{doctorId}
+PATCH /api/Doctors/{doctorId}/deactivate
+مسار التفعيل: PATCH /api/Doctors/{doctorId}/activate
 الحماية: SuperAdmin أو Secretary.
 النجاح 204.
-الفشل: 403 خارج النطاق، 404 غير موجود، 400 عند وجود مواعيد/سجلات/علاقات تمنع الحذف.
+الفشل: 403 خارج النطاق، 404 غير موجود. المواعيد والسجلات والعلاقات تبقى محفوظة.
 
 
 11) Laboratory Technologists APIs
@@ -522,10 +527,11 @@ Body: UpdateMyLaboratoryTechnologistProfileRequest؛ لا يغير البريد/
 النجاح 200. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
 
 API-045
-DELETE /api/LaboratoryTechnologists/{laboratoryTechnologistId}
+PATCH /api/LaboratoryTechnologists/{laboratoryTechnologistId}/deactivate
+مسار التفعيل: PATCH /api/LaboratoryTechnologists/{laboratoryTechnologistId}/activate
 الحماية: SuperAdmin أو Secretary.
 النجاح 204.
-الفشل: 403 خارج النطاق، 404 غير موجود، 400 إذا أعاد Identity أخطاء حذف. إذا اصطدم الحذف بعلاقة قاعدة بيانات غير معالجة فقد يظهر 500 حالياً.
+الفشل: 403 خارج النطاق أو 404 إذا الحساب غير موجود.
 
 
 12) Radiology Technologists APIs
@@ -576,10 +582,11 @@ Body: UpdateMyRadiologyTechnologistProfileRequest؛ لا يغير البريد/�
 النجاح 200. الفشل 400 للاسم، 401/404 للهوية/البروفايل.
 
 API-052
-DELETE /api/RadiologyTechnologists/{radiologyTechnologistId}
+PATCH /api/RadiologyTechnologists/{radiologyTechnologistId}/deactivate
+مسار التفعيل: PATCH /api/RadiologyTechnologists/{radiologyTechnologistId}/activate
 الحماية: SuperAdmin أو Secretary.
 النجاح 204.
-الفشل: 403 خارج النطاق، 404 غير موجود، 400 إذا أعاد Identity أخطاء حذف. قيود قاعدة بيانات غير معالجة قد تظهر 500 حالياً.
+الفشل: 403 خارج النطاق أو 404 إذا الحساب غير موجود.
 
 
 13) Secretaries APIs
@@ -635,7 +642,7 @@ Body: { "clinicId": Guid }
 الفشل 400/403/404 حسب الشرط.
 
 API-059
-DELETE /api/Secretaries/{secretaryId}/remove-from-clinic
+PATCH /api/Secretaries/{secretaryId}/remove-from-clinic
 الحماية: SuperAdmin أو Secretary.
 النجاح 200: SecretaryResponse بعد جعل clinicId=null. إذا كان مدير نفس العيادة يزال AdminSecretaryId أيضاً.
 الفشل 404 للسكرتير، 400 إذا غير معين أو مدير عيادة أخرى، 403 خارج النطاق.
@@ -654,10 +661,11 @@ Body: UpdatePatientRequest كاملاً.
 الفشل: نفس API-029 مع فرض أن المريض والعيادة ضمن عيادة السكرتير.
 
 API-062
-DELETE /api/Secretaries/my-clinic/patients/{patientId}
+PATCH /api/Secretaries/my-clinic/patients/{patientId}/deactivate
+مسار التفعيل: PATCH /api/Secretaries/my-clinic/patients/{patientId}/activate
 الحماية: Secretary.
 النجاح 204.
-الفشل: 403 خارج عيادته، 404 غير موجود، 400 عند وجود علاقات تمنع الحذف.
+الفشل: 403 خارج عيادته أو 404 إذا الحساب غير موجود.
 
 API-063
 GET /api/Secretaries/my-clinic/doctors
@@ -672,9 +680,10 @@ Body: UpdateDoctorRequest.
 الفشل: نفس API-036 مع تقييد العيادة.
 
 API-065
-DELETE /api/Secretaries/my-clinic/doctors/{doctorId}
+PATCH /api/Secretaries/my-clinic/doctors/{doctorId}/deactivate
+مسار التفعيل: PATCH /api/Secretaries/my-clinic/doctors/{doctorId}/activate
 الحماية: Secretary.
-النجاح 204. الفشل 403/404/400 حسب النطاق والعلاقات.
+النجاح 204. الفشل 403/404 حسب النطاق ووجود الحساب.
 
 API-066
 GET /api/Secretaries/my-clinic/laboratory-technologists
@@ -688,7 +697,8 @@ Body: UpdateLaboratoryTechnologistRequest.
 النجاح 200. الفشل: نفس API-043 مع تقييد العيادة.
 
 API-068
-DELETE /api/Secretaries/my-clinic/laboratory-technologists/{laboratoryTechnologistId}
+PATCH /api/Secretaries/my-clinic/laboratory-technologists/{laboratoryTechnologistId}/deactivate
+مسار التفعيل: PATCH /api/Secretaries/my-clinic/laboratory-technologists/{laboratoryTechnologistId}/activate
 الحماية: Secretary.
 النجاح 204. الفشل 403/404/400.
 
@@ -704,7 +714,8 @@ Body: UpdateRadiologyTechnologistRequest.
 النجاح 200. الفشل: نفس API-050 مع تقييد العيادة.
 
 API-071
-DELETE /api/Secretaries/my-clinic/radiology-technologists/{radiologyTechnologistId}
+PATCH /api/Secretaries/my-clinic/radiology-technologists/{radiologyTechnologistId}/deactivate
+مسار التفعيل: PATCH /api/Secretaries/my-clinic/radiology-technologists/{radiologyTechnologistId}/activate
 الحماية: Secretary.
 النجاح 204. الفشل 403/404/400.
 
@@ -849,13 +860,15 @@ Body: { "fullName": string|null, "email": string, "relationshipType": string }
 الفشل: 400 للبريد/relationshipType أو علاقة موجودة، 404 إذا حساب AuthorizedMember غير موجود.
 
 API-089
-DELETE /api/patient-profile/authorized-members/{authorizedMemberId}
-النجاح 204: إزالة علاقة الوصول.
+PATCH /api/patient-profile/authorized-members/{authorizedMemberId}/deactivate
+مسار التفعيل: PATCH /api/patient-profile/authorized-members/{authorizedMemberId}/activate
+النجاح 204: تغيير IsActive مع بقاء علاقة الوصول محفوظة.
 الفشل 404 إذا العلاقة لا تخص المريض أو غير موجودة.
 
 API-090
-DELETE /api/patient-profile/authorized-member-invites/{inviteId}
-النجاح 204: حذف دعوة Pending.
+PATCH /api/patient-profile/authorized-member-invites/{inviteId}/deactivate
+مسار التفعيل: PATCH /api/patient-profile/authorized-member-invites/{inviteId}/activate
+النجاح 204: تعطيل أو تفعيل دعوة Pending مع بقائها محفوظة.
 الفشل 404 إذا لا تخص المريض، 400 إذا الدعوة ليست Pending.
 
 

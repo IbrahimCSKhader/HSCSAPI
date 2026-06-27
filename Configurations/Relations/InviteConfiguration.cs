@@ -25,6 +25,10 @@ public class InviteConfiguration : IEntityTypeConfiguration<Invite>
         builder.Property(x => x.SentAt)
             .IsRequired();
 
+        builder.Property(x => x.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.HasOne(x => x.Patient)
             .WithMany(x => x.SentInvites)
             .HasForeignKey(x => x.PatientId)

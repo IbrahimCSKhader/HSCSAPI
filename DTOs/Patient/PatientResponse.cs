@@ -14,4 +14,5 @@ public class PatientResponse
     public Guid? ClinicId { get; set; }
     public string? ClinicName { get; set; }
     public bool EmailConfirmed { get; set; }
+    public bool IsActive { get; set; }
 }

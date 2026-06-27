@@ -20,6 +20,10 @@ public class ClinicConfiguration : IEntityTypeConfiguration<Clinic>
         builder.Property(x => x.Address)
             .HasMaxLength(500);
 
+        builder.Property(x => x.IsActive)
+            .IsRequired()
+            .HasDefaultValue(true);
+
         builder.HasOne(x => x.CreatedBySuperAdminUser)
             .WithMany(x => x.CreatedClinics)
             .HasForeignKey(x => x.CreatedBySuperAdminUserId)

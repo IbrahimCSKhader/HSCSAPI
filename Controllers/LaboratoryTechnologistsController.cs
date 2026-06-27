@@ -64,10 +64,17 @@ public class LaboratoryTechnologistsController : ControllerBase
         return await _laboratoryTechnologistsService.UpdateMyProfileAsync(request, User, cancellationToken);
     }
 
-    [HttpDelete("{laboratoryTechnologistId:guid}")]
+    [HttpPatch("{laboratoryTechnologistId:guid}/deactivate")]
     [Authorize(Roles = LaboratoryTechnologistsService.SuperAdminOrSecretaryRoles)]
-    public async Task<IActionResult> Delete(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
+    public async Task<IActionResult> Deactivate(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
     {
-        return await _laboratoryTechnologistsService.DeleteAsync(laboratoryTechnologistId, User, cancellationToken);
+        return await _laboratoryTechnologistsService.DeactivateAsync(laboratoryTechnologistId, User, cancellationToken);
+    }
+
+    [HttpPatch("{laboratoryTechnologistId:guid}/activate")]
+    [Authorize(Roles = LaboratoryTechnologistsService.SuperAdminOrSecretaryRoles)]
+    public async Task<IActionResult> Activate(Guid laboratoryTechnologistId, CancellationToken cancellationToken)
+    {
+        return await _laboratoryTechnologistsService.ActivateAsync(laboratoryTechnologistId, User, cancellationToken);
     }
 }

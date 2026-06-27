@@ -399,6 +399,11 @@ public class AuthorizedMembersService : IAuthorizedMembersService
             return new NotFoundObjectResult("Invite not found.");
         }
 
+        if (!invite.IsActive)
+        {
+            return new BadRequestObjectResult("Invite is inactive.");
+        }
+
         if (invite.Status != InviteStatus.Pending)
         {
             return new BadRequestObjectResult("Invite has already been responded to.");
@@ -408,12 +413,12 @@ public class AuthorizedMembersService : IAuthorizedMembersService
 
         if (targetStatus == InviteStatus.Accepted)
         {
-            var relationExists = await _dbContext.PatientAuthorizedMembers
-                .AnyAsync(
+            var relation = await _dbContext.PatientAuthorizedMembers
+                .FirstOrDefaultAsync(
                     x => x.PatientId == invite.PatientId && x.AuthorizedMemberId == currentUserId.Value,
                     cancellationToken);
 
-            if (!relationExists)
+            if (relation is null)
             {
                 _dbContext.PatientAuthorizedMembers.Add(new PatientAuthorizedMember
                 {
@@ -422,6 +427,12 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                     RelationshipType = invite.RelationshipType,
                     AuthorizedAt = respondedAt
                 });
+            }
+            else
+            {
+                relation.IsActive = true;
+                relation.RelationshipType = invite.RelationshipType;
+                relation.AuthorizedAt = respondedAt;
             }
         }
 
@@ -440,7 +451,7 @@ public class AuthorizedMembersService : IAuthorizedMembersService
     {
         return _dbContext.PatientAuthorizedMembers
             .AsNoTracking()
-            .Where(relation => relation.AuthorizedMemberId == authorizedMemberId)
+            .Where(relation => relation.AuthorizedMemberId == authorizedMemberId && relation.IsActive)
             .Select(relation => relation.PatientId);
     }
 
@@ -451,7 +462,7 @@ public class AuthorizedMembersService : IAuthorizedMembersService
     {
         return _dbContext.PatientAuthorizedMembers
             .AsNoTracking()
-            .Where(relation => relation.AuthorizedMemberId == authorizedMemberId)
+            .Where(relation => relation.AuthorizedMemberId == authorizedMemberId && relation.IsActive)
             .Select(relation => new AuthorizedMemberPatientQueryResult
             {
                 PatientId = relation.PatientId,
@@ -471,8 +482,9 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                     .SelectMany(appointment => appointment.MedicalFiles)
                     .Count(),
                 UpcomingAppointmentsCount = relation.Patient.Appointments.Count(
-                    appointment => appointment.AppointmentDate > today
-                        || (appointment.AppointmentDate == today && appointment.AppointmentTime >= currentTime))
+                    appointment => appointment.IsActive
+                        && (appointment.AppointmentDate > today
+                            || (appointment.AppointmentDate == today && appointment.AppointmentTime >= currentTime)))
             });
     }
 
@@ -481,8 +493,9 @@ public class AuthorizedMembersService : IAuthorizedMembersService
     {
         return _dbContext.Appointments
             .AsNoTracking()
-            .Where(appointment => appointment.Patient.AuthorizedMembers
-                .Any(relation => relation.AuthorizedMemberId == authorizedMemberId))
+            .Where(appointment => appointment.IsActive
+                && appointment.Patient.AuthorizedMembers
+                    .Any(relation => relation.AuthorizedMemberId == authorizedMemberId && relation.IsActive))
             .Select(appointment => new AuthorizedMemberAppointmentProjection
             {
                 AppointmentId = appointment.AppointmentId,
@@ -555,7 +568,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
             .AsNoTracking()
             .AnyAsync(
                 relation => relation.AuthorizedMemberId == authorizedMemberId
-                    && relation.PatientId == patientId,
+                    && relation.PatientId == patientId
+                    && relation.IsActive,
                 cancellationToken);
     }
 
@@ -679,7 +693,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                 RelationshipType = invite.RelationshipType,
                 Status = invite.Status,
                 SentAt = invite.SentAt,
-                RespondedAt = invite.RespondedAt
+                RespondedAt = invite.RespondedAt,
+                IsActive = invite.IsActive
             })
             .ToListAsync(cancellationToken);
 
@@ -706,7 +721,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                 RelationshipType = x.RelationshipType,
                 Status = x.Status,
                 SentAt = x.SentAt,
-                RespondedAt = x.RespondedAt
+                RespondedAt = x.RespondedAt,
+                IsActive = x.IsActive
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -863,7 +879,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
             RelationshipType = invite.RelationshipType.ToString(),
             Status = invite.Status.ToString(),
             SentAt = invite.SentAt,
-            RespondedAt = invite.RespondedAt
+            RespondedAt = invite.RespondedAt,
+            IsActive = invite.IsActive
         };
     }
 
