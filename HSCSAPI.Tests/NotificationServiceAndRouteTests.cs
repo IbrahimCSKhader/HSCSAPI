@@ -206,6 +206,7 @@ public class NotificationServiceAndRouteTests
         Assert.Empty(patientProfileNotificationEndpoints);
         Assert.Equal(
             [
+                "DELETE /api/notifications/{notificationid:guid}",
                 "GET /api/notifications",
                 "PATCH /api/notifications/{notificationid:guid}/read-status",
                 "PATCH /api/notifications/read-all"

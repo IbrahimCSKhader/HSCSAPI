@@ -5,6 +5,9 @@ namespace HSCSAPI.DTOs.Appointment;
 public class CreateAppointmentRequest
 {
     [Required]
+    public Guid AvailabilitySlotId { get; set; }
+
+    [Required]
     public Guid DoctorId { get; set; }
 
     [Required]

@@ -154,11 +154,25 @@ public class AppointmentsService : IAppointmentsService
             excludedAppointmentId: null,
             cancellationToken);
 
-        var slot = await EnsureAvailabilitySlotAsync(
-            request.DoctorId,
-            request.AppointmentDate.DayOfWeek,
-            request.AppointmentTime,
+        var slot = await _dbContext.AvailabilitySlots.FirstOrDefaultAsync(
+            x => x.AvailabilitySlotId == request.AvailabilitySlotId
+                && x.DoctorId == request.DoctorId
+                && x.SlotDate == request.AppointmentDate
+                && x.StartTime == request.AppointmentTime
+                && x.IsAvailable,
             cancellationToken);
+        if (slot is null)
+        {
+            throw new InvalidOperationException("The selected availability slot is invalid or unavailable.");
+        }
+
+        var slotAlreadyBooked = await _dbContext.Appointments.AsNoTracking().AnyAsync(
+            x => x.AvailabilitySlotId == slot.AvailabilitySlotId && x.IsActive,
+            cancellationToken);
+        if (slotAlreadyBooked)
+        {
+            throw new InvalidOperationException("The selected availability slot is already booked.");
+        }
 
         var appointment = new Appointment
         {
@@ -222,7 +236,7 @@ public class AppointmentsService : IAppointmentsService
 
         var slot = await EnsureAvailabilitySlotAsync(
             request.DoctorId,
-            request.AppointmentDate.DayOfWeek,
+            request.AppointmentDate,
             request.AppointmentTime,
             cancellationToken);
 
@@ -423,7 +437,7 @@ public class AppointmentsService : IAppointmentsService
 
     private async Task<AvailabilitySlot> EnsureAvailabilitySlotAsync(
         Guid doctorId,
-        DayOfWeek dayOfWeek,
+        DateOnly slotDate,
         TimeOnly appointmentTime,
         CancellationToken cancellationToken)
     {
@@ -431,7 +445,7 @@ public class AppointmentsService : IAppointmentsService
         var slot = await _dbContext.AvailabilitySlots
             .FirstOrDefaultAsync(
                 x => x.DoctorId == doctorId
-                    && x.DayOfWeek == dayOfWeek
+                    && x.SlotDate == slotDate
                     && x.StartTime == appointmentTime
                     && x.EndTime == endTime,
                 cancellationToken);
@@ -445,7 +459,8 @@ public class AppointmentsService : IAppointmentsService
         slot = new AvailabilitySlot
         {
             DoctorId = doctorId,
-            DayOfWeek = dayOfWeek,
+            SlotDate = slotDate,
+            DayOfWeek = slotDate.DayOfWeek,
             StartTime = appointmentTime,
             EndTime = endTime,
             IsAvailable = true
@@ -473,6 +488,7 @@ public class AppointmentsService : IAppointmentsService
                 DayOfWeek = appointment.AvailabilitySlot.DayOfWeek,
                 AppointmentTime = appointment.AppointmentTime,
                 Notes = appointment.Notes,
+                Status = appointment.IsActive ? "Scheduled" : "Cancelled",
                 IsActive = appointment.IsActive
             });
     }

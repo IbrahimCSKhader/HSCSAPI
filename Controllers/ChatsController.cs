@@ -17,6 +17,7 @@ public class ChatsController : ControllerBase
         _chatService = chatService;
     }
 
+    // last end point added - already-added
     [HttpPost("open")]
     public Task<ChatResponse> OpenChat(
         [FromBody] OpenChatRequest request,
@@ -49,6 +50,23 @@ public class ChatsController : ControllerBase
             request.File,
             User,
             cancellationToken);
+
+    // last end point added
+    [HttpPut("{chatId:guid}/messages/{messageId:guid}")]
+    public Task<ChatMessageResponse> EditMessage(
+        Guid chatId,
+        Guid messageId,
+        [FromBody] EditChatMessageRequest request,
+        CancellationToken cancellationToken) =>
+        _chatService.EditMessageAsync(chatId, messageId, request.Text, User, cancellationToken);
+
+    // last end point added
+    [HttpDelete("{chatId:guid}/messages/{messageId:guid}")]
+    public async Task<IActionResult> UnsendMessage(Guid chatId, Guid messageId, CancellationToken cancellationToken)
+    {
+        await _chatService.UnsendMessageAsync(chatId, messageId, User, cancellationToken);
+        return NoContent();
+    }
 
     [HttpPost("{chatId:guid}/read")]
     public Task<MarkChatReadResponse> MarkAsRead(

@@ -30,6 +30,9 @@ public interface IChatService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ChatMessageResponse> EditMessageAsync(Guid chatId, Guid messageId, string text, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task UnsendMessageAsync(Guid chatId, Guid messageId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+
     Task<MarkChatReadResponse> MarkAsReadAsync(
         Guid chatId,
         ClaimsPrincipal user,

@@ -31,18 +31,24 @@ public class ActivationStateTests
     }
 
     [Fact]
-    public void Controllers_DoNotExposeHttpDeleteEndpoints()
+    public void Controllers_ExposeDeleteOnlyForExplicitUserOwnedResources()
     {
-        var deleteEndpoint = typeof(AuthController).Assembly
+        var deleteEndpoints = typeof(AuthController).Assembly
             .GetTypes()
             .Where(type => !type.IsAbstract && typeof(ControllerBase).IsAssignableFrom(type))
             .SelectMany(type => type.GetMethods())
             .SelectMany(method => method.GetCustomAttributes(typeof(HttpMethodAttribute), true)
                 .Cast<HttpMethodAttribute>())
-            .SelectMany(attribute => attribute.HttpMethods)
-            .FirstOrDefault(method => string.Equals(method, "DELETE", StringComparison.OrdinalIgnoreCase));
+            .Where(attribute => attribute.HttpMethods.Any(method => string.Equals(method, "DELETE", StringComparison.OrdinalIgnoreCase)))
+            .Select(attribute => attribute.Template)
+            .OrderBy(template => template)
+            .ToArray();
 
-        Assert.Null(deleteEndpoint);
+        Assert.Equal(new[]
+        {
+            "{chatId:guid}/messages/{messageId:guid}",
+            "{notificationId:guid}"
+        }, deleteEndpoints);
     }
 
     [Fact]

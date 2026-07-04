@@ -16,17 +16,23 @@ public class AvailabilitySlotConfiguration : IEntityTypeConfiguration<Availabili
             .HasConversion<int>()
             .IsRequired();
 
+        builder.Property(x => x.SlotDate)
+            .IsRequired();
+
         builder.Property(x => x.StartTime)
             .IsRequired();
 
         builder.Property(x => x.EndTime)
             .IsRequired();
 
+        builder.Property(x => x.Notes)
+            .HasMaxLength(500);
+
         builder.Property(x => x.IsAvailable)
             .HasDefaultValue(true)
             .IsRequired();
 
-        builder.HasIndex(x => new { x.DoctorId, x.DayOfWeek, x.StartTime, x.EndTime })
+        builder.HasIndex(x => new { x.DoctorId, x.SlotDate, x.StartTime, x.EndTime })
             .IsUnique();
 
         builder.HasOne(x => x.Doctor)

@@ -176,7 +176,8 @@ public class ChatService : IChatService
                 ContentType = x.ContentType,
                 FileSizeInBytes = x.FileSizeInBytes,
                 CreatedAt = x.CreatedAt,
-                ReadAt = x.ReadAt
+                ReadAt = x.ReadAt,
+                EditedAt = x.EditedAt
             })
             .ToListAsync(cancellationToken);
 
@@ -312,6 +313,96 @@ public class ChatService : IChatService
         }
 
         return response;
+    }
+
+    public async Task<ChatMessageResponse> EditMessageAsync(
+        Guid chatId,
+        Guid messageId,
+        string text,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        await EnsureMemberAsync(chatId, currentUserId, cancellationToken);
+        var normalizedText = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        if (normalizedText is null || normalizedText.Length > MaxTextLength)
+        {
+            throw new ArgumentException($"Text is required and cannot exceed {MaxTextLength} characters.");
+        }
+
+        var message = await _dbContext.ChatMessages
+            .Include(x => x.Sender)
+            .FirstOrDefaultAsync(x => x.ChatId == chatId && x.ChatMessageId == messageId, cancellationToken);
+        if (message is null)
+        {
+            throw new KeyNotFoundException("Message not found.");
+        }
+
+        if (message.SenderId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Only the sender can edit this message.");
+        }
+
+        if (message.MessageType != ChatMessageType.Text)
+        {
+            throw new InvalidOperationException("Only text messages can be edited.");
+        }
+
+        message.Text = normalizedText;
+        message.EditedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        var response = MapMessage(message, message.Sender.Name);
+        await BroadcastMessageChangeAsync("MessageEdited", chatId, response, cancellationToken);
+        return response;
+    }
+
+    public async Task UnsendMessageAsync(
+        Guid chatId,
+        Guid messageId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        var chat = await EnsureMemberAsync(chatId, currentUserId, cancellationToken);
+        var message = await _dbContext.ChatMessages
+            .FirstOrDefaultAsync(x => x.ChatId == chatId && x.ChatMessageId == messageId, cancellationToken);
+        if (message is null)
+        {
+            throw new KeyNotFoundException("Message not found.");
+        }
+
+        if (message.SenderId != currentUserId)
+        {
+            throw new UnauthorizedAccessException("Only the sender can unsend this message.");
+        }
+
+        var filePath = message.FilePath;
+        _dbContext.ChatMessages.Remove(message);
+        chat.LastMessageAt = await _dbContext.ChatMessages.AsNoTracking()
+            .Where(x => x.ChatId == chatId && x.ChatMessageId != messageId)
+            .MaxAsync(x => (DateTime?)x.CreatedAt, cancellationToken);
+        _dbContext.Chats.Update(chat);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        if (filePath is not null)
+        {
+            _fileStorage.DeleteIfExists(filePath);
+        }
+
+        await BroadcastMessageChangeAsync("MessageUnsent", chatId, new { chatId, messageId }, cancellationToken);
+    }
+
+    private async Task BroadcastMessageChangeAsync(string eventName, Guid chatId, object payload, CancellationToken cancellationToken)
+    {
+        var chat = await _dbContext.Chats.AsNoTracking().FirstAsync(x => x.ChatId == chatId, cancellationToken);
+        try
+        {
+            await _chatHub.Clients.Users(chat.UserOneId.ToString(), chat.UserTwoId.ToString())
+                .SendAsync(eventName, payload, CancellationToken.None);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogWarning(exception, "Chat change broadcast failed for chat {ChatId}.", chatId);
+        }
     }
 
     public async Task<MarkChatReadResponse> MarkAsReadAsync(
@@ -488,7 +579,8 @@ public class ChatService : IChatService
             ContentType = message.ContentType,
             FileSizeInBytes = message.FileSizeInBytes,
             CreatedAt = message.CreatedAt,
-            ReadAt = message.ReadAt
+            ReadAt = message.ReadAt,
+            EditedAt = message.EditedAt
         };
     }
 

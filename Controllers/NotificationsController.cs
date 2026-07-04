@@ -17,6 +17,7 @@ public class NotificationsController : ControllerBase
         _notificationsService = notificationsService;
     }
 
+    // last end point added - already-added
     [HttpGet]
     public async Task<ActionResult<NotificationListResponse>> GetMyNotifications(
         [FromQuery] string? status,
@@ -40,5 +41,12 @@ public class NotificationsController : ControllerBase
     public async Task<ActionResult<MarkNotificationsReadResponse>> MarkAllAsRead(CancellationToken cancellationToken)
     {
         return await _notificationsService.MarkAllAsReadAsync(User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpDelete("{notificationId:guid}")]
+    public async Task<IActionResult> Delete(Guid notificationId, CancellationToken cancellationToken)
+    {
+        return await _notificationsService.DeleteAsync(notificationId, User, cancellationToken);
     }
 }

@@ -260,6 +260,11 @@ public class PatientsService : IPatientsService
             return new BadRequestObjectResult("Name is required.");
         }
 
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return new BadRequestObjectResult("Email is required.");
+        }
+
         if (!TryParseGender(request.Gender, out var gender, out var genderError))
         {
             return new BadRequestObjectResult(genderError);
@@ -285,7 +290,19 @@ public class PatientsService : IPatientsService
             return new NotFoundObjectResult("Patient not found.");
         }
 
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var normalizedLookup = _userManager.NormalizeEmail(normalizedEmail);
+        var emailAlreadyRegistered = await _userManager.Users.AsNoTracking().AnyAsync(
+            x => x.Id != patient.PatientId && x.NormalizedEmail == normalizedLookup,
+            cancellationToken);
+        if (emailAlreadyRegistered)
+        {
+            return new BadRequestObjectResult("Email already registered.");
+        }
+
         patient.User.Name = request.Name.Trim();
+        patient.User.Email = normalizedEmail;
+        patient.User.UserName = normalizedEmail;
         patient.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
         patient.User.Address = NormalizeOptional(request.Address);
         patient.User.DateOfBirth = request.DateOfBirth;
@@ -304,6 +321,44 @@ public class PatientsService : IPatientsService
         return response is null
             ? new NotFoundObjectResult("Patient not found.")
             : new OkObjectResult(response);
+    }
+
+    public async Task<ActionResult<ChangePatientPasswordResponse>> ChangeMyPasswordAsync(
+        ChangePatientPasswordRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword)
+            || string.IsNullOrWhiteSpace(request.NewPassword))
+        {
+            return new BadRequestObjectResult(new ChangePatientPasswordResponse { Success = false, Message = "Current and new passwords are required." });
+        }
+
+        if (request.NewPassword != request.ConfirmNewPassword)
+        {
+            return new BadRequestObjectResult(new ChangePatientPasswordResponse { Success = false, Message = "New password and confirmation do not match." });
+        }
+
+        var currentUserId = GetCurrentUserId(user);
+        var patient = currentUserId.HasValue
+            ? await _userManager.FindByIdAsync(currentUserId.Value.ToString())
+            : null;
+        if (patient is null)
+        {
+            return new UnauthorizedObjectResult(new ChangePatientPasswordResponse { Success = false, Message = "Invalid token." });
+        }
+
+        var result = await _userManager.ChangePasswordAsync(patient, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            return new BadRequestObjectResult(new ChangePatientPasswordResponse
+            {
+                Success = false,
+                Message = string.Join(" ", result.Errors.Select(x => x.Description))
+            });
+        }
+
+        return new OkObjectResult(new ChangePatientPasswordResponse { Success = true, Message = "Password changed successfully." });
     }
 
     public Task<IActionResult> DeactivateAsync(

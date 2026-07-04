@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Doctor;
+using HSCSAPI.DTOs.Appointment;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Profiles;
@@ -13,6 +14,42 @@ namespace HSCSAPI.Services.Doctors;
 
 public class DoctorsService : IDoctorsService
 {
+    public async Task<ActionResult<List<AvailabilitySlotResponse>>> GetAvailabilityAsync(
+        Guid doctorId,
+        DateOnly date,
+        CancellationToken cancellationToken = default)
+    {
+        if (date == default)
+        {
+            return new BadRequestObjectResult("date is required.");
+        }
+
+        var doctorExists = await _dbContext.Doctors.AsNoTracking()
+            .AnyAsync(x => x.DoctorId == doctorId && x.User.IsActive, cancellationToken);
+        if (!doctorExists)
+        {
+            return new NotFoundObjectResult("Doctor not found or inactive.");
+        }
+
+        var slots = await _dbContext.AvailabilitySlots.AsNoTracking()
+            .Where(x => x.DoctorId == doctorId && x.SlotDate == date && x.IsAvailable)
+            .OrderBy(x => x.StartTime)
+            .Select(x => new AvailabilitySlotResponse
+            {
+                AvailabilitySlotId = x.AvailabilitySlotId,
+                DoctorId = x.DoctorId,
+                SlotDate = x.SlotDate,
+                StartTime = x.StartTime,
+                EndTime = x.EndTime,
+                Notes = x.Notes,
+                Status = x.Appointments.Any(a => a.IsActive) ? "booked" : "available",
+                PatientName = x.Appointments.Where(a => a.IsActive).Select(a => a.Patient.User.Name).FirstOrDefault()
+            })
+            .ToListAsync(cancellationToken);
+
+        return new OkObjectResult(slots);
+    }
+
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
     public const string SuperAdminOrSecretaryOrDoctorRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Doctor);
     private const int MaxPageSize = 100;

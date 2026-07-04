@@ -37,6 +37,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             .IsRequired()
             .HasDefaultValueSql("SYSUTCDATETIME()");
 
+        builder.Property(x => x.EditedAt);
+
         builder.HasIndex(x => new { x.ChatId, x.CreatedAt });
         builder.HasIndex(x => new { x.ChatId, x.ReadAt });
 

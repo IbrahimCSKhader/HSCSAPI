@@ -18,7 +18,7 @@ public class RoleAuthorizationSurfaceTests
     {
         var actualActions = GetControllerActions();
 
-        Assert.Equal(164, actualActions.Count);
+        Assert.Equal(169, actualActions.Count);
         Assert.Equal(
             ExpectedActions.Keys.OrderBy(x => x),
             actualActions.Keys.OrderBy(x => x));
@@ -54,13 +54,13 @@ public class RoleAuthorizationSurfaceTests
     {
         var expectedCounts = new Dictionary<string, int>
         {
-            [nameof(UserSystemRole.SuperAdmin)] = 85,
-            [nameof(UserSystemRole.Patient)] = 65,
-            [nameof(UserSystemRole.Doctor)] = 68,
-            [nameof(UserSystemRole.Secretary)] = 97,
-            [nameof(UserSystemRole.AuthorizedMember)] = 53,
-            [nameof(UserSystemRole.LaboratoryTechnologist)] = 52,
-            [nameof(UserSystemRole.RadiologyTechnologist)] = 45
+            [nameof(UserSystemRole.SuperAdmin)] = 89,
+            [nameof(UserSystemRole.Patient)] = 70,
+            [nameof(UserSystemRole.Doctor)] = 72,
+            [nameof(UserSystemRole.Secretary)] = 101,
+            [nameof(UserSystemRole.AuthorizedMember)] = 57,
+            [nameof(UserSystemRole.LaboratoryTechnologist)] = 56,
+            [nameof(UserSystemRole.RadiologyTechnologist)] = 49
         };
 
         foreach (var (role, expectedCount) in expectedCounts)
@@ -118,7 +118,7 @@ public class RoleAuthorizationSurfaceTests
             }
         }
 
-        Assert.Equal(164, routes.Count);
+        Assert.Equal(169, routes.Count);
         Assert.DoesNotContain(routes.GroupBy(route => route), group => group.Count() > 1);
     }
 
@@ -209,9 +209,9 @@ public class RoleAuthorizationSurfaceTests
             "GetMyInvites", "AcceptInvite", "RejectInvite");
 
         Add(actions, "Chats", ExpectedAccess.Authenticated,
-            "OpenChat", "GetChats", "GetMessages", "SendMessage", "MarkAsRead", "GetFile");
+            "OpenChat", "GetChats", "GetMessages", "SendMessage", "EditMessage", "UnsendMessage", "MarkAsRead", "GetFile");
         Add(actions, "Notifications", ExpectedAccess.Authenticated,
-            "GetMyNotifications", "UpdateReadStatus", "MarkAllAsRead");
+            "GetMyNotifications", "UpdateReadStatus", "MarkAllAsRead", "Delete");
         Add(actions, "Reminders", ExpectedAccess.Authenticated,
             "GetMyReminders", "CreateReminder", "GetReminder", "UpdateReminder", "DismissReminder",
             "GetMyPreferences", "UpdateMyPreferences");
@@ -223,6 +223,7 @@ public class RoleAuthorizationSurfaceTests
         Add(actions, "Doctors", ExpectedAccess.ForRoles(nameof(UserSystemRole.Doctor)),
             "GetMyProfile", "GetMyDashboard", "GetMyAppointments", "GetMyAppointmentDetail",
             "GetMyMedicalRecords", "GetMyMedicalRecord", "DownloadMyMedicalRecord", "UpdateMyProfile", "ChangeMyPassword");
+        Add(actions, "Doctors", ExpectedAccess.Authenticated, "GetAvailability");
         Add(actions, "DoctorLabRequests", ExpectedAccess.ForRoles(nameof(UserSystemRole.Doctor)),
             "GetMyLabRequests", "CreateMyLabRequest", "GetMyLabRequest", "DownloadMyLabResultFile");
         Add(actions, "DoctorImagingRequests", ExpectedAccess.ForRoles(nameof(UserSystemRole.Doctor)),
@@ -232,6 +233,7 @@ public class RoleAuthorizationSurfaceTests
             "GetMyUploadedMedicalFile", "DownloadMyUploadedMedicalFile");
 
         AddProfileCrud(actions, "Patients", nameof(UserSystemRole.Patient));
+        Add(actions, "Patients", ExpectedAccess.ForRoles(nameof(UserSystemRole.Patient)), "ChangeMyPassword");
         AddProfileCrud(actions, "LaboratoryTechnologists", nameof(UserSystemRole.LaboratoryTechnologist));
         AddProfileCrud(actions, "RadiologyTechnologists", nameof(UserSystemRole.RadiologyTechnologist));
 

@@ -55,6 +55,7 @@ public class PatientsController : ControllerBase
         return await _patientsService.UpdateAsync(patientId, request, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPut("me")]
     [Authorize(Roles = nameof(UserSystemRole.Patient))]
     public async Task<ActionResult<PatientResponse>> UpdateMyProfile(
@@ -62,6 +63,16 @@ public class PatientsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await _patientsService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me/password")]
+    [Authorize(Roles = nameof(UserSystemRole.Patient))]
+    public async Task<ActionResult<ChangePatientPasswordResponse>> ChangeMyPassword(
+        [FromBody] ChangePatientPasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _patientsService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpPatch("{patientId:guid}/deactivate")]

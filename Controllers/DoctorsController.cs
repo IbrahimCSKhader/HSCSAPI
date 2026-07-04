@@ -1,4 +1,5 @@
 using HSCSAPI.DTOs.Doctor;
+using HSCSAPI.DTOs.Appointment;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.Doctors;
 using Microsoft.AspNetCore.Authorization;
@@ -130,6 +131,7 @@ public class DoctorsController : ControllerBase
         return await _doctorsService.UpdateMyProfileAsync(request, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPut("me/password")]
     [Authorize(Roles = nameof(UserSystemRole.Doctor))]
     public async Task<ActionResult<ChangeDoctorPasswordResponse>> ChangeMyPassword(
@@ -137,6 +139,17 @@ public class DoctorsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await _doctorsService.ChangeMyPasswordAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("{doctorId:guid}/availability")]
+    [Authorize]
+    public async Task<ActionResult<List<AvailabilitySlotResponse>>> GetAvailability(
+        Guid doctorId,
+        [FromQuery] DateOnly date,
+        CancellationToken cancellationToken)
+    {
+        return await _doctorsService.GetAvailabilityAsync(doctorId, date, cancellationToken);
     }
 
     [HttpPatch("{doctorId:guid}/deactivate")]

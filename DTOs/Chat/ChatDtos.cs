@@ -20,6 +20,13 @@ public class SendChatMessageRequest
     public IFormFile? File { get; set; }
 }
 
+public class EditChatMessageRequest
+{
+    [Required]
+    [MaxLength(4000)]
+    public string Text { get; set; } = string.Empty;
+}
+
 public class ChatResponse
 {
     public Guid ChatId { get; set; }
@@ -46,6 +53,7 @@ public class ChatMessageResponse
     public long? FileSizeInBytes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? ReadAt { get; set; }
+    public DateTime? EditedAt { get; set; }
 }
 
 public class ChatMessagesPageResponse

@@ -1,11 +1,13 @@
 using System.Security.Claims;
 using HSCSAPI.DTOs.Doctor;
+using HSCSAPI.DTOs.Appointment;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Services.Doctors;
 
 public interface IDoctorsService
 {
+    Task<ActionResult<List<AvailabilitySlotResponse>>> GetAvailabilityAsync(Guid doctorId, DateOnly date, CancellationToken cancellationToken = default);
     Task<ActionResult<List<DoctorResponse>>> GetAllAsync(
         Guid? clinicId,
         ClaimsPrincipal user,

@@ -16,6 +16,7 @@ public class ChatMessage
     public long? FileSizeInBytes { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ReadAt { get; set; }
+    public DateTime? EditedAt { get; set; }
 
     public Chat Chat { get; set; } = null!;
     public User Sender { get; set; } = null!;

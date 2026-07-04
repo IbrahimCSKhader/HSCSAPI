@@ -145,6 +145,30 @@ public class NotificationsService : INotificationsService
         });
     }
 
+    public async Task<IActionResult> DeleteAsync(
+        Guid notificationId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId(user);
+        if (userId is null)
+        {
+            return new UnauthorizedObjectResult("Invalid token.");
+        }
+
+        var notification = await _dbContext.Notifications.FirstOrDefaultAsync(
+            x => x.NotificationId == notificationId && x.UserId == userId.Value,
+            cancellationToken);
+        if (notification is null)
+        {
+            return new NotFoundObjectResult("Notification not found.");
+        }
+
+        _dbContext.Notifications.Remove(notification);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return new NoContentResult();
+    }
+
     private static NotificationResponse MapNotification(Notification notification)
     {
         return new NotificationResponse

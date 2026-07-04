@@ -22,4 +22,6 @@ public interface INotificationsService
     Task<ActionResult<MarkNotificationsReadResponse>> MarkAllAsReadAsync(
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
+
+    Task<IActionResult> DeleteAsync(Guid notificationId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }
