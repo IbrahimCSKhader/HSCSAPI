@@ -1,11 +1,18 @@
 using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Secretary;
+using HSCSAPI.DTOs.Appointment;
+using HSCSAPI.Models.Appointments;
+using HSCSAPI.Models.Secretaries;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
+using System.Text;
 
 namespace HSCSAPI.Services.Secretaries;
 
@@ -23,6 +30,214 @@ public class SecretariesService : ISecretariesService
     {
         _dbContext = dbContext;
         _userManager = userManager;
+    }
+
+    public async Task<ActionResult<List<AvailabilitySlotResponse>>> GetDoctorAvailabilitySlotsAsync(
+        Guid doctorId, DateOnly? fromDate, DateOnly? toDate, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        var start = fromDate ?? DateOnly.FromDateTime(DateTime.UtcNow);
+        var end = toDate ?? start.AddDays(30);
+        if (start > end)
+        {
+            return new BadRequestObjectResult("fromDate must be before or equal to toDate.");
+        }
+
+        if (!await DoctorBelongsToClinicAsync(doctorId, scope.Value.ClinicId, cancellationToken))
+        {
+            return new NotFoundObjectResult("Doctor not found in your clinic.");
+        }
+
+        var slots = await _dbContext.AvailabilitySlots.AsNoTracking()
+            .Where(x => x.DoctorId == doctorId && x.SlotDate >= start && x.SlotDate <= end)
+            .OrderBy(x => x.SlotDate).ThenBy(x => x.StartTime)
+            .Select(x => new AvailabilitySlotResponse
+            {
+                AvailabilitySlotId = x.AvailabilitySlotId,
+                DoctorId = x.DoctorId,
+                SlotDate = x.SlotDate,
+                StartTime = x.StartTime,
+                EndTime = x.EndTime,
+                Notes = x.Notes,
+                Status = x.Appointments.Any(a => a.IsActive) ? "booked" : "available",
+                PatientName = x.Appointments.Where(a => a.IsActive).Select(a => a.Patient.User.Name).FirstOrDefault()
+            }).ToListAsync(cancellationToken);
+
+        return new OkObjectResult(slots);
+    }
+
+    public async Task<ActionResult<AvailabilitySlotResponse>> CreateDoctorAvailabilitySlotAsync(
+        Guid doctorId, CreateAvailabilitySlotRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        if (!await DoctorBelongsToClinicAsync(doctorId, scope.Value.ClinicId, cancellationToken))
+        {
+            return new NotFoundObjectResult("Doctor not found in your clinic.");
+        }
+
+        if (request.SlotDate == default || request.StartTime == default || request.EndTime <= request.StartTime)
+        {
+            return new BadRequestObjectResult("A valid slotDate, startTime, and later endTime are required.");
+        }
+
+        var overlaps = await _dbContext.AvailabilitySlots.AsNoTracking().AnyAsync(
+            x => x.DoctorId == doctorId && x.SlotDate == request.SlotDate
+                && x.StartTime < request.EndTime && request.StartTime < x.EndTime,
+            cancellationToken);
+        if (overlaps)
+        {
+            return new ConflictObjectResult("The availability slot overlaps an existing slot.");
+        }
+
+        var slot = new AvailabilitySlot
+        {
+            DoctorId = doctorId,
+            SlotDate = request.SlotDate,
+            DayOfWeek = request.SlotDate.DayOfWeek,
+            StartTime = request.StartTime,
+            EndTime = request.EndTime,
+            Notes = NormalizeOptional(request.Notes),
+            IsAvailable = true
+        };
+        _dbContext.AvailabilitySlots.Add(slot);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CreatedAtActionResult(
+            "GetDoctorAvailabilitySlots", "Secretaries", new { doctorId },
+            new AvailabilitySlotResponse
+            {
+                AvailabilitySlotId = slot.AvailabilitySlotId,
+                DoctorId = slot.DoctorId,
+                SlotDate = slot.SlotDate,
+                StartTime = slot.StartTime,
+                EndTime = slot.EndTime,
+                Notes = slot.Notes,
+                Status = "available"
+            });
+    }
+
+    public async Task<IActionResult> DeleteDoctorAvailabilitySlotAsync(
+        Guid doctorId, Guid slotId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null || !await DoctorBelongsToClinicAsync(doctorId, scope.Value.ClinicId, cancellationToken))
+        {
+            return new NotFoundObjectResult("Doctor not found in your clinic.");
+        }
+
+        var slot = await _dbContext.AvailabilitySlots.FirstOrDefaultAsync(
+            x => x.AvailabilitySlotId == slotId && x.DoctorId == doctorId, cancellationToken);
+        if (slot is null)
+        {
+            return new NotFoundObjectResult("Availability slot not found.");
+        }
+
+        if (await _dbContext.Appointments.AsNoTracking().AnyAsync(x => x.AvailabilitySlotId == slotId && x.IsActive, cancellationToken))
+        {
+            return new ConflictObjectResult("A booked availability slot cannot be deleted.");
+        }
+
+        _dbContext.AvailabilitySlots.Remove(slot);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return new NoContentResult();
+    }
+
+    public async Task<ActionResult<List<SecretaryReportResponse>>> GetReportsAsync(
+        ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        var reports = await _dbContext.Reports.AsNoTracking()
+            .Where(x => x.Secretary.User.ClinicId == scope.Value.ClinicId)
+            .OrderByDescending(x => x.GeneratedAt)
+            .Select(x => new SecretaryReportResponse
+            {
+                ReportId = x.ReportId,
+                ReportType = x.ReportType,
+                GeneratedAt = x.GeneratedAt,
+                Files = x.ReportInformations.Select(file => new SecretaryReportFileResponse
+                {
+                    ReportInformationId = file.ReportInformationId,
+                    FileFormat = file.FileFormat.ToString(),
+                    FileName = Path.GetFileName(file.FilePath),
+                    FileSizeInBytes = file.FileSizeInBytes,
+                    DownloadUrl = $"/api/Secretaries/my-clinic/reports/{x.ReportId}/files/{file.ReportInformationId}"
+                }).ToList()
+            }).ToListAsync(cancellationToken);
+        return new OkObjectResult(reports);
+    }
+
+    public async Task<ActionResult<SecretaryReportResponse>> GenerateReportAsync(
+        GenerateSecretaryReportRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        if (!Enum.TryParse<ReportFileFormat>(request.FileFormat, true, out var format))
+        {
+            return new BadRequestObjectResult("fileFormat must be pdf or csv.");
+        }
+
+        var reportType = NormalizeOptional(request.ReportType) ?? "clinic-summary";
+        var clinicName = await _dbContext.Clinics.Where(x => x.ClinicId == scope.Value.ClinicId).Select(x => x.Name).FirstAsync(cancellationToken);
+        var patients = await _dbContext.Patients.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
+        var doctors = await _dbContext.Doctors.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
+        var appointments = await _dbContext.Appointments.CountAsync(x => x.Doctor.User.ClinicId == scope.Value.ClinicId, cancellationToken);
+        var generatedAt = DateTime.UtcNow;
+        byte[] bytes = format == ReportFileFormat.Csv
+            ? Encoding.UTF8.GetBytes($"metric,value{Environment.NewLine}clinic,{Csv(clinicName)}{Environment.NewLine}patients,{patients}{Environment.NewLine}doctors,{doctors}{Environment.NewLine}appointments,{appointments}{Environment.NewLine}")
+            : GenerateSummaryPdf(clinicName, patients, doctors, appointments, generatedAt);
+
+        var extension = format == ReportFileFormat.Csv ? "csv" : "pdf";
+        var directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reports", scope.Value.SecretaryId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var fileName = $"{reportType.Replace(' ', '-')}-{generatedAt:yyyyMMddHHmmss}-{Guid.NewGuid():N}.{extension}";
+        var physicalPath = Path.Combine(directory, fileName);
+        await File.WriteAllBytesAsync(physicalPath, bytes, cancellationToken);
+
+        var report = new Report { SecretaryId = scope.Value.SecretaryId, ReportType = reportType, GeneratedAt = generatedAt };
+        var info = new ReportInformation
+        {
+            ReportId = report.ReportId,
+            FileFormat = format,
+            FilePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), physicalPath).Replace('\\', '/'),
+            FileSizeInBytes = bytes.LongLength
+        };
+        report.ReportInformations.Add(info);
+        _dbContext.Reports.Add(report);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new CreatedAtActionResult("GetReports", "Secretaries", null, new SecretaryReportResponse
+        {
+            ReportId = report.ReportId,
+            ReportType = report.ReportType,
+            GeneratedAt = report.GeneratedAt,
+            Files = [new SecretaryReportFileResponse
+            {
+                ReportInformationId = info.ReportInformationId,
+                FileFormat = format.ToString(),
+                FileName = fileName,
+                FileSizeInBytes = info.FileSizeInBytes,
+                DownloadUrl = $"/api/Secretaries/my-clinic/reports/{report.ReportId}/files/{info.ReportInformationId}"
+            }]
+        });
     }
 
     public async Task<ActionResult<SecretaryDashboardResponse>> GetDashboardAsync(
@@ -54,7 +269,6 @@ public class SecretariesService : ISecretariesService
         var now = DateTime.Now;
         var today = DateOnly.FromDateTime(now);
         var currentTime = TimeOnly.FromDateTime(now);
-        var currentDay = now.DayOfWeek;
 
         var pendingRequestsCount = await _dbContext.FileDownloadRequests
             .AsNoTracking()
@@ -74,7 +288,7 @@ public class SecretariesService : ISecretariesService
         var todayAvailabilitySlotsCount = await _dbContext.AvailabilitySlots
             .AsNoTracking()
             .CountAsync(
-                slot => slot.DayOfWeek == currentDay
+                slot => slot.SlotDate == today
                     && slot.Doctor.User.ClinicId == clinicId,
                 cancellationToken);
 
@@ -479,6 +693,50 @@ public class SecretariesService : ISecretariesService
                 IsClinicAdmin = s.ManagedClinic != null,
                 IsActive = s.User.IsActive
             });
+    }
+
+    private async Task<(Guid SecretaryId, Guid ClinicId)?> GetSecretaryScopeAsync(
+        ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(user);
+        if (userId is null)
+        {
+            return null;
+        }
+
+        var scope = await _dbContext.Secretaries.AsNoTracking()
+            .Where(x => x.SecretaryId == userId.Value && x.User.IsActive && x.User.ClinicId != null)
+            .Select(x => new { x.SecretaryId, ClinicId = x.User.ClinicId!.Value })
+            .FirstOrDefaultAsync(cancellationToken);
+        return scope is null ? null : (scope.SecretaryId, scope.ClinicId);
+    }
+
+    private Task<bool> DoctorBelongsToClinicAsync(Guid doctorId, Guid clinicId, CancellationToken cancellationToken) =>
+        _dbContext.Doctors.AsNoTracking().AnyAsync(
+            x => x.DoctorId == doctorId && x.User.ClinicId == clinicId && x.User.IsActive,
+            cancellationToken);
+
+    private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
+
+    private static byte[] GenerateSummaryPdf(
+        string clinicName, int patients, int doctors, int appointments, DateTime generatedAt)
+    {
+        QuestPDF.Settings.License = LicenseType.Community;
+        return Document.Create(container => container.Page(page =>
+        {
+            page.Size(PageSizes.A4);
+            page.Margin(40);
+            page.Header().Text("Clinic summary report").FontSize(20).Bold();
+            page.Content().PaddingVertical(20).Column(column =>
+            {
+                column.Spacing(10);
+                column.Item().Text($"Clinic: {clinicName}");
+                column.Item().Text($"Patients: {patients}");
+                column.Item().Text($"Doctors: {doctors}");
+                column.Item().Text($"Appointments: {appointments}");
+            });
+            page.Footer().Text($"Generated {generatedAt:yyyy-MM-dd HH:mm} UTC").FontSize(9);
+        })).GeneratePdf();
     }
 
     private async Task<SecretaryResponse?> GetSecretaryResponseAsync(Guid secretaryId, CancellationToken cancellationToken)

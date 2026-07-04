@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HSCSAPI.DTOs.Secretary;
+using HSCSAPI.DTOs.Appointment;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Services.Secretaries;
@@ -16,4 +17,9 @@ public interface ISecretariesService
     Task<ActionResult<SecretaryResponse>> UpdateInClinicAsync(Guid clinicId, Guid secretaryId, UpdateSecretaryRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<IActionResult> DeactivateInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<IActionResult> ActivateInClinicAsync(Guid clinicId, Guid secretaryId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<List<AvailabilitySlotResponse>>> GetDoctorAvailabilitySlotsAsync(Guid doctorId, DateOnly? fromDate, DateOnly? toDate, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<AvailabilitySlotResponse>> CreateDoctorAvailabilitySlotAsync(Guid doctorId, CreateAvailabilitySlotRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<IActionResult> DeleteDoctorAvailabilitySlotAsync(Guid doctorId, Guid slotId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<List<SecretaryReportResponse>>> GetReportsAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<SecretaryReportResponse>> GenerateReportAsync(GenerateSecretaryReportRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }

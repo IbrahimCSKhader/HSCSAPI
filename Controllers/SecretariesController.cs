@@ -3,6 +3,7 @@ using HSCSAPI.DTOs.Doctor;
 using HSCSAPI.DTOs.Patient;
 using HSCSAPI.DTOs.LaboratoryTechnologist;
 using HSCSAPI.DTOs.RadiologyTechnologist;
+using HSCSAPI.DTOs.Appointment;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Patients;
@@ -212,5 +213,48 @@ public class SecretariesController : ControllerBase
     public async Task<IActionResult> ActivateMyClinicRadiologyTechnologist(Guid radiologyTechnologistId, CancellationToken cancellationToken)
     {
         return await _radiologyTechnologistsService.ActivateAsync(radiologyTechnologistId, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("my-clinic/doctors/{doctorId:guid}/availability-slots")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<List<AvailabilitySlotResponse>>> GetDoctorAvailabilitySlots(
+        Guid doctorId, [FromQuery] DateOnly? fromDate, [FromQuery] DateOnly? toDate, CancellationToken cancellationToken)
+    {
+        return await _secretariesService.GetDoctorAvailabilitySlotsAsync(doctorId, fromDate, toDate, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPost("my-clinic/doctors/{doctorId:guid}/availability-slots")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<AvailabilitySlotResponse>> CreateDoctorAvailabilitySlot(
+        Guid doctorId, [FromBody] CreateAvailabilitySlotRequest request, CancellationToken cancellationToken)
+    {
+        return await _secretariesService.CreateDoctorAvailabilitySlotAsync(doctorId, request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpDelete("my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> DeleteDoctorAvailabilitySlot(Guid doctorId, Guid slotId, CancellationToken cancellationToken)
+    {
+        return await _secretariesService.DeleteDoctorAvailabilitySlotAsync(doctorId, slotId, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("my-clinic/reports")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<List<SecretaryReportResponse>>> GetReports(CancellationToken cancellationToken)
+    {
+        return await _secretariesService.GetReportsAsync(User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPost("my-clinic/reports")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<SecretaryReportResponse>> GenerateReport(
+        [FromBody] GenerateSecretaryReportRequest request, CancellationToken cancellationToken)
+    {
+        return await _secretariesService.GenerateReportAsync(request, User, cancellationToken);
     }
 }

@@ -12,6 +12,10 @@ public class ReportConfiguration : IEntityTypeConfiguration<Report>
 
         builder.HasKey(x => x.ReportId);
 
+        builder.Property(x => x.ReportType)
+            .HasMaxLength(100)
+            .IsRequired();
+
         builder.Property(x => x.GeneratedAt)
             .IsRequired();
 

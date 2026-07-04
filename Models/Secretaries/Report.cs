@@ -6,6 +6,7 @@ public class Report
 {
     public Guid ReportId { get; set; } = Guid.NewGuid();
     public Guid SecretaryId { get; set; }
+    public string ReportType { get; set; } = "clinic-summary";
     public DateTime GeneratedAt { get; set; }
 
     public Secretary Secretary { get; set; } = null!;

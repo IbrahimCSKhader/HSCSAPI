@@ -18,7 +18,7 @@ public class RoleAuthorizationSurfaceTests
     {
         var actualActions = GetControllerActions();
 
-        Assert.Equal(169, actualActions.Count);
+        Assert.Equal(174, actualActions.Count);
         Assert.Equal(
             ExpectedActions.Keys.OrderBy(x => x),
             actualActions.Keys.OrderBy(x => x));
@@ -57,7 +57,7 @@ public class RoleAuthorizationSurfaceTests
             [nameof(UserSystemRole.SuperAdmin)] = 89,
             [nameof(UserSystemRole.Patient)] = 70,
             [nameof(UserSystemRole.Doctor)] = 72,
-            [nameof(UserSystemRole.Secretary)] = 101,
+            [nameof(UserSystemRole.Secretary)] = 106,
             [nameof(UserSystemRole.AuthorizedMember)] = 57,
             [nameof(UserSystemRole.LaboratoryTechnologist)] = 56,
             [nameof(UserSystemRole.RadiologyTechnologist)] = 49
@@ -118,7 +118,7 @@ public class RoleAuthorizationSurfaceTests
             }
         }
 
-        Assert.Equal(169, routes.Count);
+        Assert.Equal(174, routes.Count);
         Assert.DoesNotContain(routes.GroupBy(route => route), group => group.Count() > 1);
     }
 
@@ -253,7 +253,8 @@ public class RoleAuthorizationSurfaceTests
             "GetDashboard", "GetMyClinicSecretaries", "GetMyClinicPatients", "UpdateMyClinicPatient", "DeactivateMyClinicPatient", "ActivateMyClinicPatient",
             "GetMyClinicDoctors", "UpdateMyClinicDoctor", "DeactivateMyClinicDoctor", "ActivateMyClinicDoctor",
             "GetMyClinicLaboratoryTechnologists", "UpdateMyClinicLaboratoryTechnologist", "DeactivateMyClinicLaboratoryTechnologist", "ActivateMyClinicLaboratoryTechnologist",
-            "GetMyClinicRadiologyTechnologists", "UpdateMyClinicRadiologyTechnologist", "DeactivateMyClinicRadiologyTechnologist", "ActivateMyClinicRadiologyTechnologist");
+            "GetMyClinicRadiologyTechnologists", "UpdateMyClinicRadiologyTechnologist", "DeactivateMyClinicRadiologyTechnologist", "ActivateMyClinicRadiologyTechnologist",
+            "GetDoctorAvailabilitySlots", "CreateDoctorAvailabilitySlot", "DeleteDoctorAvailabilitySlot", "GetReports", "GenerateReport");
 
         Add(actions, "Standards", ExpectedAccess.Public,
             "SearchLoinc", "GetLoincByCode", "SearchLabTests", "SearchIcd10", "GetIcd10ByCode",

@@ -47,7 +47,8 @@ public class ActivationStateTests
         Assert.Equal(new[]
         {
             "{chatId:guid}/messages/{messageId:guid}",
-            "{notificationId:guid}"
+            "{notificationId:guid}",
+            "my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}"
         }, deleteEndpoints);
     }
 
