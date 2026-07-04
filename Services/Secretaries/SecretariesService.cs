@@ -240,6 +240,32 @@ public class SecretariesService : ISecretariesService
         });
     }
 
+    public async Task<SecretaryReportDownload> DownloadReportAsync(
+        Guid reportId, Guid fileId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+            throw new UnauthorizedAccessException("This secretary is not assigned to any clinic.");
+
+        var file = await _dbContext.ReportInformations.AsNoTracking()
+            .Where(x => x.ReportId == reportId && x.ReportInformationId == fileId
+                && x.Report.Secretary.User.ClinicId == scope.Value.ClinicId)
+            .Select(x => new { x.FilePath, x.FileFormat })
+            .FirstOrDefaultAsync(cancellationToken);
+        if (file is null)
+            throw new KeyNotFoundException("Report file not found.");
+
+        var root = Path.GetFullPath(Directory.GetCurrentDirectory());
+        var physicalPath = Path.GetFullPath(Path.Combine(root, file.FilePath.Replace('/', Path.DirectorySeparatorChar)));
+        if (!physicalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase) || !File.Exists(physicalPath))
+            throw new KeyNotFoundException("Report file is not available.");
+
+        return new SecretaryReportDownload(
+            physicalPath,
+            file.FileFormat == ReportFileFormat.Pdf ? "application/pdf" : "text/csv",
+            Path.GetFileName(physicalPath));
+    }
+
     public async Task<ActionResult<SecretaryDashboardResponse>> GetDashboardAsync(
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)

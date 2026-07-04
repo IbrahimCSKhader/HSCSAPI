@@ -670,6 +670,9 @@ public class DoctorsService : IDoctorsService
             });
         }
 
+        doctor.User.PasswordLastUpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(doctor.User);
+
         return new OkObjectResult(new ChangeDoctorPasswordResponse
         {
             Success = true,
@@ -1184,7 +1187,8 @@ public class DoctorsService : IDoctorsService
                 ClinicName = doctor.User.Clinic != null ? doctor.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = doctor.ProfessionalLicenseNumber,
                 EmailConfirmed = doctor.User.EmailConfirmed,
-                IsActive = doctor.User.IsActive
+                IsActive = doctor.User.IsActive,
+                PasswordLastUpdatedIso = doctor.User.PasswordLastUpdatedAt
             });
     }
 

@@ -13,6 +13,7 @@ public interface IAuthorizedMembersService
     Task<ActionResult<AuthorizedMemberProfileResponse>> GetMyProfileAsync(
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
+    Task<ActionResult<AuthorizedMemberProfileResponse>> UpdateMyProfileAsync(UpdateAuthorizedMemberProfileRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 
     Task<ActionResult<List<AuthorizedMemberPatientResponse>>> GetMyPatientsAsync(
         ClaimsPrincipal user,

@@ -13,4 +13,5 @@ public class DoctorResponse
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
     public bool EmailConfirmed { get; set; }
     public bool IsActive { get; set; }
+    public DateTime? PasswordLastUpdatedIso { get; set; }
 }

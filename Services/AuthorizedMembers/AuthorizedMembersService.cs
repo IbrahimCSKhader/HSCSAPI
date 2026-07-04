@@ -111,13 +111,47 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                 Email = authorizedMember.User.Email ?? string.Empty,
                 PhoneNumber = authorizedMember.User.PhoneNumber,
                 Address = authorizedMember.User.Address,
-                DateOfBirth = authorizedMember.User.DateOfBirth
+                DateOfBirth = authorizedMember.User.DateOfBirth,
+                PasswordLastUpdatedIso = authorizedMember.User.PasswordLastUpdatedAt
             })
             .FirstOrDefaultAsync(cancellationToken);
 
         return profile is null
             ? new NotFoundObjectResult("Authorized member not found.")
             : new OkObjectResult(profile);
+    }
+
+    public async Task<ActionResult<AuthorizedMemberProfileResponse>> UpdateMyProfileAsync(
+        UpdateAuthorizedMemberProfileRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        if (currentUserId is null)
+            return new UnauthorizedObjectResult("Invalid token.");
+        if (string.IsNullOrWhiteSpace(request.Name) || string.IsNullOrWhiteSpace(request.Email))
+            return new BadRequestObjectResult("Name and email are required.");
+
+        var profile = await _dbContext.AuthorizedMembers.Include(x => x.User)
+            .FirstOrDefaultAsync(x => x.AuthorizedMemberId == currentUserId.Value, cancellationToken);
+        if (profile is null)
+            return new NotFoundObjectResult("Authorized member not found.");
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        var normalizedEmail = email.ToUpperInvariant();
+        if (await _dbContext.Users.AsNoTracking().AnyAsync(x => x.Id != currentUserId.Value && x.NormalizedEmail == normalizedEmail, cancellationToken))
+            return new ConflictObjectResult("Email already registered.");
+
+        profile.User.Name = request.Name.Trim();
+        profile.User.Email = email;
+        profile.User.UserName = email;
+        profile.User.NormalizedEmail = normalizedEmail;
+        profile.User.NormalizedUserName = normalizedEmail;
+        profile.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
+        profile.User.Address = NormalizeOptional(request.Address);
+        profile.User.DateOfBirth = request.DateOfBirth;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return await GetMyProfileAsync(user, cancellationToken);
     }
 
     public async Task<ActionResult<List<AuthorizedMemberPatientResponse>>> GetMyPatientsAsync(

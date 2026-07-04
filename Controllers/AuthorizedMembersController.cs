@@ -30,6 +30,14 @@ public class AuthorizedMembersController : ControllerBase
         return await _authorizedMembersService.GetMyProfileAsync(User, cancellationToken);
     }
 
+    // last end point added
+    [HttpPut("me")]
+    public async Task<ActionResult<AuthorizedMemberProfileResponse>> UpdateMyProfile(
+        [FromBody] UpdateAuthorizedMemberProfileRequest request, CancellationToken cancellationToken)
+    {
+        return await _authorizedMembersService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
     [HttpGet("my-patients")]
     public async Task<ActionResult<List<AuthorizedMemberPatientResponse>>> GetMyPatients(CancellationToken cancellationToken)
     {

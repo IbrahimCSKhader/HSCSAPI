@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HSCSAPI.DTOs.RadiologyTechnologist;
+using HSCSAPI.DTOs.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Services.RadiologyTechnologists;
@@ -35,6 +36,7 @@ public interface IRadiologyTechnologistsService
         UpdateMyRadiologyTechnologistProfileRequest request,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
+    Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(ChangePasswordRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 
     Task<IActionResult> DeactivateAsync(
         Guid radiologyTechnologistId,

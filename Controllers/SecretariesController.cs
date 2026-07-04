@@ -257,4 +257,13 @@ public class SecretariesController : ControllerBase
     {
         return await _secretariesService.GenerateReportAsync(request, User, cancellationToken);
     }
+
+    // last end point added
+    [HttpGet("my-clinic/reports/{reportId:guid}/files/{fileId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> DownloadReport(Guid reportId, Guid fileId, CancellationToken cancellationToken)
+    {
+        var file = await _secretariesService.DownloadReportAsync(reportId, fileId, User, cancellationToken);
+        return PhysicalFile(file.PhysicalPath, file.ContentType, file.FileName, enableRangeProcessing: true);
+    }
 }

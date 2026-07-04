@@ -53,6 +53,14 @@ public class LabWorkItemResponse
     public string? TestingClinicName { get; set; }
     public string? SuggestedTemplateCode { get; set; }
     public Guid? LabTestResultId { get; set; }
+    public string? ClinicalNotes { get; set; }
+    public string? RequestingDoctorId { get; set; }
+    public DateTime? CompletedAtIso { get; set; }
+    public string? ResultSummary { get; set; }
+    public bool PdfAvailable { get; set; }
+    public string? PdfFileName { get; set; }
+    public DateOnly? PatientDateOfBirth { get; set; }
+    public string? PatientGender { get; set; }
 }
 
 public class CreateLabTestResultRequest

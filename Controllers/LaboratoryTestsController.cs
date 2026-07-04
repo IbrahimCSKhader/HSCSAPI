@@ -49,6 +49,13 @@ public class LaboratoryTestsController : ControllerBase
             cancellationToken);
     }
 
+    // last end point added
+    [HttpGet("my-requests/{labTestRequestId:guid}")]
+    public async Task<ActionResult<LabWorkItemResponse>> GetMyRequest(Guid labTestRequestId, CancellationToken cancellationToken)
+    {
+        return await _laboratoryResultsService.GetMyWorkItemAsync(labTestRequestId, User, cancellationToken);
+    }
+
     [HttpPost("my-requests/{labTestRequestId:guid}/results")]
     public async Task<ActionResult<LabTestResultResponse>> CreateResult(
         Guid labTestRequestId,

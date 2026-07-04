@@ -22,4 +22,7 @@ public interface ISecretariesService
     Task<IActionResult> DeleteDoctorAvailabilitySlotAsync(Guid doctorId, Guid slotId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<List<SecretaryReportResponse>>> GetReportsAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<SecretaryReportResponse>> GenerateReportAsync(GenerateSecretaryReportRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<SecretaryReportDownload> DownloadReportAsync(Guid reportId, Guid fileId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }
+
+public sealed record SecretaryReportDownload(string PhysicalPath, string ContentType, string FileName);

@@ -339,10 +339,11 @@ public class LaboratoryResultsServiceTests
                 .Select(attribute => $"{string.Join(',', attribute.HttpMethods)} {controllerRoute}/{attribute.Template}"))
             .ToList();
 
-        Assert.Equal(7, routes.Count);
+        Assert.Equal(8, routes.Count);
         Assert.Equal(routes.Count, routes.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Contains("GET api/[controller]/templates", routes);
         Assert.Contains("POST api/[controller]/my-requests/{labTestRequestId:guid}/results", routes);
+        Assert.Contains("GET api/[controller]/my-requests/{labTestRequestId:guid}", routes);
         Assert.Contains("POST api/[controller]/results/{labTestResultId:guid}/pdf", routes);
         Assert.Contains("GET api/[controller]/results/{labTestResultId:guid}/pdf", routes);
     }

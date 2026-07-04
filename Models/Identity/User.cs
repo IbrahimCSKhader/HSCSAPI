@@ -10,6 +10,7 @@ public class User : IdentityUser<Guid>
 {
     public string Name { get; set; } = string.Empty;
     public DateTime RegisteredAt { get; set; }
+    public DateTime? PasswordLastUpdatedAt { get; set; }
     public bool IsActive { get; set; } = true;
     public DateOnly? DateOfBirth { get; set; }
     public string? Address { get; set; }

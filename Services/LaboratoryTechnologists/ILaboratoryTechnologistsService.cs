@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HSCSAPI.DTOs.LaboratoryTechnologist;
+using HSCSAPI.DTOs.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Services.LaboratoryTechnologists;
@@ -35,6 +36,7 @@ public interface ILaboratoryTechnologistsService
         UpdateMyLaboratoryTechnologistProfileRequest request,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
+    Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(ChangePasswordRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 
     Task<IActionResult> DeactivateAsync(
         Guid laboratoryTechnologistId,

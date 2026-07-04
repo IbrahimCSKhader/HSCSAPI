@@ -1,4 +1,5 @@
 using HSCSAPI.DTOs.LaboratoryTechnologist;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.LaboratoryTechnologists;
 using Microsoft.AspNetCore.Authorization;
@@ -62,6 +63,14 @@ public class LaboratoryTechnologistsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await _laboratoryTechnologistsService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me/password")]
+    [Authorize(Roles = nameof(UserSystemRole.LaboratoryTechnologist))]
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        return await _laboratoryTechnologistsService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpPatch("{laboratoryTechnologistId:guid}/deactivate")]

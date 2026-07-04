@@ -21,6 +21,8 @@ public interface ILaboratoryResultsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ActionResult<LabWorkItemResponse>> GetMyWorkItemAsync(Guid labTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+
     Task<ActionResult<LabTestResultResponse>> CreateResultAsync(
         Guid labTestRequestId,
         CreateLabTestResultRequest request,

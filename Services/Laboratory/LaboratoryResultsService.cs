@@ -119,25 +119,27 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             PageSize = normalizedPageSize,
             TotalCount = totalCount,
             TotalPages = CalculateTotalPages(totalCount, normalizedPageSize),
-            Items = requests.Select(x => new LabWorkItemResponse
-            {
-                LabTestRequestId = x.LabTestRequestId,
-                TestName = x.TestName,
-                LoincCode = x.LoincCode,
-                Priority = x.Priority,
-                Status = x.StructuredResult is null ? "Pending" : "Completed",
-                RequestedAt = x.RequestedAt,
-                PatientId = x.PatientId,
-                PatientUserId = x.Patient?.UserID,
-                PatientName = x.Patient?.User.Name,
-                DoctorName = x.RequestedByDoctor?.User.Name,
-                TestingClinicName = x.TestingClinic?.Name,
-                SuggestedTemplateCode = x.LoincCode is not null && templateCodes.TryGetValue(x.LoincCode, out var code)
-                    ? code
-                    : null,
-                LabTestResultId = x.StructuredResult?.LabTestResultId
-            }).ToList()
+            Items = requests.Select(x => MapWorkItem(
+                x,
+                x.LoincCode is not null && templateCodes.TryGetValue(x.LoincCode, out var code) ? code : null)).ToList()
         });
+    }
+
+    public async Task<ActionResult<LabWorkItemResponse>> GetMyWorkItemAsync(
+        Guid labTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null)
+            return access.Error;
+
+        var request = await BuildAccessibleRequestsQuery(access.TechnologistId!.Value, access.ClinicId)
+            .FirstOrDefaultAsync(x => x.LabTestRequestId == labTestRequestId, cancellationToken);
+        if (request is null)
+            return new NotFoundObjectResult("Lab test request not found.");
+
+        var templateCode = request.LoincCode is null ? null : await _dbContext.LabTestTemplates.AsNoTracking()
+            .Where(x => x.LoincCode == request.LoincCode).Select(x => x.Code).FirstOrDefaultAsync(cancellationToken);
+        return new OkObjectResult(MapWorkItem(request, templateCode));
     }
 
     public async Task<ActionResult<LabTestResultResponse>> CreateResultAsync(
@@ -396,6 +398,37 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
                 || (x.LaboratoryTechnologistId == null
                     && clinicId != null
                     && x.TestingClinicId == clinicId));
+    }
+
+    private static LabWorkItemResponse MapWorkItem(LabTestRequest request, string? suggestedTemplateCode)
+    {
+        var doctorCode = request.RequestedByDoctorId.HasValue
+            ? $"DOC-{request.RequestedByDoctorId.Value.ToString("N")[..8].ToUpperInvariant()}"
+            : null;
+        return new LabWorkItemResponse
+        {
+            LabTestRequestId = request.LabTestRequestId,
+            TestName = request.TestName,
+            LoincCode = request.LoincCode,
+            Priority = request.Priority,
+            Status = request.StructuredResult is null ? "Pending" : "Completed",
+            RequestedAt = request.RequestedAt,
+            PatientId = request.PatientId,
+            PatientUserId = request.Patient?.UserID,
+            PatientName = request.Patient?.User.Name,
+            PatientDateOfBirth = request.Patient?.User.DateOfBirth,
+            PatientGender = request.Patient?.Gender.ToString(),
+            DoctorName = request.RequestedByDoctor?.User.Name,
+            RequestingDoctorId = doctorCode,
+            TestingClinicName = request.TestingClinic?.Name,
+            SuggestedTemplateCode = suggestedTemplateCode,
+            LabTestResultId = request.StructuredResult?.LabTestResultId,
+            ClinicalNotes = request.ClinicalNotes,
+            CompletedAtIso = request.StructuredResult?.CompletedAt,
+            ResultSummary = request.StructuredResult?.Comments,
+            PdfAvailable = request.StructuredResult?.PdfFilePath is not null,
+            PdfFileName = request.StructuredResult?.PdfFilePath is null ? null : Path.GetFileName(request.StructuredResult.PdfFilePath)
+        };
     }
 
     private IQueryable<LabTestRequest> BuildRequestForResultQuery()

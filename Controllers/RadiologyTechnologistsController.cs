@@ -1,4 +1,5 @@
 using HSCSAPI.DTOs.RadiologyTechnologist;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.RadiologyTechnologists;
 using Microsoft.AspNetCore.Authorization;
@@ -31,6 +32,7 @@ public class RadiologyTechnologistsController : ControllerBase
         return await _radiologyTechnologistsService.GetByClinicAsync(clinicId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("me")]
     [Authorize(Roles = nameof(UserSystemRole.RadiologyTechnologist))]
     public async Task<ActionResult<RadiologyTechnologistResponse>> GetMyProfile(CancellationToken cancellationToken)
@@ -55,6 +57,7 @@ public class RadiologyTechnologistsController : ControllerBase
         return await _radiologyTechnologistsService.UpdateAsync(radiologyTechnologistId, request, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPut("me")]
     [Authorize(Roles = nameof(UserSystemRole.RadiologyTechnologist))]
     public async Task<ActionResult<RadiologyTechnologistResponse>> UpdateMyProfile(
@@ -62,6 +65,14 @@ public class RadiologyTechnologistsController : ControllerBase
         CancellationToken cancellationToken)
     {
         return await _radiologyTechnologistsService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me/password")]
+    [Authorize(Roles = nameof(UserSystemRole.RadiologyTechnologist))]
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPassword([FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        return await _radiologyTechnologistsService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpPatch("{radiologyTechnologistId:guid}/deactivate")]

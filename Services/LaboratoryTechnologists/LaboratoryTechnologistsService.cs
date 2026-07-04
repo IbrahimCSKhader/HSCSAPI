@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.LaboratoryTechnologist;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Profiles;
@@ -292,6 +293,26 @@ public class LaboratoryTechnologistsService : ILaboratoryTechnologistsService
             : new OkObjectResult(response);
     }
 
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(
+        ChangePasswordRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId(user);
+        var account = userId.HasValue ? await _userManager.FindByIdAsync(userId.Value.ToString()) : null;
+        if (account is null)
+            return new UnauthorizedObjectResult(new ChangePasswordResponse { Success = false, Message = "Invalid token." });
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword)
+            || request.NewPassword != request.ConfirmNewPassword)
+            return new BadRequestObjectResult(new ChangePasswordResponse { Success = false, Message = "Valid current, new, and matching confirmation passwords are required." });
+
+        var result = await _userManager.ChangePasswordAsync(account, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+            return new BadRequestObjectResult(new ChangePasswordResponse { Success = false, Message = string.Join(" ", result.Errors.Select(x => x.Description)) });
+
+        account.PasswordLastUpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(account);
+        return new OkObjectResult(new ChangePasswordResponse { Success = true, Message = "Password changed successfully.", PasswordLastUpdatedIso = account.PasswordLastUpdatedAt });
+    }
+
     public Task<IActionResult> DeactivateAsync(
         Guid laboratoryTechnologistId,
         ClaimsPrincipal user,
@@ -356,7 +377,8 @@ public class LaboratoryTechnologistsService : ILaboratoryTechnologistsService
                 ClinicName = technologist.User.Clinic != null ? technologist.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = technologist.ProfessionalLicenseNumber,
                 EmailConfirmed = technologist.User.EmailConfirmed,
-                IsActive = technologist.User.IsActive
+                IsActive = technologist.User.IsActive,
+                PasswordLastUpdatedIso = technologist.User.PasswordLastUpdatedAt
             });
     }
 
