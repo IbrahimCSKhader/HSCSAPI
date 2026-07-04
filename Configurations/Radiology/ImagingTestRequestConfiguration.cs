@@ -30,6 +30,9 @@ public class ImagingTestRequestConfiguration : IEntityTypeConfiguration<ImagingT
         builder.Property(x => x.ClinicalNotes)
             .HasMaxLength(1000);
 
+        builder.Property(x => x.ResultSummary)
+            .HasMaxLength(4000);
+
         builder.Property(x => x.RequestedAt)
             .IsRequired()
             .HasDefaultValueSql("SYSUTCDATETIME()");

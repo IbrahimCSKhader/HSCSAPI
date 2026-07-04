@@ -3,6 +3,8 @@ using HSCSAPI.Data;
 using HSCSAPI.DTOs.Radiology;
 using HSCSAPI.DTOs.Standards;
 using HSCSAPI.Models.MedicalFiles;
+using HSCSAPI.Models.Enums;
+using HSCSAPI.Models.Notifications;
 using HSCSAPI.Models.Profiles;
 using HSCSAPI.Models.Radiology;
 using HSCSAPI.Services.Standards;
@@ -10,6 +12,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Cryptography;
 
 namespace HSCSAPI.Services.Radiology;
 
@@ -79,7 +82,7 @@ public class ImagingRequestsService : IImagingRequestsService
             PageSize = normalizedPageSize,
             TotalCount = totalCount,
             TotalPages = CalculateTotalPages(totalCount, normalizedPageSize),
-            Items = requests.Select(MapToResponse).ToList()
+            Items = requests.Select(x => MapToResponse(x)).ToList()
         });
     }
 
@@ -224,6 +227,134 @@ public class ImagingRequestsService : IImagingRequestsService
         };
     }
 
+    public async Task<ActionResult<ImagingRequestsResponse>> GetTechnologistRequestsAsync(
+        string? status, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null) return access.Error;
+        var query = BuildTechnologistRequestsQuery(access.TechnologistId!.Value, access.ClinicId);
+        if (!ApplyStatusFilter(status, ref query, out var error)) return new BadRequestObjectResult(error);
+        var (normalizedPage, normalizedPageSize) = NormalizePaging(page, pageSize);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var items = await query.OrderByDescending(x => x.Priority == "Urgent").ThenBy(x => x.RequestedAt)
+            .Skip((normalizedPage - 1) * normalizedPageSize).Take(normalizedPageSize).ToListAsync(cancellationToken);
+        return new OkObjectResult(new ImagingRequestsResponse
+        {
+            Page = normalizedPage,
+            PageSize = normalizedPageSize,
+            TotalCount = totalCount,
+            TotalPages = CalculateTotalPages(totalCount, normalizedPageSize),
+            Items = items.Select(x => MapToResponse(x, true)).ToList()
+        });
+    }
+
+    public async Task<ActionResult<ImagingRequestResponse>> GetTechnologistRequestAsync(
+        Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null) return access.Error;
+        var request = await BuildTechnologistRequestsQuery(access.TechnologistId!.Value, access.ClinicId)
+            .FirstOrDefaultAsync(x => x.ImagingTestRequestId == imagingTestRequestId, cancellationToken);
+        return request is null ? new NotFoundObjectResult("Imaging request not found.") : new OkObjectResult(MapToResponse(request, true));
+    }
+
+    public async Task<ActionResult<ImagingRequestResponse>> UploadTechnologistResultAsync(
+        Guid imagingTestRequestId, UploadImagingResultRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null) return access.Error;
+        var imagingRequest = await BuildTechnologistRequestsQuery(access.TechnologistId!.Value, access.ClinicId, tracking: true)
+            .FirstOrDefaultAsync(x => x.ImagingTestRequestId == imagingTestRequestId, cancellationToken);
+        if (imagingRequest is null) return new NotFoundObjectResult("Imaging request not found.");
+        if (imagingRequest.ResultMedicalFileId.HasValue) return new ConflictObjectResult("This imaging request is already completed.");
+        if (request.File is null || request.File.Length == 0 || string.IsNullOrWhiteSpace(request.Summary))
+            return new BadRequestObjectResult("A result summary and file are required.");
+
+        var imagingType = await ResolveImagingTypeAsync(request.StudyCode, cancellationToken);
+        if (imagingType is null) return new BadRequestObjectResult("Study code was not found in the RadLex playbook.");
+        var extension = Path.GetExtension(request.File.FileName).ToLowerInvariant();
+        var fileType = extension switch
+        {
+            ".pdf" => MedicalFileType.Pdf,
+            ".jpg" or ".jpeg" => MedicalFileType.Jpeg,
+            ".png" => MedicalFileType.Png,
+            ".doc" or ".docx" => MedicalFileType.Word,
+            _ => (MedicalFileType?)null
+        };
+        if (fileType is null) return new BadRequestObjectResult("Only PDF, Word, JPEG, and PNG files are supported.");
+
+        var appointment = await _dbContext.Appointments.AsNoTracking()
+            .Where(x => x.PatientId == imagingRequest.PatientId && x.DoctorId == imagingRequest.RequestedByDoctorId)
+            .OrderByDescending(x => x.AppointmentDate).ThenByDescending(x => x.AppointmentTime)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (appointment is null || imagingRequest.RequestedByDoctorId is null)
+            return new BadRequestObjectResult("The imaging request must be linked to a doctor-patient appointment.");
+
+        var medicalFileId = Guid.NewGuid();
+        var directory = Path.Combine(_environment.ContentRootPath, "wwwroot", "imaging", imagingTestRequestId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var physicalPath = Path.Combine(directory, $"{medicalFileId:N}{extension}");
+        try
+        {
+            await using var output = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, true);
+            await request.File.CopyToAsync(output, cancellationToken);
+            await output.FlushAsync(cancellationToken);
+            output.Position = 0;
+            var checksum = Convert.ToHexString(await SHA256.HashDataAsync(output, cancellationToken));
+            var medicalFile = new MedicalFile
+            {
+                MedicalFileId = medicalFileId,
+                AppointmentId = appointment.AppointmentId,
+                UploadedByDoctorId = imagingRequest.RequestedByDoctorId.Value,
+                FileType = fileType.Value,
+                FilePath = Path.GetRelativePath(_environment.ContentRootPath, physicalPath).Replace('\\', '/'),
+                EncryptedChecksum = checksum,
+                FileSizeInBytes = request.File.Length,
+                SeverityLevel = SeverityLevel.High,
+                UploadedAt = DateTime.UtcNow
+            };
+            _dbContext.MedicalFiles.Add(medicalFile);
+            _dbContext.Notifications.Add(new Notification
+            {
+                UserId = imagingRequest.RequestedByDoctorId.Value,
+                Title = "Imaging result available",
+                Message = $"Results are available for {imagingRequest.TestName}.",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+            imagingRequest.ImagingCode = imagingType.Code;
+            imagingRequest.TestName = imagingType.Display;
+            imagingRequest.BodyRegion = imagingType.BodyRegion ?? imagingRequest.BodyRegion;
+            imagingRequest.ResultSummary = request.Summary.Trim();
+            imagingRequest.ResultMedicalFileId = medicalFileId;
+            imagingRequest.RadiologyTechnologistId = access.TechnologistId.Value;
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            if (File.Exists(physicalPath)) File.Delete(physicalPath);
+            throw;
+        }
+
+        var completed = await BuildTechnologistRequestsQuery(access.TechnologistId.Value, access.ClinicId)
+            .FirstAsync(x => x.ImagingTestRequestId == imagingTestRequestId, cancellationToken);
+        return new OkObjectResult(MapToResponse(completed, true));
+    }
+
+    public async Task<IActionResult> DownloadTechnologistResultFileAsync(
+        Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null) return access.Error;
+        var request = await BuildTechnologistRequestsQuery(access.TechnologistId!.Value, access.ClinicId)
+            .FirstOrDefaultAsync(x => x.ImagingTestRequestId == imagingTestRequestId, cancellationToken);
+        if (request?.ResultMedicalFile is null) return new NotFoundObjectResult("Imaging result file not found.");
+        var path = ResolvePhysicalPath(request.ResultMedicalFile);
+        if (!File.Exists(path)) return new NotFoundObjectResult("Result file was not found on disk.");
+        if (!_contentTypeProvider.TryGetContentType(path, out var contentType)) contentType = "application/octet-stream";
+        return new PhysicalFileResult(path, contentType) { FileDownloadName = Path.GetFileName(path), EnableRangeProcessing = true };
+    }
+
     private IQueryable<ImagingTestRequest> BuildReadableRequestsQuery(Guid doctorId)
     {
         return _dbContext.ImagingTestRequests
@@ -247,6 +378,33 @@ public class ImagingRequestsService : IImagingRequestsService
                 request.RequestedByDoctorId == doctorId
                 || (request.ResultMedicalFile != null
                     && request.ResultMedicalFile.Appointment.DoctorId == doctorId));
+    }
+
+    private IQueryable<ImagingTestRequest> BuildTechnologistRequestsQuery(Guid technologistId, Guid? clinicId, bool tracking = false)
+    {
+        var query = _dbContext.ImagingTestRequests
+            .Include(x => x.Patient).ThenInclude(x => x!.User)
+            .Include(x => x.RequestedByDoctor).ThenInclude(x => x!.User)
+            .Include(x => x.RadiologyClinic)
+            .Include(x => x.RadiologyTechnologist).ThenInclude(x => x!.User)
+            .Include(x => x.ResultMedicalFile).ThenInclude(x => x!.Appointment).ThenInclude(x => x.Patient).ThenInclude(x => x.User)
+            .Include(x => x.ResultMedicalFile).ThenInclude(x => x!.Appointment).ThenInclude(x => x.Doctor).ThenInclude(x => x.User)
+            .Where(x => x.RadiologyTechnologistId == technologistId
+                || (x.RadiologyTechnologistId == null && clinicId != null && x.RadiologyClinicId == clinicId));
+        return tracking ? query : query.AsNoTracking();
+    }
+
+    private async Task<TechnologistAccess> GetTechnologistAccessAsync(ClaimsPrincipal user, CancellationToken cancellationToken)
+    {
+        var userId = GetCurrentUserId(user);
+        if (userId is null) return new(null, null, new UnauthorizedObjectResult("Invalid token."));
+        var profile = await _dbContext.RadiologyTechnologists.AsNoTracking()
+            .Where(x => x.RadiologyTechnologistId == userId.Value && x.User.IsActive)
+            .Select(x => new { x.RadiologyTechnologistId, x.User.ClinicId })
+            .FirstOrDefaultAsync(cancellationToken);
+        return profile is null
+            ? new(null, null, new NotFoundObjectResult("Radiology technologist profile not found."))
+            : new(profile.RadiologyTechnologistId, profile.ClinicId, null);
     }
 
     private async Task<Patient?> FindPatientAsync(string patientId, CancellationToken cancellationToken)
@@ -326,7 +484,7 @@ public class ImagingRequestsService : IImagingRequestsService
         }
     }
 
-    private ImagingRequestResponse MapToResponse(ImagingTestRequest request)
+    private ImagingRequestResponse MapToResponse(ImagingTestRequest request, bool technologistRoute = false)
     {
         var patient = request.Patient ?? request.ResultMedicalFile?.Appointment.Patient;
         var doctor = request.RequestedByDoctor ?? request.ResultMedicalFile?.Appointment.Doctor;
@@ -338,8 +496,8 @@ public class ImagingRequestsService : IImagingRequestsService
             TestName = request.TestName,
             ImagingCode = request.ImagingCode,
             BodyRegion = request.BodyRegion,
-            Priority = request.Priority,
-            Status = resultFile is null ? "Pending" : "ResultsAvailable",
+            Priority = request.Priority.ToLowerInvariant(),
+            Status = resultFile is null ? "pending" : "completed",
             ClinicalNotes = request.ClinicalNotes,
             RequestedAt = request.RequestedAt,
             PatientId = patient?.PatientId,
@@ -347,6 +505,7 @@ public class ImagingRequestsService : IImagingRequestsService
             PatientName = patient?.User.Name,
             RequestedByDoctorId = doctor?.DoctorId,
             RequestedByDoctorName = doctor?.User.Name,
+            RequestingDoctorId = doctor is null ? null : $"DOC-{doctor.DoctorId.ToString("N")[..8].ToUpperInvariant()}",
             RadiologyClinicId = request.RadiologyClinicId,
             RadiologyClinicName = request.RadiologyClinic?.Name,
             RadiologyTechnologistId = request.RadiologyTechnologistId,
@@ -355,10 +514,12 @@ public class ImagingRequestsService : IImagingRequestsService
             ResultFileName = resultFile is null ? null : Path.GetFileName(resultFile.FilePath),
             ResultFileSizeInBytes = resultFile?.FileSizeInBytes,
             ResultUploadedAt = resultFile?.UploadedAt,
-            ResultSummary = request.ClinicalNotes ?? resultFile?.Appointment.Notes,
+            ResultSummary = request.ResultSummary,
             ResultFileUrl = resultFile is null
                 ? null
-                : $"/api/Doctors/me/imaging-requests/{request.ImagingTestRequestId}/result-file"
+                : technologistRoute
+                    ? $"/api/ImagingTests/my-requests/{request.ImagingTestRequestId}/result-file"
+                    : $"/api/Doctors/me/imaging-requests/{request.ImagingTestRequestId}/result-file"
         };
     }
 
@@ -421,4 +582,6 @@ public class ImagingRequestsService : IImagingRequestsService
         string Code,
         string Display,
         string? BodyRegion);
+
+    private sealed record TechnologistAccess(Guid? TechnologistId, Guid? ClinicId, ActionResult? Error);
 }

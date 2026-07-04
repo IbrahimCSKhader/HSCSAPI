@@ -1,4 +1,5 @@
 using HSCSAPI.DTOs.AuthorizedMember;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.AuthorizedMembers;
 using Microsoft.AspNetCore.Authorization;
@@ -36,6 +37,14 @@ public class AuthorizedMembersController : ControllerBase
         [FromBody] UpdateAuthorizedMemberProfileRequest request, CancellationToken cancellationToken)
     {
         return await _authorizedMembersService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me/password")]
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPassword(
+        [FromBody] ChangePasswordRequest request, CancellationToken cancellationToken)
+    {
+        return await _authorizedMembersService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpGet("my-patients")]

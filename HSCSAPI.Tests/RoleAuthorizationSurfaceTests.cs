@@ -18,7 +18,7 @@ public class RoleAuthorizationSurfaceTests
     {
         var actualActions = GetControllerActions();
 
-        Assert.Equal(179, actualActions.Count);
+        Assert.Equal(184, actualActions.Count);
         Assert.Equal(
             ExpectedActions.Keys.OrderBy(x => x),
             actualActions.Keys.OrderBy(x => x));
@@ -58,9 +58,9 @@ public class RoleAuthorizationSurfaceTests
             [nameof(UserSystemRole.Patient)] = 70,
             [nameof(UserSystemRole.Doctor)] = 72,
             [nameof(UserSystemRole.Secretary)] = 107,
-            [nameof(UserSystemRole.AuthorizedMember)] = 58,
+            [nameof(UserSystemRole.AuthorizedMember)] = 59,
             [nameof(UserSystemRole.LaboratoryTechnologist)] = 58,
-            [nameof(UserSystemRole.RadiologyTechnologist)] = 50
+            [nameof(UserSystemRole.RadiologyTechnologist)] = 54
         };
 
         foreach (var (role, expectedCount) in expectedCounts)
@@ -118,7 +118,7 @@ public class RoleAuthorizationSurfaceTests
             }
         }
 
-        Assert.Equal(179, routes.Count);
+        Assert.Equal(184, routes.Count);
         Assert.DoesNotContain(routes.GroupBy(route => route), group => group.Count() > 1);
     }
 
@@ -206,7 +206,10 @@ public class RoleAuthorizationSurfaceTests
         Add(actions, "AuthorizedMembers", ExpectedAccess.ForRoles(nameof(UserSystemRole.AuthorizedMember)),
             "GetDashboard", "GetMyProfile", "GetMyPatients", "GetMyPatient", "GetMyAppointments",
             "GetPatientMedicalRecords", "GetPatientMedicalRecord", "DownloadPatientMedicalRecord",
-            "GetMyInvites", "AcceptInvite", "RejectInvite", "UpdateMyProfile");
+            "GetMyInvites", "AcceptInvite", "RejectInvite", "UpdateMyProfile", "ChangeMyPassword");
+
+        Add(actions, "ImagingTests", ExpectedAccess.ForRoles(nameof(UserSystemRole.RadiologyTechnologist)),
+            "GetMyRequests", "GetMyRequest", "UploadResult", "DownloadResultFile");
 
         Add(actions, "Chats", ExpectedAccess.Authenticated,
             "OpenChat", "GetChats", "GetMessages", "SendMessage", "EditMessage", "UnsendMessage", "MarkAsRead", "GetFile");

@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HSCSAPI.DTOs.AuthorizedMember;
+using HSCSAPI.DTOs.Common;
 using Microsoft.AspNetCore.Mvc;
 
 namespace HSCSAPI.Services.AuthorizedMembers;
@@ -14,6 +15,7 @@ public interface IAuthorizedMembersService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
     Task<ActionResult<AuthorizedMemberProfileResponse>> UpdateMyProfileAsync(UpdateAuthorizedMemberProfileRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(ChangePasswordRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 
     Task<ActionResult<List<AuthorizedMemberPatientResponse>>> GetMyPatientsAsync(
         ClaimsPrincipal user,

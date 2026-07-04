@@ -28,4 +28,9 @@ public interface IImagingRequestsService
         Guid imagingTestRequestId,
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
+
+    Task<ActionResult<ImagingRequestsResponse>> GetTechnologistRequestsAsync(string? status, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<ImagingRequestResponse>> GetTechnologistRequestAsync(Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<ImagingRequestResponse>> UploadTechnologistResultAsync(Guid imagingTestRequestId, UploadImagingResultRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<IActionResult> DownloadTechnologistResultFileAsync(Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }

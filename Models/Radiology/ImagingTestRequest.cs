@@ -18,6 +18,7 @@ public class ImagingTestRequest
     public DateTime RequestedAt { get; set; } = DateTime.UtcNow;
     public Guid? RadiologyTechnologistId { get; set; }
     public Guid? ResultMedicalFileId { get; set; }
+    public string? ResultSummary { get; set; }
 
     public Patient? Patient { get; set; }
     public Doctor? RequestedByDoctor { get; set; }

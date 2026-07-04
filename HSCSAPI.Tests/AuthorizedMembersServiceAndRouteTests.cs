@@ -364,7 +364,8 @@ public class AuthorizedMembersServiceAndRouteTests
                 "GET /api/authorizedmembers/my-patients/{patientid:guid}/medical-records/{medicalfileid:guid}/download",
                 "POST /api/authorizedmembers/my-invites/{inviteid:guid}/accept",
                 "POST /api/authorizedmembers/my-invites/{inviteid:guid}/reject",
-                "PUT /api/authorizedmembers/me"
+                "PUT /api/authorizedmembers/me",
+                "PUT /api/authorizedmembers/me/password"
             ],
             authorizedMemberEndpoints);
     }

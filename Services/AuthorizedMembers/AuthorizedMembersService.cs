@@ -1,11 +1,14 @@
 using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.AuthorizedMember;
+using HSCSAPI.DTOs.Common;
+using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Relations;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Identity;
 
 namespace HSCSAPI.Services.AuthorizedMembers;
 
@@ -152,6 +155,34 @@ public class AuthorizedMembersService : IAuthorizedMembersService
         profile.User.DateOfBirth = request.DateOfBirth;
         await _dbContext.SaveChangesAsync(cancellationToken);
         return await GetMyProfileAsync(user, cancellationToken);
+    }
+
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(
+        ChangePasswordRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
+    {
+        var userId = GetCurrentUserId(user);
+        var account = userId.HasValue ? await _dbContext.Users.FirstOrDefaultAsync(x => x.Id == userId.Value, cancellationToken) : null;
+        if (account is null)
+            return new UnauthorizedObjectResult(new ChangePasswordResponse { Success = false, Message = "Invalid token." });
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword) || string.IsNullOrWhiteSpace(request.NewPassword)
+            || request.NewPassword != request.ConfirmNewPassword)
+            return new BadRequestObjectResult(new ChangePasswordResponse { Success = false, Message = "Valid current, new, and matching confirmation passwords are required." });
+
+        var hasher = new PasswordHasher<User>();
+        if (account.PasswordHash is null
+            || hasher.VerifyHashedPassword(account, account.PasswordHash, request.CurrentPassword) == PasswordVerificationResult.Failed)
+            return new BadRequestObjectResult(new ChangePasswordResponse { Success = false, Message = "Current password is incorrect." });
+
+        account.PasswordHash = hasher.HashPassword(account, request.NewPassword);
+        account.SecurityStamp = Guid.NewGuid().ToString("N");
+        account.PasswordLastUpdatedAt = DateTime.UtcNow;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return new OkObjectResult(new ChangePasswordResponse
+        {
+            Success = true,
+            Message = "Password changed successfully.",
+            PasswordLastUpdatedIso = account.PasswordLastUpdatedAt
+        });
     }
 
     public async Task<ActionResult<List<AuthorizedMemberPatientResponse>>> GetMyPatientsAsync(

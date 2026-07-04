@@ -181,8 +181,8 @@ public class StandardsAndLabRequestTests
         Assert.Equal("MRI", created.ImagingCode);
         Assert.Equal("MRI - MRI", created.TestName);
         Assert.Equal("Left knee", created.BodyRegion);
-        Assert.Equal("Urgent", created.Priority);
-        Assert.Equal("Pending", created.Status);
+        Assert.Equal("urgent", created.Priority);
+        Assert.Equal("pending", created.Status);
         Assert.Equal(patient.PatientId, created.PatientId);
         Assert.Equal(technologist.RadiologyTechnologistId, created.RadiologyTechnologistId);
 

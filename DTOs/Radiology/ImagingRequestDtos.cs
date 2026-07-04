@@ -1,5 +1,12 @@
 namespace HSCSAPI.DTOs.Radiology;
 
+public class UploadImagingResultRequest
+{
+    public string StudyCode { get; set; } = string.Empty;
+    public string Summary { get; set; } = string.Empty;
+    public IFormFile File { get; set; } = null!;
+}
+
 public class CreateImagingRequestRequest
 {
     public string PatientId { get; set; } = string.Empty;
@@ -34,6 +41,7 @@ public class ImagingRequestResponse
     public string? PatientName { get; set; }
     public Guid? RequestedByDoctorId { get; set; }
     public string? RequestedByDoctorName { get; set; }
+    public string? RequestingDoctorId { get; set; }
     public Guid? RadiologyClinicId { get; set; }
     public string? RadiologyClinicName { get; set; }
     public Guid? RadiologyTechnologistId { get; set; }
