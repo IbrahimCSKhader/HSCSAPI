@@ -17,6 +17,8 @@ internal sealed class AuthorizedMemberPatientQueryResult
     public string? ClinicName { get; init; }
     public RelationshipType RelationshipType { get; init; }
     public DateTime AuthorizedAt { get; init; }
+    public bool CanViewRecords { get; init; }
+    public bool CanViewAppointments { get; init; }
     public int MedicalRecordsCount { get; init; }
     public int UpcomingAppointmentsCount { get; init; }
 }

@@ -24,6 +24,7 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetDashboardAsync(User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("medical-records")]
     public async Task<ActionResult<PagedResponse<PatientMedicalRecordResponse>>> GetMedicalRecords(
         [FromQuery] string? type,
@@ -35,6 +36,7 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetMedicalRecordsAsync(type, query, page, pageSize, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("medical-records/{medicalFileId:guid}")]
     public async Task<ActionResult<PatientMedicalRecordDetailResponse>> GetMedicalRecord(
         Guid medicalFileId,
@@ -68,6 +70,7 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetDownloadRequestsAsync(status, page, pageSize, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("authorized-members")]
     public async Task<ActionResult<List<PatientAuthorizedMemberResponse>>> GetAuthorizedMembers(
         CancellationToken cancellationToken)
@@ -75,6 +78,7 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetAuthorizedMembersAsync(User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("authorized-member-invites")]
     public async Task<ActionResult<List<PatientAuthorizedMemberInviteResponse>>> GetAuthorizedMemberInvites(
         CancellationToken cancellationToken)
@@ -82,6 +86,7 @@ public class PatientProfileController : ControllerBase
         return await _patientProfileService.GetAuthorizedMemberInvitesAsync(User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPost("authorized-member-invites")]
     public async Task<ActionResult<PatientAuthorizedMemberInviteResponse>> CreateAuthorizedMemberInvite(
         [FromBody] CreateAuthorizedMemberInviteRequest request,

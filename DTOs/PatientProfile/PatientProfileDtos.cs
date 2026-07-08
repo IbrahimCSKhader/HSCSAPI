@@ -68,6 +68,7 @@ public class PatientMedicalRecordResponse
     public DateTime UploadedAt { get; set; }
     public Guid DoctorId { get; set; }
     public string DoctorName { get; set; } = string.Empty;
+    public string DoctorSpecialty { get; set; } = string.Empty;
     public Guid? ClinicId { get; set; }
     public string? ClinicName { get; set; }
     public DateOnly AppointmentDate { get; set; }
@@ -114,6 +115,8 @@ public class PatientAuthorizedMemberResponse
     public string RelationshipType { get; set; } = string.Empty;
     public DateTime AuthorizedAt { get; set; }
     public bool IsActive { get; set; }
+    public bool CanViewRecords { get; set; }
+    public bool CanViewAppointments { get; set; }
 }
 
 public class CreateAuthorizedMemberInviteRequest
@@ -121,6 +124,8 @@ public class CreateAuthorizedMemberInviteRequest
     public string? FullName { get; set; }
     public string Email { get; set; } = string.Empty;
     public string RelationshipType { get; set; } = string.Empty;
+    public bool CanViewRecords { get; set; } = true;
+    public bool CanViewAppointments { get; set; } = true;
 }
 
 public class PatientAuthorizedMemberInviteResponse
@@ -134,4 +139,6 @@ public class PatientAuthorizedMemberInviteResponse
     public DateTime SentAt { get; set; }
     public DateTime? RespondedAt { get; set; }
     public bool IsActive { get; set; }
+    public bool CanViewRecords { get; set; }
+    public bool CanViewAppointments { get; set; }
 }

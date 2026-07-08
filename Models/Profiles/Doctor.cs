@@ -2,6 +2,7 @@ using HSCSAPI.Models.Appointments;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.MedicalFiles;
 using HSCSAPI.Models.Reminders;
+using HSCSAPI.Models.Enums;
 
 namespace HSCSAPI.Models.Profiles;
 
@@ -9,6 +10,7 @@ public class Doctor
 {
     public Guid DoctorId { get; set; }
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
+    public DoctorSpecialty Specialty { get; set; } = DoctorSpecialty.GeneralPractitioner;
 
     public User User { get; set; } = null!;
 

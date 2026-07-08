@@ -39,6 +39,7 @@ public class StandardsController : ControllerBase
         return result is null ? NotFound("LOINC code not found.") : Ok(result);
     }
 
+    // last end point added - already-added
     [HttpGet("lab-tests")]
     public async Task<ActionResult<StandardPagedResponse<LoincCodeResponse>>> SearchLabTests(
         [FromQuery] string? query,

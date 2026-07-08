@@ -18,6 +18,7 @@ public class LaboratoryTestsController : ControllerBase
         _laboratoryResultsService = laboratoryResultsService;
     }
 
+    // last end point added - already-added
     [HttpGet("templates")]
     public async Task<ActionResult<List<LabTestTemplateResponse>>> GetTemplates(
         [FromQuery] bool activeOnly = true,
@@ -26,6 +27,7 @@ public class LaboratoryTestsController : ControllerBase
         return await _laboratoryResultsService.GetTemplatesAsync(activeOnly, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("templates/{templateCode}")]
     public async Task<ActionResult<LabTestTemplateResponse>> GetTemplate(
         string templateCode,
@@ -34,6 +36,7 @@ public class LaboratoryTestsController : ControllerBase
         return await _laboratoryResultsService.GetTemplateAsync(templateCode, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("my-requests")]
     public async Task<ActionResult<LabWorkItemsResponse>> GetMyRequests(
         [FromQuery] string? status,
@@ -56,6 +59,7 @@ public class LaboratoryTestsController : ControllerBase
         return await _laboratoryResultsService.GetMyWorkItemAsync(labTestRequestId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPost("my-requests/{labTestRequestId:guid}/results")]
     public async Task<ActionResult<LabTestResultResponse>> CreateResult(
         Guid labTestRequestId,
@@ -69,6 +73,7 @@ public class LaboratoryTestsController : ControllerBase
             cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("results/{labTestResultId:guid}")]
     public async Task<ActionResult<LabTestResultResponse>> GetResult(
         Guid labTestResultId,
@@ -77,6 +82,7 @@ public class LaboratoryTestsController : ControllerBase
         return await _laboratoryResultsService.GetResultAsync(labTestResultId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPost("results/{labTestResultId:guid}/pdf")]
     public async Task<ActionResult<LabResultPdfResponse>> GeneratePdf(
         Guid labTestResultId,
@@ -85,6 +91,7 @@ public class LaboratoryTestsController : ControllerBase
         return await _laboratoryResultsService.GeneratePdfAsync(labTestResultId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("results/{labTestResultId:guid}/pdf")]
     public async Task<IActionResult> DownloadPdf(
         Guid labTestResultId,

@@ -26,6 +26,14 @@ public class ImagingRequestsResponse
     public List<ImagingRequestResponse> Items { get; set; } = [];
 }
 
+public class RadiologyDashboardResponse
+{
+    public int TotalRequestsCount { get; set; }
+    public int PendingRequestsCount { get; set; }
+    public int CompletedRequestsCount { get; set; }
+    public int TodayRequestsCount { get; set; }
+}
+
 public class ImagingRequestResponse
 {
     public Guid ImagingTestRequestId { get; set; }

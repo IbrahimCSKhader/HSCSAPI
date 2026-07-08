@@ -33,4 +33,5 @@ public interface IImagingRequestsService
     Task<ActionResult<ImagingRequestResponse>> GetTechnologistRequestAsync(Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<ActionResult<ImagingRequestResponse>> UploadTechnologistResultAsync(Guid imagingTestRequestId, UploadImagingResultRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default);
     Task<IActionResult> DownloadTechnologistResultFileAsync(Guid imagingTestRequestId, ClaimsPrincipal user, CancellationToken cancellationToken = default);
+    Task<ActionResult<RadiologyDashboardResponse>> GetTechnologistDashboardAsync(ClaimsPrincipal user, CancellationToken cancellationToken = default);
 }

@@ -305,6 +305,8 @@ public class RemindersService : IRemindersService
         preferences.MessageRemindersEnabled = validRequest.MessageRemindersEnabled.GetValueOrDefault();
         preferences.InAppNotificationsEnabled = validRequest.InAppNotificationsEnabled.GetValueOrDefault();
         preferences.EmailRemindersEnabled = validRequest.EmailRemindersEnabled.GetValueOrDefault();
+        preferences.SmsRemindersEnabled = validRequest.SmsRemindersEnabled.GetValueOrDefault(preferences.SmsRemindersEnabled);
+        preferences.MedicationRemindersEnabled = validRequest.MedicationRemindersEnabled.GetValueOrDefault(preferences.MedicationRemindersEnabled);
         preferences.UpdatedAt = DateTime.UtcNow;
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -352,6 +354,8 @@ public class RemindersService : IRemindersService
             MessageRemindersEnabled = true,
             InAppNotificationsEnabled = true,
             EmailRemindersEnabled = false,
+            SmsRemindersEnabled = false,
+            MedicationRemindersEnabled = true,
             UpdatedAt = null
         };
     }
@@ -366,6 +370,8 @@ public class RemindersService : IRemindersService
             MessageRemindersEnabled = preferences.MessageRemindersEnabled,
             InAppNotificationsEnabled = preferences.InAppNotificationsEnabled,
             EmailRemindersEnabled = preferences.EmailRemindersEnabled,
+            SmsRemindersEnabled = preferences.SmsRemindersEnabled,
+            MedicationRemindersEnabled = preferences.MedicationRemindersEnabled,
             UpdatedAt = preferences.UpdatedAt
         };
     }

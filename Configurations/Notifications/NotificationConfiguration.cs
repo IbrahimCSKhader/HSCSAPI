@@ -22,6 +22,7 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
         builder.Property(x => x.IsRead)
             .IsRequired()
             .HasDefaultValue(false);
+        builder.Property(x => x.Category).HasMaxLength(50).HasDefaultValue("General").IsRequired();
 
         builder.Property(x => x.CreatedAt)
             .IsRequired()

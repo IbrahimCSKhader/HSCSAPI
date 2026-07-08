@@ -18,7 +18,7 @@ public class RoleAuthorizationSurfaceTests
     {
         var actualActions = GetControllerActions();
 
-        Assert.Equal(184, actualActions.Count);
+        Assert.Equal(185, actualActions.Count);
         Assert.Equal(
             ExpectedActions.Keys.OrderBy(x => x),
             actualActions.Keys.OrderBy(x => x));
@@ -60,7 +60,7 @@ public class RoleAuthorizationSurfaceTests
             [nameof(UserSystemRole.Secretary)] = 107,
             [nameof(UserSystemRole.AuthorizedMember)] = 59,
             [nameof(UserSystemRole.LaboratoryTechnologist)] = 58,
-            [nameof(UserSystemRole.RadiologyTechnologist)] = 54
+            [nameof(UserSystemRole.RadiologyTechnologist)] = 55
         };
 
         foreach (var (role, expectedCount) in expectedCounts)
@@ -118,7 +118,7 @@ public class RoleAuthorizationSurfaceTests
             }
         }
 
-        Assert.Equal(184, routes.Count);
+        Assert.Equal(185, routes.Count);
         Assert.DoesNotContain(routes.GroupBy(route => route), group => group.Count() > 1);
     }
 
@@ -209,7 +209,7 @@ public class RoleAuthorizationSurfaceTests
             "GetMyInvites", "AcceptInvite", "RejectInvite", "UpdateMyProfile", "ChangeMyPassword");
 
         Add(actions, "ImagingTests", ExpectedAccess.ForRoles(nameof(UserSystemRole.RadiologyTechnologist)),
-            "GetMyRequests", "GetMyRequest", "UploadResult", "DownloadResultFile");
+            "GetDashboard", "GetMyRequests", "GetMyRequest", "UploadResult", "DownloadResultFile");
 
         Add(actions, "Chats", ExpectedAccess.Authenticated,
             "OpenChat", "GetChats", "GetMessages", "SendMessage", "EditMessage", "UnsendMessage", "MarkAsRead", "GetFile");

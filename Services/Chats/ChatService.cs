@@ -118,6 +118,12 @@ public class ChatService : IChatService
                 ChatId = x.ChatId,
                 OtherUserId = x.UserOneId == currentUserId ? x.UserTwoId : x.UserOneId,
                 OtherUserName = x.UserOneId == currentUserId ? x.UserTwo.Name : x.UserOne.Name,
+                DoctorSpecialty = x.UserOneId == currentUserId
+                    ? x.UserTwo.DoctorProfile == null ? null : x.UserTwo.DoctorProfile.Specialty.ToString()
+                    : x.UserOne.DoctorProfile == null ? null : x.UserOne.DoctorProfile.Specialty.ToString(),
+                ClinicName = x.UserOneId == currentUserId
+                    ? x.UserTwo.Clinic == null ? null : x.UserTwo.Clinic.Name
+                    : x.UserOne.Clinic == null ? null : x.UserOne.Clinic.Name,
                 CreatedAt = x.CreatedAt,
                 LastMessageAt = x.LastMessageAt,
                 LastMessagePreview = x.Messages
@@ -245,6 +251,7 @@ public class ChatService : IChatService
             UserId = recipientUserId,
             Title = $"New message from {currentSenderName}.",
             Message = $"{currentSenderName} sent you a message.",
+            Category = "Message",
             IsRead = false
         };
 
@@ -544,6 +551,12 @@ public class ChatService : IChatService
                 ChatId = x.ChatId,
                 OtherUserId = x.UserOneId == currentUserId ? x.UserTwoId : x.UserOneId,
                 OtherUserName = x.UserOneId == currentUserId ? x.UserTwo.Name : x.UserOne.Name,
+                DoctorSpecialty = x.UserOneId == currentUserId
+                    ? x.UserTwo.DoctorProfile == null ? null : x.UserTwo.DoctorProfile.Specialty.ToString()
+                    : x.UserOne.DoctorProfile == null ? null : x.UserOne.DoctorProfile.Specialty.ToString(),
+                ClinicName = x.UserOneId == currentUserId
+                    ? x.UserTwo.Clinic == null ? null : x.UserTwo.Clinic.Name
+                    : x.UserOne.Clinic == null ? null : x.UserOne.Clinic.Name,
                 CreatedAt = x.CreatedAt,
                 LastMessageAt = x.LastMessageAt,
                 LastMessagePreview = x.Messages

@@ -28,6 +28,8 @@ public class InviteConfiguration : IEntityTypeConfiguration<Invite>
         builder.Property(x => x.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
+        builder.Property(x => x.CanViewRecords).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.CanViewAppointments).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(x => x.Patient)
             .WithMany(x => x.SentInvites)

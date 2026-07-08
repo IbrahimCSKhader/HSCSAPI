@@ -10,4 +10,5 @@ public class RegisterDoctorRequest
     public DateOnly? DateOfBirth { get; set; }
     public Guid ClinicId { get; set; }
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
+    public string Specialty { get; set; } = "GeneralPractitioner";
 }

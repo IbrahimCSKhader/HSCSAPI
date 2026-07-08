@@ -142,6 +142,15 @@ public class AuthService : IAuthService
                 return new AuthResponse { Success = false, Message = "Professional license number is already registered." };
             }
 
+            if (!Enum.TryParse<DoctorSpecialty>(request.Specialty, true, out var specialty))
+            {
+                return new AuthResponse
+                {
+                    Success = false,
+                    Message = $"Invalid doctor specialty. Use: {string.Join(", ", Enum.GetNames<DoctorSpecialty>())}."
+                };
+            }
+
             return await RegisterProfileUserAsync(
                 request.Email,
                 request.Password,
@@ -157,6 +166,7 @@ public class AuthService : IAuthService
                     {
                         DoctorId = user.Id,
                         ProfessionalLicenseNumber = request.ProfessionalLicenseNumber,
+                        Specialty = specialty,
                         User = user
                     };
                 },

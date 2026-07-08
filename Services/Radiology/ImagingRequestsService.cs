@@ -227,6 +227,32 @@ public class ImagingRequestsService : IImagingRequestsService
         };
     }
 
+    public async Task<ActionResult<RadiologyDashboardResponse>> GetTechnologistDashboardAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null)
+        {
+            return access.Error;
+        }
+
+        var today = DateTime.UtcNow.Date;
+        var query = BuildTechnologistRequestsQuery(access.TechnologistId!.Value, access.ClinicId);
+        var totalCount = await query.CountAsync(cancellationToken);
+        var pendingCount = await query.CountAsync(x => x.ResultMedicalFileId == null, cancellationToken);
+        var completedCount = totalCount - pendingCount;
+        var todayCount = await query.CountAsync(x => x.RequestedAt >= today, cancellationToken);
+
+        return new OkObjectResult(new RadiologyDashboardResponse
+        {
+            TotalRequestsCount = totalCount,
+            PendingRequestsCount = pendingCount,
+            CompletedRequestsCount = completedCount,
+            TodayRequestsCount = todayCount
+        });
+    }
+
     public async Task<ActionResult<ImagingRequestsResponse>> GetTechnologistRequestsAsync(
         string? status, int page, int pageSize, ClaimsPrincipal user, CancellationToken cancellationToken = default)
     {
@@ -319,6 +345,7 @@ public class ImagingRequestsService : IImagingRequestsService
                 UserId = imagingRequest.RequestedByDoctorId.Value,
                 Title = "Imaging result available",
                 Message = $"Results are available for {imagingRequest.TestName}.",
+                Category = "Imaging",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });

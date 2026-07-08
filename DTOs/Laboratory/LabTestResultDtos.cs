@@ -5,6 +5,9 @@ public class LabTestTemplateResponse
     public Guid LabTestTemplateId { get; set; }
     public string Code { get; set; } = string.Empty;
     public string Name { get; set; } = string.Empty;
+    public string ShortLabel { get; set; } = string.Empty;
+    public string DisplayName { get; set; } = string.Empty;
+    public string? Description { get; set; }
     public string? LoincCode { get; set; }
     public string SpecimenType { get; set; } = string.Empty;
     public string? PreparationInstructions { get; set; }

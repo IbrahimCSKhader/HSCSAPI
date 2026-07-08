@@ -46,6 +46,7 @@ public class AppointmentsController : ControllerBase
         return await _appointmentsService.GetByIdAsync(appointmentId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPost]
     [Authorize(Roles = AppointmentsService.AllowedWriteRoles)]
     public async Task<ActionResult<AppointmentResponse>> Create(

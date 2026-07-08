@@ -32,6 +32,8 @@ public class ChatResponse
     public Guid ChatId { get; set; }
     public Guid OtherUserId { get; set; }
     public string OtherUserName { get; set; } = string.Empty;
+    public string? DoctorSpecialty { get; set; }
+    public string? ClinicName { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? LastMessageAt { get; set; }
     public string? LastMessagePreview { get; set; }

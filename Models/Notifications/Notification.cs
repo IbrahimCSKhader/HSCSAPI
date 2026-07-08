@@ -9,6 +9,7 @@ public class Notification
     public string Title { get; set; } = string.Empty;
     public string? Message { get; set; }
     public bool IsRead { get; set; }
+    public string Category { get; set; } = "General";
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

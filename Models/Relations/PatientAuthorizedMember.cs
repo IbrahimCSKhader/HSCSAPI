@@ -10,6 +10,8 @@ public class PatientAuthorizedMember
     public RelationshipType RelationshipType { get; set; }
     public DateTime AuthorizedAt { get; set; }
     public bool IsActive { get; set; } = true;
+    public bool CanViewRecords { get; set; } = true;
+    public bool CanViewAppointments { get; set; } = true;
 
     public Patient Patient { get; set; } = null!;
     public AuthorizedMember AuthorizedMember { get; set; } = null!;

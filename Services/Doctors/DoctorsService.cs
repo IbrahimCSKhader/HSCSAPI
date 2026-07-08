@@ -542,6 +542,11 @@ public class DoctorsService : IDoctorsService
             return new BadRequestObjectResult("Professional license number is already registered.");
         }
 
+        if (!TryParseDoctorSpecialty(request.Specialty, out var specialty, out var specialtyError))
+        {
+            return new BadRequestObjectResult(specialtyError);
+        }
+
         doctor.User.Name = request.Name.Trim();
         doctor.User.Email = normalizedEmail;
         doctor.User.UserName = normalizedEmail;
@@ -550,6 +555,10 @@ public class DoctorsService : IDoctorsService
         doctor.User.DateOfBirth = request.DateOfBirth;
         doctor.User.ClinicId = request.ClinicId;
         doctor.ProfessionalLicenseNumber = normalizedLicenseNumber;
+        if (specialty.HasValue)
+        {
+            doctor.Specialty = specialty.Value;
+        }
 
         var updateResult = await _userManager.UpdateAsync(doctor.User);
         if (!updateResult.Succeeded)
@@ -590,10 +599,19 @@ public class DoctorsService : IDoctorsService
             return new NotFoundObjectResult("Doctor not found.");
         }
 
+        if (!TryParseDoctorSpecialty(request.Specialty, out var specialty, out var specialtyError))
+        {
+            return new BadRequestObjectResult(specialtyError);
+        }
+
         doctor.User.Name = request.Name.Trim();
         doctor.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
         doctor.User.Address = NormalizeOptional(request.Address);
         doctor.User.DateOfBirth = request.DateOfBirth;
+        if (specialty.HasValue)
+        {
+            doctor.Specialty = specialty.Value;
+        }
 
         var updateResult = await _userManager.UpdateAsync(doctor.User);
         if (!updateResult.Succeeded)
@@ -1186,10 +1204,32 @@ public class DoctorsService : IDoctorsService
                 ClinicId = doctor.User.ClinicId,
                 ClinicName = doctor.User.Clinic != null ? doctor.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = doctor.ProfessionalLicenseNumber,
+                DoctorUserCode = "DOC-" + doctor.DoctorId.ToString().Substring(0, 8).ToUpper(),
+                Specialty = doctor.Specialty.ToString(),
                 EmailConfirmed = doctor.User.EmailConfirmed,
                 IsActive = doctor.User.IsActive,
                 PasswordLastUpdatedIso = doctor.User.PasswordLastUpdatedAt
             });
+    }
+
+    private static bool TryParseDoctorSpecialty(string? value, out DoctorSpecialty? specialty, out string error)
+    {
+        specialty = null;
+        error = string.Empty;
+
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return true;
+        }
+
+        if (Enum.TryParse<DoctorSpecialty>(value.Trim(), true, out var parsed))
+        {
+            specialty = parsed;
+            return true;
+        }
+
+        error = $"Invalid doctor specialty. Use: {string.Join(", ", Enum.GetNames<DoctorSpecialty>())}.";
+        return false;
     }
 
     private async Task<DoctorResponse?> GetDoctorResponseAsync(Guid doctorId, CancellationToken cancellationToken)

@@ -32,6 +32,7 @@ using Microsoft.EntityFrameworkCore;
 using HSCSAPI.Hub;
 using Microsoft.AspNetCore.SignalR;
 using System.Security.Claims;
+using System.Text.Json.Serialization;
 
 namespace HSCSAPI
 {
@@ -42,7 +43,9 @@ namespace HSCSAPI
             var builder = WebApplication.CreateBuilder(args);
 
 
-            builder.Services.AddControllers();
+            builder.Services.AddControllers()
+                .AddJsonOptions(options =>
+                    options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter()));
             builder.Services.AddSignalR();
             builder.Services.AddCors(options =>
             {

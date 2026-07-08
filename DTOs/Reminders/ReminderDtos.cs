@@ -84,6 +84,8 @@ public class ReminderPreferencesResponse
     public bool MessageRemindersEnabled { get; set; }
     public bool InAppNotificationsEnabled { get; set; }
     public bool EmailRemindersEnabled { get; set; }
+    public bool SmsRemindersEnabled { get; set; }
+    public bool MedicationRemindersEnabled { get; set; }
     public DateTime? UpdatedAt { get; set; }
 }
 
@@ -103,4 +105,6 @@ public class UpdateReminderPreferencesRequest
 
     [Required]
     public bool? EmailRemindersEnabled { get; set; }
+    public bool? SmsRemindersEnabled { get; set; }
+    public bool? MedicationRemindersEnabled { get; set; }
 }

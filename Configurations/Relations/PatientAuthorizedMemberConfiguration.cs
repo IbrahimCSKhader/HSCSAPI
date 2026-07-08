@@ -23,6 +23,8 @@ public class PatientAuthorizedMemberConfiguration : IEntityTypeConfiguration<Pat
         builder.Property(x => x.IsActive)
             .IsRequired()
             .HasDefaultValue(true);
+        builder.Property(x => x.CanViewRecords).IsRequired().HasDefaultValue(true);
+        builder.Property(x => x.CanViewAppointments).IsRequired().HasDefaultValue(true);
 
         builder.HasOne(x => x.Patient)
             .WithMany(x => x.AuthorizedMembers)

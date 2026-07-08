@@ -121,7 +121,7 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             TotalPages = CalculateTotalPages(totalCount, normalizedPageSize),
             Items = requests.Select(x => MapWorkItem(
                 x,
-                x.LoincCode is not null && templateCodes.TryGetValue(x.LoincCode, out var code) ? code : null)).ToList()
+                ResolveSuggestedTemplateCode(x.LoincCode, templateCodes))).ToList()
         });
     }
 
@@ -139,6 +139,7 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
 
         var templateCode = request.LoincCode is null ? null : await _dbContext.LabTestTemplates.AsNoTracking()
             .Where(x => x.LoincCode == request.LoincCode).Select(x => x.Code).FirstOrDefaultAsync(cancellationToken);
+        templateCode ??= ResolveKnownPanelTemplateCode(request.LoincCode);
         return new OkObjectResult(MapWorkItem(request, templateCode));
     }
 
@@ -186,14 +187,15 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
 
         if (!string.IsNullOrWhiteSpace(labRequest.LoincCode)
             && !string.IsNullOrWhiteSpace(template.LoincCode)
-            && !labRequest.LoincCode.Equals(template.LoincCode, StringComparison.OrdinalIgnoreCase))
+            && !labRequest.LoincCode.Equals(template.LoincCode, StringComparison.OrdinalIgnoreCase)
+            && !IsAllowedPanelTemplateMapping(labRequest.LoincCode, template.Code))
         {
             return new BadRequestObjectResult(
                 $"Template LOINC code {template.LoincCode} does not match request LOINC code {labRequest.LoincCode}.");
         }
 
-        var accessionNumber = Clean(request.AccessionNumber);
-        if (accessionNumber is null || !AccessionNumberRegex().IsMatch(accessionNumber))
+        var accessionNumber = Clean(request.AccessionNumber) ?? GenerateAccessionNumber();
+        if (!AccessionNumberRegex().IsMatch(accessionNumber))
         {
             return new BadRequestObjectResult(
                 "Accession number must be 3-80 characters and contain only letters, numbers, dot, underscore, slash, or hyphen.");
@@ -623,6 +625,9 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
         LabTestTemplateId = template.LabTestTemplateId,
         Code = template.Code,
         Name = template.Name,
+        ShortLabel = template.Code,
+        DisplayName = template.Name,
+        Description = template.PreparationInstructions,
         LoincCode = template.LoincCode,
         SpecimenType = template.SpecimenType,
         PreparationInstructions = template.PreparationInstructions,
@@ -644,6 +649,36 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             DisplayOrder = x.DisplayOrder
         }).ToList()
     };
+
+    private static string? ResolveSuggestedTemplateCode(string? loincCode, IReadOnlyDictionary<string, string> templateCodes)
+    {
+        if (string.IsNullOrWhiteSpace(loincCode))
+        {
+            return null;
+        }
+
+        return templateCodes.TryGetValue(loincCode, out var code)
+            ? code
+            : ResolveKnownPanelTemplateCode(loincCode);
+    }
+
+    private static string? ResolveKnownPanelTemplateCode(string? loincCode)
+    {
+        return loincCode?.Equals("58410-2", StringComparison.OrdinalIgnoreCase) == true
+            ? "CBC-DIFF"
+            : null;
+    }
+
+    private static bool IsAllowedPanelTemplateMapping(string requestLoincCode, string templateCode)
+    {
+        return requestLoincCode.Equals("58410-2", StringComparison.OrdinalIgnoreCase)
+            && templateCode.Equals("CBC-DIFF", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string GenerateAccessionNumber()
+    {
+        return $"LAB-{DateTime.UtcNow:yyyyMMdd}-{Guid.NewGuid().ToString("N")[..8].ToUpperInvariant()}";
+    }
 
     private static LabTestResultResponse MapResult(LabTestResult result) => new()
     {

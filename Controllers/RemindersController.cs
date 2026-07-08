@@ -60,12 +60,14 @@ public class RemindersController : ControllerBase
         return await _remindersService.DismissReminderAsync(reminderId, User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpGet("preferences")]
     public async Task<ActionResult<ReminderPreferencesResponse>> GetMyPreferences(CancellationToken cancellationToken)
     {
         return await _remindersService.GetMyPreferencesAsync(User, cancellationToken);
     }
 
+    // last end point added - already-added
     [HttpPut("preferences")]
     public async Task<ActionResult<ReminderPreferencesResponse>> UpdateMyPreferences(
         [FromBody] UpdateReminderPreferencesRequest request,

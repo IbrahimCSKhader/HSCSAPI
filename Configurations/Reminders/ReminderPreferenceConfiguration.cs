@@ -31,6 +31,8 @@ public class ReminderPreferenceConfiguration : IEntityTypeConfiguration<Reminder
         builder.Property(x => x.EmailRemindersEnabled)
             .IsRequired()
             .HasDefaultValue(false);
+        builder.Property(x => x.SmsRemindersEnabled).IsRequired().HasDefaultValue(false);
+        builder.Property(x => x.MedicationRemindersEnabled).IsRequired().HasDefaultValue(true);
 
         builder.Property(x => x.UpdatedAt)
             .IsRequired()

@@ -173,7 +173,65 @@ public static class LabTestTemplateSeedData
         string? unit,
         int decimalPlaces,
         bool required = true) =>
-        new(code, label, loincCode, LabResultValueType.Numeric, unit, required, decimalPlaces, null, null);
+        new(code, label, loincCode, LabResultValueType.Numeric, unit, required, decimalPlaces, ReferenceRangeFor(code), null);
+
+    private static string? ReferenceRangeFor(string code)
+    {
+        return code.ToLowerInvariant() switch
+        {
+            "wbc" => "4.0-11.0",
+            "rbc" => "4.2-5.9",
+            "hemoglobin" => "12.0-17.5",
+            "hematocrit" => "36-52",
+            "mcv" => "80-100",
+            "mch" => "27-33",
+            "mchc" => "32-36",
+            "rdw" => "11.5-14.5",
+            "platelets" => "150-450",
+            "neutrophils_percent" => "40-70",
+            "lymphocytes_percent" => "20-45",
+            "monocytes_percent" => "2-10",
+            "eosinophils_percent" => "1-6",
+            "basophils_percent" => "0-2",
+            "glucose" => "70-99",
+            "calcium" => "8.6-10.2",
+            "sodium" => "135-145",
+            "potassium" => "3.5-5.1",
+            "chloride" => "98-107",
+            "co2" => "22-29",
+            "bun" => "7-20",
+            "creatinine" => "0.6-1.3",
+            "total_protein" => "6.0-8.3",
+            "albumin" => "3.5-5.0",
+            "total_bilirubin" => "0.1-1.2",
+            "alp" => "44-147",
+            "ast" => "10-40",
+            "alt" => "7-56",
+            "specific_gravity" => "1.005-1.030",
+            "ph" => "4.5-8.0",
+            "urobilinogen" => "0.2-1.0",
+            "wbc_hpf" => "0-5",
+            "rbc_hpf" => "0-2",
+            "total_cholesterol" => "<200",
+            "hdl" => ">=40",
+            "ldl_direct" => "<100",
+            "triglycerides" => "<150",
+            "hba1c" => "4.0-5.6",
+            "tsh" => "0.4-4.0",
+            "free_t4" => "0.8-1.8",
+            "pt" => "11-13.5",
+            "inr" => "0.8-1.1",
+            "aptt" => "25-35",
+            "fibrinogen" => "200-400",
+            "serum_iron" => "60-170",
+            "tibc" => "240-450",
+            "transferrin" => "200-360",
+            "transferrin_saturation" => "20-50",
+            "ferritin" => "30-400",
+            "vitamin_d_25oh" => "30-100",
+            _ => null
+        };
+    }
 
     private static LabFieldSeed T(string code, string label, string? loincCode, bool required = true) =>
         new(code, label, loincCode, LabResultValueType.Text, null, required, null, null, null);

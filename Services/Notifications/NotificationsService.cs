@@ -67,7 +67,7 @@ public class NotificationsService : INotificationsService
                 Title = notification.Title,
                 Message = notification.Message,
                 IsRead = notification.IsRead,
-                Category = InferNotificationCategory(notification.Title, notification.Message),
+                Category = GetNotificationCategory(notification),
                 CreatedAt = notification.CreatedAt
             })
             .ToListAsync(cancellationToken);
@@ -177,9 +177,17 @@ public class NotificationsService : INotificationsService
             Title = notification.Title,
             Message = notification.Message,
             IsRead = notification.IsRead,
-            Category = InferNotificationCategory(notification.Title, notification.Message),
+            Category = GetNotificationCategory(notification),
             CreatedAt = notification.CreatedAt
         };
+    }
+
+    private static string GetNotificationCategory(Notification notification)
+    {
+        return string.IsNullOrWhiteSpace(notification.Category)
+            || notification.Category.Equals("General", StringComparison.OrdinalIgnoreCase)
+            ? InferNotificationCategory(notification.Title, notification.Message)
+            : notification.Category;
     }
 
     private static string InferNotificationCategory(string title, string? message)

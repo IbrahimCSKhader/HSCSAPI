@@ -490,7 +490,9 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                     PatientId = invite.PatientId,
                     AuthorizedMemberId = currentUserId.Value,
                     RelationshipType = invite.RelationshipType,
-                    AuthorizedAt = respondedAt
+                    AuthorizedAt = respondedAt,
+                    CanViewRecords = invite.CanViewRecords,
+                    CanViewAppointments = invite.CanViewAppointments
                 });
             }
             else
@@ -498,6 +500,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                 relation.IsActive = true;
                 relation.RelationshipType = invite.RelationshipType;
                 relation.AuthorizedAt = respondedAt;
+                relation.CanViewRecords = invite.CanViewRecords;
+                relation.CanViewAppointments = invite.CanViewAppointments;
             }
         }
 
@@ -543,6 +547,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
                 ClinicName = relation.Patient.User.Clinic != null ? relation.Patient.User.Clinic.Name : null,
                 RelationshipType = relation.RelationshipType,
                 AuthorizedAt = relation.AuthorizedAt,
+                CanViewRecords = relation.CanViewRecords,
+                CanViewAppointments = relation.CanViewAppointments,
                 MedicalRecordsCount = relation.Patient.Appointments
                     .SelectMany(appointment => appointment.MedicalFiles)
                     .Count(),
@@ -813,8 +819,8 @@ public class AuthorizedMembersService : IAuthorizedMembersService
             AuthorizedAt = patient.AuthorizedAt,
             MedicalRecordsCount = patient.MedicalRecordsCount,
             UpcomingAppointmentsCount = patient.UpcomingAppointmentsCount,
-            CanViewRecords = true,
-            CanViewAppointments = true
+            CanViewRecords = patient.CanViewRecords,
+            CanViewAppointments = patient.CanViewAppointments
         };
     }
 

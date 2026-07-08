@@ -10,6 +10,8 @@ public class ReminderPreference
     public bool MessageRemindersEnabled { get; set; } = true;
     public bool InAppNotificationsEnabled { get; set; } = true;
     public bool EmailRemindersEnabled { get; set; }
+    public bool SmsRemindersEnabled { get; set; }
+    public bool MedicationRemindersEnabled { get; set; } = true;
     public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

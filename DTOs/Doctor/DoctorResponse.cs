@@ -11,6 +11,8 @@ public class DoctorResponse
     public Guid? ClinicId { get; set; }
     public string? ClinicName { get; set; }
     public string ProfessionalLicenseNumber { get; set; } = string.Empty;
+    public string DoctorUserCode { get; set; } = string.Empty;
+    public string Specialty { get; set; } = string.Empty;
     public bool EmailConfirmed { get; set; }
     public bool IsActive { get; set; }
     public DateTime? PasswordLastUpdatedIso { get; set; }

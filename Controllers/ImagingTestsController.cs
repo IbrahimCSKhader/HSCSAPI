@@ -15,6 +15,11 @@ public class ImagingTestsController : ControllerBase
     public ImagingTestsController(IImagingRequestsService service) => _service = service;
 
     // last end point added
+    [HttpGet("dashboard")]
+    public Task<ActionResult<RadiologyDashboardResponse>> GetDashboard(CancellationToken cancellationToken) =>
+        _service.GetTechnologistDashboardAsync(User, cancellationToken);
+
+    // last end point added
     [HttpGet("my-requests")]
     public Task<ActionResult<ImagingRequestsResponse>> GetMyRequests(
         [FromQuery] string? status, [FromQuery] int page, [FromQuery] int pageSize, CancellationToken cancellationToken) =>

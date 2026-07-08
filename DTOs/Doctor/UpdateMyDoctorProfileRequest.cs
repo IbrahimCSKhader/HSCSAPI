@@ -6,4 +6,5 @@ public class UpdateMyDoctorProfileRequest
     public string? PhoneNumber { get; set; }
     public string? Address { get; set; }
     public DateOnly? DateOfBirth { get; set; }
+    public string? Specialty { get; set; }
 }

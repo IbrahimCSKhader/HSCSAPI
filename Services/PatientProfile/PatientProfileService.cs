@@ -388,7 +388,9 @@ public class PatientProfileService : IPatientProfileService
                 PhoneNumber = relation.AuthorizedMember.User.PhoneNumber,
                 RelationshipType = relation.RelationshipType.ToString(),
                 AuthorizedAt = relation.AuthorizedAt,
-                IsActive = relation.IsActive
+                IsActive = relation.IsActive,
+                CanViewRecords = relation.CanViewRecords,
+                CanViewAppointments = relation.CanViewAppointments
             })
             .ToListAsync(cancellationToken);
 
@@ -477,7 +479,9 @@ public class PatientProfileService : IPatientProfileService
             AuthorizedMemberId = authorizedMember.AuthorizedMemberId,
             RelationshipType = relationshipType,
             Status = InviteStatus.Pending,
-            SentAt = DateTime.UtcNow
+            SentAt = DateTime.UtcNow,
+            CanViewRecords = request.CanViewRecords,
+            CanViewAppointments = request.CanViewAppointments
         };
 
         _dbContext.Invites.Add(invite);
@@ -604,6 +608,7 @@ public class PatientProfileService : IPatientProfileService
                 UploadedAt = file.UploadedAt,
                 DoctorId = file.UploadedByDoctorId,
                 DoctorName = file.UploadedByDoctor.User.Name,
+                DoctorSpecialty = file.UploadedByDoctor.Specialty.ToString(),
                 ClinicId = file.Appointment.Doctor.User.ClinicId,
                 ClinicName = file.Appointment.Doctor.User.Clinic != null ? file.Appointment.Doctor.User.Clinic.Name : null,
                 AppointmentDate = file.Appointment.AppointmentDate,
@@ -669,7 +674,9 @@ public class PatientProfileService : IPatientProfileService
                 Status = invite.Status.ToString(),
                 SentAt = invite.SentAt,
                 RespondedAt = invite.RespondedAt,
-                IsActive = invite.IsActive
+                IsActive = invite.IsActive,
+                CanViewRecords = invite.CanViewRecords,
+                CanViewAppointments = invite.CanViewAppointments
             });
     }
 
@@ -722,6 +729,7 @@ public class PatientProfileService : IPatientProfileService
             UploadedAt = record.UploadedAt,
             DoctorId = record.DoctorId,
             DoctorName = record.DoctorName,
+            DoctorSpecialty = record.DoctorSpecialty,
             ClinicId = record.ClinicId,
             ClinicName = record.ClinicName,
             AppointmentDate = record.AppointmentDate,
@@ -749,6 +757,7 @@ public class PatientProfileService : IPatientProfileService
             UploadedAt = record.UploadedAt,
             DoctorId = record.DoctorId,
             DoctorName = record.DoctorName,
+            DoctorSpecialty = record.DoctorSpecialty,
             ClinicId = record.ClinicId,
             ClinicName = record.ClinicName,
             AppointmentDate = record.AppointmentDate,
@@ -925,6 +934,7 @@ public class PatientProfileService : IPatientProfileService
         public DateTime UploadedAt { get; set; }
         public Guid DoctorId { get; set; }
         public string DoctorName { get; set; } = string.Empty;
+        public string DoctorSpecialty { get; set; } = string.Empty;
         public Guid? ClinicId { get; set; }
         public string? ClinicName { get; set; }
         public DateOnly AppointmentDate { get; set; }

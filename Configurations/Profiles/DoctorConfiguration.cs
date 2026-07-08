@@ -17,6 +17,12 @@ public class DoctorConfiguration : IEntityTypeConfiguration<Doctor>
             .IsRequired()
             .HasMaxLength(100);
 
+        builder.Property(x => x.Specialty)
+            .HasConversion<string>()
+            .HasMaxLength(50)
+            .HasDefaultValue(HSCSAPI.Models.Enums.DoctorSpecialty.GeneralPractitioner)
+            .IsRequired();
+
         builder.HasIndex(x => x.ProfessionalLicenseNumber)
             .IsUnique();
 
