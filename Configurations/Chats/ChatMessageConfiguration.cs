@@ -12,7 +12,7 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
             table.HasCheckConstraint(
                 "CK_ChatMessages_Content",
                 "([MessageType] = 'Text' AND [Text] IS NOT NULL AND [FilePath] IS NULL AND [ContentType] IS NULL AND [FileSizeInBytes] IS NULL) OR " +
-                "([MessageType] IN ('Image', 'Audio') AND [Text] IS NULL AND [FilePath] IS NOT NULL AND [ContentType] IS NOT NULL AND [FileSizeInBytes] IS NOT NULL AND [FileSizeInBytes] > 0)"));
+                "([MessageType] IN ('Image', 'Voice') AND [Text] IS NULL AND [FilePath] IS NOT NULL AND [ContentType] IS NOT NULL AND [FileSizeInBytes] IS NOT NULL AND [FileSizeInBytes] > 0)"));
 
         builder.HasKey(x => x.ChatMessageId);
 

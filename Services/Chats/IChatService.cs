@@ -11,6 +11,11 @@ public interface IChatService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ChatResponse> OpenChatByPatientUserIdAsync(
+        string patientUserId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
     Task<List<ChatResponse>> GetChatsAsync(
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);

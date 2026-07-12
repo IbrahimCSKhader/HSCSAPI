@@ -29,6 +29,17 @@ public interface ILaboratoryResultsService
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default);
 
+    Task<ActionResult<LabWorkItemResponse>> UploadResultFileAsync(
+        Guid labTestRequestId,
+        UploadLabResultFileRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
+    Task<IActionResult> DownloadResultFileAsync(
+        Guid labTestRequestId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default);
+
     Task<ActionResult<LabTestResultResponse>> GetResultAsync(
         Guid labTestResultId,
         ClaimsPrincipal user,

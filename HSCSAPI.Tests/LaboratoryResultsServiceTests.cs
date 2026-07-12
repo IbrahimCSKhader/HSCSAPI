@@ -3,6 +3,7 @@ using System.Text.Json;
 using HSCSAPI.Controllers;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Laboratory;
+using HSCSAPI.Models.Appointments;
 using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
@@ -148,6 +149,54 @@ public class LaboratoryResultsServiceTests
         Assert.Equal(
             setup.Technologist.LaboratoryTechnologistId,
             (await context.DbContext.LabTestRequests.FindAsync(setup.Request.LabTestRequestId))!.LaboratoryTechnologistId);
+    }
+
+    [Fact]
+    public async Task UploadResultFile_StoresResultMedicalFileAndReturnsDownloadUrl()
+    {
+        using var context = new LaboratoryResultTestContext();
+        var setup = context.AddBasicSetup("58410-2", assigned: false);
+        var slot = new AvailabilitySlot
+        {
+            AvailabilitySlotId = Guid.NewGuid(),
+            DoctorId = setup.Doctor.DoctorId,
+            SlotDate = new DateOnly(2026, 7, 12),
+            DayOfWeek = DayOfWeek.Sunday,
+            StartTime = new TimeOnly(9, 0),
+            EndTime = new TimeOnly(9, 30)
+        };
+        context.DbContext.AvailabilitySlots.Add(slot);
+        context.DbContext.Appointments.Add(new Appointment
+        {
+            AppointmentId = Guid.NewGuid(),
+            DoctorId = setup.Doctor.DoctorId,
+            PatientId = setup.Patient.PatientId,
+            AvailabilitySlotId = slot.AvailabilitySlotId,
+            AppointmentDate = slot.SlotDate,
+            AppointmentTime = slot.StartTime
+        });
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.UploadResultFileAsync(
+            setup.Request.LabTestRequestId,
+            new UploadLabResultFileRequest
+            {
+                Summary = "CBC result uploaded.",
+                File = ChatTestContext.FormFile([0x25, 0x50, 0x44, 0x46], "cbc-result.pdf", "application/pdf")
+            },
+            LaboratoryResultTestContext.Principal(setup.Technologist.LaboratoryTechnologistId),
+            CancellationToken.None);
+
+        var workItem = Ok<LabWorkItemResponse>(response);
+        Assert.Equal("Completed", workItem.Status);
+        Assert.Equal("CBC result uploaded.", workItem.ResultSummary);
+        Assert.EndsWith(".pdf", workItem.ResultFileName);
+        Assert.Equal($"/api/LaboratoryTests/my-requests/{setup.Request.LabTestRequestId}/result-file", workItem.ResultFileUrl);
+
+        var stored = await context.DbContext.LabTestRequests.Include(x => x.ResultMedicalFile).SingleAsync();
+        Assert.NotNull(stored.ResultMedicalFile);
+        Assert.Equal(setup.Technologist.LaboratoryTechnologistId, stored.LaboratoryTechnologistId);
+        Assert.True(File.Exists(Path.Combine(context.ContentRootPath, stored.ResultMedicalFile!.FilePath)));
     }
 
     [Fact]
@@ -339,10 +388,12 @@ public class LaboratoryResultsServiceTests
                 .Select(attribute => $"{string.Join(',', attribute.HttpMethods)} {controllerRoute}/{attribute.Template}"))
             .ToList();
 
-        Assert.Equal(8, routes.Count);
+        Assert.Equal(10, routes.Count);
         Assert.Equal(routes.Count, routes.Distinct(StringComparer.OrdinalIgnoreCase).Count());
         Assert.Contains("GET api/[controller]/templates", routes);
         Assert.Contains("POST api/[controller]/my-requests/{labTestRequestId:guid}/results", routes);
+        Assert.Contains("POST api/[controller]/my-requests/{labTestRequestId:guid}/result-file", routes);
+        Assert.Contains("GET api/[controller]/my-requests/{labTestRequestId:guid}/result-file", routes);
         Assert.Contains("GET api/[controller]/my-requests/{labTestRequestId:guid}", routes);
         Assert.Contains("POST api/[controller]/results/{labTestResultId:guid}/pdf", routes);
         Assert.Contains("GET api/[controller]/results/{labTestResultId:guid}/pdf", routes);

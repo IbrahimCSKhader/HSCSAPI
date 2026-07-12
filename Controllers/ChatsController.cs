@@ -19,10 +19,22 @@ public class ChatsController : ControllerBase
 
     // last end point added - already-added
     [HttpPost("open")]
-    public Task<ChatResponse> OpenChat(
+    public async Task<ChatResponse> OpenChat(
         [FromBody] OpenChatRequest request,
-        CancellationToken cancellationToken) =>
-        _chatService.OpenChatAsync(request.RecipientUserId, User, cancellationToken);
+        CancellationToken cancellationToken)
+    {
+        if (request.RecipientUserId.HasValue)
+        {
+            return await _chatService.OpenChatAsync(request.RecipientUserId.Value, User, cancellationToken);
+        }
+
+        if (!string.IsNullOrWhiteSpace(request.PatientUserId))
+        {
+            return await _chatService.OpenChatByPatientUserIdAsync(request.PatientUserId, User, cancellationToken);
+        }
+
+        throw new ArgumentException("RecipientUserId or PatientUserId is required.");
+    }
 
     [HttpGet]
     public Task<List<ChatResponse>> GetChats(CancellationToken cancellationToken) =>

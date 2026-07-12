@@ -18,6 +18,20 @@ public class DoctorsController : ControllerBase
         _doctorsService = doctorsService;
     }
 
+    // last end point added
+    [HttpGet("specialties")]
+    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryRoles)]
+    public ActionResult<List<DoctorSpecialtyResponse>> GetSpecialties()
+    {
+        return Enum.GetNames<DoctorSpecialty>()
+            .Select(name => new DoctorSpecialtyResponse
+            {
+                Id = name,
+                Name = name
+            })
+            .ToList();
+    }
+
     [HttpGet]
     [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryOrPatientRoles)]
     public async Task<ActionResult<List<DoctorResponse>>> GetAll([FromQuery] Guid? clinicId, CancellationToken cancellationToken)

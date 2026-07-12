@@ -7,8 +7,10 @@ using HSCSAPI.Data;
 using HSCSAPI.DTOs.Laboratory;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Laboratory;
+using HSCSAPI.Models.MedicalFiles;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.StaticFiles;
 using Microsoft.EntityFrameworkCore;
 
 namespace HSCSAPI.Services.Laboratory;
@@ -24,6 +26,7 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
     private readonly ILabResultPdfGenerator _pdfGenerator;
     private readonly IWebHostEnvironment _environment;
     private readonly string _pdfRootPath;
+    private readonly FileExtensionContentTypeProvider _contentTypeProvider = new();
 
     public LaboratoryResultsService(
         AppDbContext dbContext,
@@ -267,6 +270,150 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
         return new OkObjectResult(MapResult(created));
     }
 
+    public async Task<ActionResult<LabWorkItemResponse>> UploadResultFileAsync(
+        Guid labTestRequestId,
+        UploadLabResultFileRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null)
+        {
+            return access.Error;
+        }
+
+        var labRequest = await BuildAccessibleRequestsQuery(access.TechnologistId!.Value, access.ClinicId, tracking: true)
+            .FirstOrDefaultAsync(x => x.LabTestRequestId == labTestRequestId, cancellationToken);
+        if (labRequest is null)
+        {
+            return new NotFoundObjectResult("Lab test request not found.");
+        }
+
+        if (labRequest.ResultMedicalFileId is not null)
+        {
+            return new ConflictObjectResult("A result file already exists for this lab test request.");
+        }
+
+        if (request.File is null || request.File.Length <= 0)
+        {
+            return new BadRequestObjectResult("A result file is required.");
+        }
+
+        var extension = Path.GetExtension(request.File.FileName).ToLowerInvariant();
+        var fileType = extension switch
+        {
+            ".pdf" => MedicalFileType.Pdf,
+            ".jpg" or ".jpeg" => MedicalFileType.Jpeg,
+            ".png" => MedicalFileType.Png,
+            ".doc" or ".docx" => MedicalFileType.Word,
+            _ => (MedicalFileType?)null
+        };
+        if (fileType is null)
+        {
+            return new BadRequestObjectResult("Only PDF, Word, JPEG, and PNG files are supported.");
+        }
+
+        if (labRequest.PatientId is null || labRequest.RequestedByDoctorId is null)
+        {
+            return new BadRequestObjectResult("The lab test request must be linked to a patient and doctor.");
+        }
+
+        var appointment = await _dbContext.Appointments.AsNoTracking()
+            .Where(x => x.PatientId == labRequest.PatientId && x.DoctorId == labRequest.RequestedByDoctorId)
+            .OrderByDescending(x => x.AppointmentDate)
+            .ThenByDescending(x => x.AppointmentTime)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (appointment is null)
+        {
+            return new BadRequestObjectResult("The lab test request must be linked to a doctor-patient appointment.");
+        }
+
+        var medicalFileId = Guid.NewGuid();
+        var directory = Path.Combine(_environment.ContentRootPath, "wwwroot", "lab-results", "files", labTestRequestId.ToString("N"));
+        Directory.CreateDirectory(directory);
+        var physicalPath = Path.Combine(directory, $"{medicalFileId:N}{extension}");
+
+        try
+        {
+            await using var output = new FileStream(physicalPath, FileMode.CreateNew, FileAccess.ReadWrite, FileShare.None, 81920, true);
+            await request.File.CopyToAsync(output, cancellationToken);
+            await output.FlushAsync(cancellationToken);
+            output.Position = 0;
+            var checksum = Convert.ToHexString(await SHA256.HashDataAsync(output, cancellationToken));
+            var medicalFile = new MedicalFile
+            {
+                MedicalFileId = medicalFileId,
+                AppointmentId = appointment.AppointmentId,
+                UploadedByDoctorId = labRequest.RequestedByDoctorId.Value,
+                FileType = fileType.Value,
+                FilePath = Path.GetRelativePath(_environment.ContentRootPath, physicalPath).Replace('\\', '/'),
+                EncryptedChecksum = checksum,
+                FileSizeInBytes = request.File.Length,
+                SeverityLevel = SeverityLevel.High,
+                UploadedAt = DateTime.UtcNow
+            };
+
+            _dbContext.MedicalFiles.Add(medicalFile);
+            labRequest.ResultMedicalFileId = medicalFileId;
+            labRequest.LaboratoryTechnologistId = access.TechnologistId.Value;
+            if (!string.IsNullOrWhiteSpace(request.Summary))
+            {
+                labRequest.ClinicalNotes = Clean(request.Summary, 1000);
+            }
+
+            await _dbContext.SaveChangesAsync(cancellationToken);
+        }
+        catch
+        {
+            if (File.Exists(physicalPath))
+            {
+                File.Delete(physicalPath);
+            }
+
+            throw;
+        }
+
+        var completed = await BuildAccessibleRequestsQuery(access.TechnologistId.Value, access.ClinicId)
+            .FirstAsync(x => x.LabTestRequestId == labTestRequestId, cancellationToken);
+        return new OkObjectResult(MapWorkItem(completed, null));
+    }
+
+    public async Task<IActionResult> DownloadResultFileAsync(
+        Guid labTestRequestId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var access = await GetTechnologistAccessAsync(user, cancellationToken);
+        if (access.Error is not null)
+        {
+            return access.Error;
+        }
+
+        var request = await BuildAccessibleRequestsQuery(access.TechnologistId!.Value, access.ClinicId)
+            .FirstOrDefaultAsync(x => x.LabTestRequestId == labTestRequestId, cancellationToken);
+        if (request?.ResultMedicalFile is null)
+        {
+            return new NotFoundObjectResult("Lab result file not found.");
+        }
+
+        var path = ResolveGeneratedFilePath(request.ResultMedicalFile.FilePath);
+        if (!File.Exists(path))
+        {
+            return new NotFoundObjectResult("Result file was not found on disk.");
+        }
+
+        if (!_contentTypeProvider.TryGetContentType(path, out var contentType))
+        {
+            contentType = "application/octet-stream";
+        }
+
+        return new PhysicalFileResult(path, contentType)
+        {
+            FileDownloadName = Path.GetFileName(path),
+            EnableRangeProcessing = true
+        };
+    }
+
     public async Task<ActionResult<LabTestResultResponse>> GetResultAsync(
         Guid labTestResultId,
         ClaimsPrincipal user,
@@ -392,14 +539,14 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             : new(access.LaboratoryTechnologistId, access.ClinicId, null);
     }
 
-    private IQueryable<LabTestRequest> BuildAccessibleRequestsQuery(Guid technologistId, Guid? clinicId)
+    private IQueryable<LabTestRequest> BuildAccessibleRequestsQuery(Guid technologistId, Guid? clinicId, bool tracking = false)
     {
-        return BuildRequestForResultQuery()
-            .AsNoTracking()
+        var query = BuildRequestForResultQuery()
             .Where(x => x.LaboratoryTechnologistId == technologistId
                 || (x.LaboratoryTechnologistId == null
                     && clinicId != null
                     && x.TestingClinicId == clinicId));
+        return tracking ? query : query.AsNoTracking();
     }
 
     private static LabWorkItemResponse MapWorkItem(LabTestRequest request, string? suggestedTemplateCode)
@@ -413,7 +560,7 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             TestName = request.TestName,
             LoincCode = request.LoincCode,
             Priority = request.Priority,
-            Status = request.StructuredResult is null ? "Pending" : "Completed",
+            Status = request.StructuredResult is null && request.ResultMedicalFile is null ? "Pending" : "Completed",
             RequestedAt = request.RequestedAt,
             PatientId = request.PatientId,
             PatientUserId = request.Patient?.UserID,
@@ -427,7 +574,9 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             LabTestResultId = request.StructuredResult?.LabTestResultId,
             ClinicalNotes = request.ClinicalNotes,
             CompletedAtIso = request.StructuredResult?.CompletedAt,
-            ResultSummary = request.StructuredResult?.Comments,
+            ResultSummary = request.StructuredResult?.Comments ?? request.ClinicalNotes,
+            ResultFileName = request.ResultMedicalFile is null ? null : Path.GetFileName(request.ResultMedicalFile.FilePath),
+            ResultFileUrl = request.ResultMedicalFile is null ? null : $"/api/LaboratoryTests/my-requests/{request.LabTestRequestId}/result-file",
             PdfAvailable = request.StructuredResult?.PdfFilePath is not null,
             PdfFileName = request.StructuredResult?.PdfFilePath is null ? null : Path.GetFileName(request.StructuredResult.PdfFilePath)
         };
@@ -441,7 +590,8 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             .Include(x => x.RequestedByDoctor)
                 .ThenInclude(x => x!.User)
             .Include(x => x.TestingClinic)
-            .Include(x => x.StructuredResult);
+            .Include(x => x.StructuredResult)
+            .Include(x => x.ResultMedicalFile);
     }
 
     private IQueryable<LabTestResult> BuildResultQuery(bool tracking = false)

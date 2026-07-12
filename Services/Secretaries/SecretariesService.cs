@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Security.Claims;
 using HSCSAPI.Data;
 using HSCSAPI.DTOs.Common;
@@ -252,6 +253,73 @@ public class SecretariesService : ISecretariesService
             });
     }
 
+    public async Task<ActionResult<AvailabilitySlotResponse>> UpdateDoctorAvailabilitySlotAsync(
+        Guid doctorId,
+        Guid slotId,
+        UpdateAvailabilitySlotRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        if (!await DoctorBelongsToClinicAsync(doctorId, scope.Value.ClinicId, cancellationToken))
+        {
+            return new NotFoundObjectResult("Doctor not found in your clinic.");
+        }
+
+        if (request.SlotDate == default || request.StartTime == default || request.EndTime <= request.StartTime)
+        {
+            return new BadRequestObjectResult("A valid slotDate, startTime, and later endTime are required.");
+        }
+
+        var slot = await _dbContext.AvailabilitySlots
+            .FirstOrDefaultAsync(x => x.AvailabilitySlotId == slotId && x.DoctorId == doctorId, cancellationToken);
+        if (slot is null)
+        {
+            return new NotFoundObjectResult("Availability slot not found.");
+        }
+
+        if (await _dbContext.Appointments.AsNoTracking().AnyAsync(x => x.AvailabilitySlotId == slotId && x.IsActive, cancellationToken))
+        {
+            return new ConflictObjectResult("A booked availability slot cannot be updated.");
+        }
+
+        var overlaps = await _dbContext.AvailabilitySlots.AsNoTracking().AnyAsync(
+            x => x.AvailabilitySlotId != slotId
+                && x.DoctorId == doctorId
+                && x.SlotDate == request.SlotDate
+                && x.StartTime < request.EndTime
+                && request.StartTime < x.EndTime,
+            cancellationToken);
+        if (overlaps)
+        {
+            return new ConflictObjectResult("The availability slot overlaps an existing slot.");
+        }
+
+        slot.SlotDate = request.SlotDate;
+        slot.DayOfWeek = request.SlotDate.DayOfWeek;
+        slot.StartTime = request.StartTime;
+        slot.EndTime = request.EndTime;
+        slot.Notes = NormalizeOptional(request.Notes);
+        slot.IsAvailable = true;
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        return new OkObjectResult(new AvailabilitySlotResponse
+        {
+            AvailabilitySlotId = slot.AvailabilitySlotId,
+            DoctorId = slot.DoctorId,
+            SlotDate = slot.SlotDate,
+            StartTime = slot.StartTime,
+            EndTime = slot.EndTime,
+            Notes = slot.Notes,
+            Status = "available"
+        });
+    }
+
     public async Task<IActionResult> DeleteDoctorAvailabilitySlotAsync(
         Guid doctorId, Guid slotId, ClaimsPrincipal user, CancellationToken cancellationToken = default)
     {
@@ -347,20 +415,30 @@ public class SecretariesService : ISecretariesService
         }
 
         var clinicName = await _dbContext.Clinics.Where(x => x.ClinicId == scope.Value.ClinicId).Select(x => x.Name).FirstAsync(cancellationToken);
-        var patients = await _dbContext.Patients.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
-        var doctors = await _dbContext.Doctors.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
+        var patientsQuery = _dbContext.Patients
+            .Where(x => x.User.ClinicId == scope.Value.ClinicId);
+        var doctorsQuery = _dbContext.Doctors
+            .Where(x => x.User.ClinicId == scope.Value.ClinicId);
         var appointmentsQuery = _dbContext.Appointments
             .Where(x => x.Doctor.User.ClinicId == scope.Value.ClinicId);
         if (fromDate.HasValue)
         {
+            var fromDateTime = fromDate.Value.ToDateTime(TimeOnly.MinValue);
+            patientsQuery = patientsQuery.Where(x => x.User.RegisteredAt >= fromDateTime);
+            doctorsQuery = doctorsQuery.Where(x => x.User.RegisteredAt >= fromDateTime);
             appointmentsQuery = appointmentsQuery.Where(x => x.AppointmentDate >= fromDate.Value);
         }
 
         if (toDate.HasValue)
         {
+            var toExclusive = toDate.Value.AddDays(1).ToDateTime(TimeOnly.MinValue);
+            patientsQuery = patientsQuery.Where(x => x.User.RegisteredAt < toExclusive);
+            doctorsQuery = doctorsQuery.Where(x => x.User.RegisteredAt < toExclusive);
             appointmentsQuery = appointmentsQuery.Where(x => x.AppointmentDate <= toDate.Value);
         }
 
+        var patients = await patientsQuery.CountAsync(cancellationToken);
+        var doctors = await doctorsQuery.CountAsync(cancellationToken);
         var appointments = await appointmentsQuery.CountAsync(cancellationToken);
         var generatedAt = DateTime.UtcNow;
         byte[] bytes = format == ReportFileFormat.Csv
@@ -1070,7 +1148,9 @@ public class SecretariesService : ISecretariesService
             return false;
         }
 
-        rangeLabel = $"{fromDate:dd MMM yyyy} - {toDate:dd MMM yyyy}";
+        rangeLabel = string.Create(
+            CultureInfo.InvariantCulture,
+            $"{fromDate:dd MMM yyyy} - {toDate:dd MMM yyyy}");
         return true;
     }
 

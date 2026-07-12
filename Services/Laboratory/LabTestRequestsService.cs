@@ -3,6 +3,7 @@ using HSCSAPI.Data;
 using HSCSAPI.DTOs.Laboratory;
 using HSCSAPI.Models.Laboratory;
 using HSCSAPI.Models.MedicalFiles;
+using HSCSAPI.Models.Notifications;
 using HSCSAPI.Models.Profiles;
 using HSCSAPI.Services.Standards;
 using Microsoft.AspNetCore.Hosting;
@@ -175,6 +176,12 @@ public class LabTestRequestsService : ILabTestRequestsService
         };
 
         _dbContext.LabTestRequests.Add(labTestRequest);
+        await AddLabRequestNotificationsAsync(
+            request.TestingClinicId,
+            labTestRequest.LabTestRequestId,
+            loinc.Display,
+            patient.User.Name,
+            cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var created = await BuildReadableRequestsQuery(currentDoctorId.Value)
@@ -286,6 +293,35 @@ public class LabTestRequestsService : ILabTestRequestsService
         return Guid.TryParse(trimmedPatientId, out var patientGuid)
             ? await query.FirstOrDefaultAsync(patient => patient.PatientId == patientGuid, cancellationToken)
             : await query.FirstOrDefaultAsync(patient => patient.UserID == trimmedPatientId, cancellationToken);
+    }
+
+    private async Task AddLabRequestNotificationsAsync(
+        Guid testingClinicId,
+        Guid labTestRequestId,
+        string testName,
+        string patientName,
+        CancellationToken cancellationToken)
+    {
+        var technologistIds = await _dbContext.LaboratoryTechnologists
+            .AsNoTracking()
+            .Where(technologist => technologist.User.ClinicId == testingClinicId && technologist.User.IsActive)
+            .Select(technologist => technologist.LaboratoryTechnologistId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var technologistId in technologistIds)
+        {
+            _dbContext.Notifications.Add(new Notification
+            {
+                UserId = technologistId,
+                Title = "New lab request",
+                Message = $"New lab request for {patientName}: {testName}.",
+                Category = "Lab",
+                ActionPath = $"/laboratory/my-requests?request={labTestRequestId}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
     }
 
     private static bool ApplyStatusFilter(

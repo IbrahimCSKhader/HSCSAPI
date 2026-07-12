@@ -48,7 +48,7 @@ public class ChatFileStorageTests
         var result = await context.FileStorage.SaveAsync(
             Guid.NewGuid(),
             Guid.NewGuid(),
-            ChatMessageType.Audio,
+            ChatMessageType.Voice,
             file);
 
         Assert.Equal(contentType, result.ContentType);
@@ -57,7 +57,7 @@ public class ChatFileStorageTests
 
     [Theory]
     [InlineData(ChatMessageType.Image, "application/pdf")]
-    [InlineData(ChatMessageType.Audio, "application/octet-stream")]
+    [InlineData(ChatMessageType.Voice, "application/octet-stream")]
     public async Task Save_RejectsUnsupportedContentType(ChatMessageType messageType, string contentType)
     {
         using var context = new ChatTestContext();
@@ -87,7 +87,7 @@ public class ChatFileStorageTests
 
     [Theory]
     [InlineData(ChatMessageType.Image, ChatFileStorage.MaxImageSize)]
-    [InlineData(ChatMessageType.Audio, ChatFileStorage.MaxAudioSize)]
+    [InlineData(ChatMessageType.Voice, ChatFileStorage.MaxAudioSize)]
     public async Task Save_RejectsOversizedFiles(ChatMessageType messageType, long maximumSize)
     {
         using var context = new ChatTestContext();

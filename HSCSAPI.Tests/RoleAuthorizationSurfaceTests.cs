@@ -18,7 +18,7 @@ public class RoleAuthorizationSurfaceTests
     {
         var actualActions = GetControllerActions();
 
-        Assert.Equal(202, actualActions.Count);
+        Assert.Equal(206, actualActions.Count);
         Assert.Equal(
             ExpectedActions.Keys.OrderBy(x => x),
             actualActions.Keys.OrderBy(x => x));
@@ -54,12 +54,12 @@ public class RoleAuthorizationSurfaceTests
     {
         var expectedCounts = new Dictionary<string, int>
         {
-            [nameof(UserSystemRole.SuperAdmin)] = 98,
+            [nameof(UserSystemRole.SuperAdmin)] = 99,
             [nameof(UserSystemRole.Patient)] = 84,
             [nameof(UserSystemRole.Doctor)] = 83,
-            [nameof(UserSystemRole.Secretary)] = 121,
+            [nameof(UserSystemRole.Secretary)] = 123,
             [nameof(UserSystemRole.AuthorizedMember)] = 68,
-            [nameof(UserSystemRole.LaboratoryTechnologist)] = 67,
+            [nameof(UserSystemRole.LaboratoryTechnologist)] = 69,
             [nameof(UserSystemRole.RadiologyTechnologist)] = 64
         };
 
@@ -118,7 +118,7 @@ public class RoleAuthorizationSurfaceTests
             }
         }
 
-        Assert.Equal(202, routes.Count);
+        Assert.Equal(206, routes.Count);
         Assert.DoesNotContain(routes.GroupBy(route => route), group => group.Count() > 1);
     }
 
@@ -222,6 +222,8 @@ public class RoleAuthorizationSurfaceTests
         Add(actions, "Doctors", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin), nameof(UserSystemRole.Secretary), nameof(UserSystemRole.Patient)),
             "GetAll", "GetByClinic");
         Add(actions, "Doctors", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin), nameof(UserSystemRole.Secretary)),
+            "GetSpecialties");
+        Add(actions, "Doctors", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin), nameof(UserSystemRole.Secretary)),
             "Update", "Deactivate", "Activate");
         Add(actions, "Doctors", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin), nameof(UserSystemRole.Secretary), nameof(UserSystemRole.Doctor)),
             "GetById");
@@ -257,7 +259,8 @@ public class RoleAuthorizationSurfaceTests
             "CreateExternalShare", "GetExternalShares", "DeactivateExternalShare");
 
         Add(actions, "LaboratoryTests", ExpectedAccess.ForRoles(nameof(UserSystemRole.LaboratoryTechnologist)),
-            "GetTemplates", "GetTemplate", "GetMyRequests", "GetMyRequest", "CreateResult", "GetResult", "GeneratePdf", "DownloadPdf");
+            "GetTemplates", "GetTemplate", "GetMyRequests", "GetMyRequest", "CreateResult", "UploadResultFile",
+            "DownloadResultFile", "GetResult", "GeneratePdf", "DownloadPdf");
 
         Add(actions, "Secretaries", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin)), "GetAll", "GetAvailable");
         Add(actions, "Secretaries", ExpectedAccess.ForRoles(nameof(UserSystemRole.SuperAdmin), nameof(UserSystemRole.Secretary)),
@@ -269,6 +272,7 @@ public class RoleAuthorizationSurfaceTests
             "GetMyClinicLaboratoryTechnologists", "UpdateMyClinicLaboratoryTechnologist", "DeactivateMyClinicLaboratoryTechnologist", "ActivateMyClinicLaboratoryTechnologist",
             "GetMyClinicRadiologyTechnologists", "UpdateMyClinicRadiologyTechnologist", "DeactivateMyClinicRadiologyTechnologist", "ActivateMyClinicRadiologyTechnologist",
             "GetDoctorAvailabilitySlots", "CreateDoctorAvailabilitySlot", "DeleteDoctorAvailabilitySlot",
+            "UpdateDoctorAvailabilitySlot",
             "GetReports", "GetReportOptions", "GenerateReport", "DeleteReport", "DownloadReport");
 
         Add(actions, "Treatments", ExpectedAccess.Authenticated, "GetByClinicRoute", "GetByClinicQuery");

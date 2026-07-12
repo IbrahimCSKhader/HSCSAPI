@@ -73,6 +73,34 @@ public class LaboratoryTestsController : ControllerBase
             cancellationToken);
     }
 
+    // last end point added
+    [HttpPost("my-requests/{labTestRequestId:guid}/result-file")]
+    [Consumes("multipart/form-data")]
+    [RequestSizeLimit(30 * 1024 * 1024)]
+    public async Task<ActionResult<LabWorkItemResponse>> UploadResultFile(
+        Guid labTestRequestId,
+        [FromForm] UploadLabResultFileRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _laboratoryResultsService.UploadResultFileAsync(
+            labTestRequestId,
+            request,
+            User,
+            cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("my-requests/{labTestRequestId:guid}/result-file")]
+    public async Task<IActionResult> DownloadResultFile(
+        Guid labTestRequestId,
+        CancellationToken cancellationToken)
+    {
+        return await _laboratoryResultsService.DownloadResultFileAsync(
+            labTestRequestId,
+            User,
+            cancellationToken);
+    }
+
     // last end point added - already-added
     [HttpGet("results/{labTestResultId:guid}")]
     public async Task<ActionResult<LabTestResultResponse>> GetResult(

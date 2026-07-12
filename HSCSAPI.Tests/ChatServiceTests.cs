@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Chats;
+using HSCSAPI.Models.Profiles;
 using Microsoft.AspNetCore.Http;
 
 namespace HSCSAPI.Tests;
@@ -57,6 +58,32 @@ public class ChatServiceTests
     }
 
     [Fact]
+    public async Task OpenChatByPatientUserId_ResolvesShortPatientCodeAndReturnsItInThreadList()
+    {
+        using var context = new ChatTestContext();
+        var doctor = context.AddUser("Dr. Sender");
+        var patientUser = context.AddUser("Patient Receiver");
+        context.DbContext.Patients.Add(new Patient
+        {
+            PatientId = patientUser.Id,
+            UserID = "P-12345",
+            Gender = Gender.Female,
+            BloodType = BloodType.OPositive,
+            User = patientUser
+        });
+        await context.DbContext.SaveChangesAsync();
+
+        var opened = await context.Service.OpenChatByPatientUserIdAsync(
+            " P-12345 ",
+            ChatTestContext.Principal(doctor.Id));
+        var threads = await context.Service.GetChatsAsync(ChatTestContext.Principal(doctor.Id));
+
+        Assert.Equal(patientUser.Id, opened.OtherUserId);
+        Assert.Equal("P-12345", opened.OtherPatientUserId);
+        Assert.Equal("P-12345", Assert.Single(threads).OtherPatientUserId);
+    }
+
+    [Fact]
     public async Task SendText_TrimsPersistsNotifiesAndBroadcasts()
     {
         using var context = new ChatTestContext();
@@ -109,7 +136,7 @@ public class ChatServiceTests
 
     [Theory]
     [InlineData(ChatMessageType.Image)]
-    [InlineData(ChatMessageType.Audio)]
+    [InlineData(ChatMessageType.Voice)]
     public async Task SendMedia_RequiresAFile(ChatMessageType messageType)
     {
         using var context = await CreateOpenChatContextAsync();
@@ -178,12 +205,12 @@ public class ChatServiceTests
 
         var response = await context.Service.SendMessageAsync(
             context.ChatId,
-            ChatMessageType.Audio,
+            ChatMessageType.Voice,
             null,
             audio,
             ChatTestContext.Principal(context.FirstUserId));
 
-        Assert.Equal(ChatMessageType.Audio, response.MessageType);
+        Assert.Equal(ChatMessageType.Voice, response.MessageType);
         Assert.Equal("audio/mpeg", response.ContentType);
         Assert.EndsWith(".mp3", context.DbContext.ChatMessages.Single().FilePath, StringComparison.OrdinalIgnoreCase);
     }

@@ -13,6 +13,9 @@ public class RequestedEndpointBatch2Tests
     public void SecretaryAvailabilityCreateEndpoint_IsPost() => AssertRoute(nameof(SecretariesController.CreateDoctorAvailabilitySlot), "POST", "my-clinic/doctors/{doctorId:guid}/availability-slots");
 
     [Fact]
+    public void SecretaryAvailabilityUpdateEndpoint_IsPut() => AssertRoute(nameof(SecretariesController.UpdateDoctorAvailabilitySlot), "PUT", "my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}");
+
+    [Fact]
     public void SecretaryAvailabilityDeleteEndpoint_IsDelete() => AssertRoute(nameof(SecretariesController.DeleteDoctorAvailabilitySlot), "DELETE", "my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}");
 
     [Fact]

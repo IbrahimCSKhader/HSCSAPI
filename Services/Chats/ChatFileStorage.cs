@@ -50,9 +50,9 @@ public class ChatFileStorage : IChatFileStorage
         IFormFile file,
         CancellationToken cancellationToken = default)
     {
-        if (messageType is not (ChatMessageType.Image or ChatMessageType.Audio))
+        if (messageType is not (ChatMessageType.Image or ChatMessageType.Voice))
         {
-            throw new ArgumentException("Only image and audio messages can contain files.");
+            throw new ArgumentException("Only image and voice messages can contain files.");
         }
 
         if (file.Length <= 0)

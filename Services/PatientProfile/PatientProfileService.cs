@@ -4,6 +4,7 @@ using HSCSAPI.DTOs.PatientProfile;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Models.Identity;
 using HSCSAPI.Models.MedicalFiles;
+using HSCSAPI.Models.Notifications;
 using HSCSAPI.Models.Relations;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
@@ -532,6 +533,8 @@ public class PatientProfileService : IPatientProfileService
         }
 
         var relation = await _dbContext.PatientAuthorizedMembers
+            .Include(x => x.Patient)
+                .ThenInclude(x => x.User)
             .FirstOrDefaultAsync(
                 x => x.PatientId == patientId.Value && x.AuthorizedMemberId == authorizedMemberId,
                 cancellationToken);
@@ -541,7 +544,22 @@ public class PatientProfileService : IPatientProfileService
             return new NotFoundObjectResult("Authorized member relation not found.");
         }
 
+        var shouldNotifyAccessRemoved = relation.IsActive && !isActive;
         relation.IsActive = isActive;
+        if (shouldNotifyAccessRemoved)
+        {
+            _dbContext.Notifications.Add(new Notification
+            {
+                UserId = authorizedMemberId,
+                Title = "Access removed",
+                Message = $"{relation.Patient.User.Name} removed your access to their health information.",
+                Category = "MedicalRecord",
+                ActionPath = "/authorized-member/patients",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
+
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         return new NoContentResult();

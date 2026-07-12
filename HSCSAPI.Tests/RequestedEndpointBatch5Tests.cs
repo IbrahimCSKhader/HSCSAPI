@@ -37,6 +37,12 @@ public class RequestedEndpointBatch5Tests
     }
 
     [Fact]
+    public void DoctorSpecialtiesEndpoint_IsGetRoute()
+    {
+        AssertRoute<DoctorsController>(nameof(DoctorsController.GetSpecialties), "GET", "specialties");
+    }
+
+    [Fact]
     public void RequestedContractDtos_ExposeFrontendFields()
     {
         AssertProperty<AppointmentResponse>(nameof(AppointmentResponse.DoctorSpecialty));

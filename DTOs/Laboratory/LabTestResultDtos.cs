@@ -60,10 +60,18 @@ public class LabWorkItemResponse
     public string? RequestingDoctorId { get; set; }
     public DateTime? CompletedAtIso { get; set; }
     public string? ResultSummary { get; set; }
+    public string? ResultFileName { get; set; }
+    public string? ResultFileUrl { get; set; }
     public bool PdfAvailable { get; set; }
     public string? PdfFileName { get; set; }
     public DateOnly? PatientDateOfBirth { get; set; }
     public string? PatientGender { get; set; }
+}
+
+public class UploadLabResultFileRequest
+{
+    public string? Summary { get; set; }
+    public IFormFile File { get; set; } = null!;
 }
 
 public class CreateLabTestResultRequest

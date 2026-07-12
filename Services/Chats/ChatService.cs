@@ -104,6 +104,30 @@ public class ChatService : IChatService
         return await GetChatResponseAsync(chatId, currentUserId, cancellationToken);
     }
 
+    public async Task<ChatResponse> OpenChatByPatientUserIdAsync(
+        string patientUserId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var normalizedPatientUserId = patientUserId.Trim();
+        if (string.IsNullOrWhiteSpace(normalizedPatientUserId))
+        {
+            throw new ArgumentException("PatientUserId is required.");
+        }
+
+        var recipientUserId = await _dbContext.Patients
+            .AsNoTracking()
+            .Where(patient => patient.UserID == normalizedPatientUserId && patient.User.IsActive)
+            .Select(patient => (Guid?)patient.PatientId)
+            .FirstOrDefaultAsync(cancellationToken);
+        if (recipientUserId is null)
+        {
+            throw new KeyNotFoundException("Patient user not found or inactive.");
+        }
+
+        return await OpenChatAsync(recipientUserId.Value, user, cancellationToken);
+    }
+
     public async Task<List<ChatResponse>> GetChatsAsync(
         ClaimsPrincipal user,
         CancellationToken cancellationToken = default)
@@ -117,6 +141,7 @@ public class ChatService : IChatService
             {
                 ChatId = x.ChatId,
                 OtherUserId = x.UserOneId == currentUserId ? x.UserTwoId : x.UserOneId,
+                OtherPatientUserId = x.UserOneId == currentUserId ? x.UserTwo.PatientProfile == null ? null : x.UserTwo.PatientProfile.UserID : x.UserOne.PatientProfile == null ? null : x.UserOne.PatientProfile.UserID,
                 OtherUserName = x.UserOneId == currentUserId ? x.UserTwo.Name : x.UserOne.Name,
                 DoctorSpecialty = x.UserOneId == currentUserId
                     ? x.UserTwo.DoctorProfile == null ? null : x.UserTwo.DoctorProfile.Specialty.ToString()
@@ -131,7 +156,7 @@ public class ChatService : IChatService
                     .ThenByDescending(message => message.ChatMessageId)
                     .Select(message => message.MessageType == ChatMessageType.Text
                         ? message.Text
-                        : message.MessageType == ChatMessageType.Image ? "Image" : "Audio")
+                        : message.MessageType == ChatMessageType.Image ? "Image" : "Voice")
                     .FirstOrDefault(),
                 LastMessageType = x.Messages
                     .OrderByDescending(message => message.CreatedAt)
@@ -551,6 +576,7 @@ public class ChatService : IChatService
             {
                 ChatId = x.ChatId,
                 OtherUserId = x.UserOneId == currentUserId ? x.UserTwoId : x.UserOneId,
+                OtherPatientUserId = x.UserOneId == currentUserId ? x.UserTwo.PatientProfile == null ? null : x.UserTwo.PatientProfile.UserID : x.UserOne.PatientProfile == null ? null : x.UserOne.PatientProfile.UserID,
                 OtherUserName = x.UserOneId == currentUserId ? x.UserTwo.Name : x.UserOne.Name,
                 DoctorSpecialty = x.UserOneId == currentUserId
                     ? x.UserTwo.DoctorProfile == null ? null : x.UserTwo.DoctorProfile.Specialty.ToString()
@@ -564,7 +590,7 @@ public class ChatService : IChatService
                     .OrderByDescending(message => message.CreatedAt)
                     .Select(message => message.MessageType == ChatMessageType.Text
                         ? message.Text
-                        : message.MessageType == ChatMessageType.Image ? "Image" : "Audio")
+                        : message.MessageType == ChatMessageType.Image ? "Image" : "Voice")
                     .FirstOrDefault(),
                 LastMessageType = x.Messages
                     .OrderByDescending(message => message.CreatedAt)
@@ -625,12 +651,12 @@ public class ChatService : IChatService
 
         if (text is not null)
         {
-            throw new ArgumentException("Image and audio messages cannot contain text.");
+            throw new ArgumentException("Image and voice messages cannot contain text.");
         }
 
         if (file is null)
         {
-            throw new ArgumentException("File is required for image and audio messages.");
+            throw new ArgumentException("File is required for image and voice messages.");
         }
     }
 

@@ -263,6 +263,18 @@ public class SecretariesController : ControllerBase
     }
 
     // last end point added
+    [HttpPut("my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<AvailabilitySlotResponse>> UpdateDoctorAvailabilitySlot(
+        Guid doctorId,
+        Guid slotId,
+        [FromBody] UpdateAvailabilitySlotRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _secretariesService.UpdateDoctorAvailabilitySlotAsync(doctorId, slotId, request, User, cancellationToken);
+    }
+
+    // last end point added
     [HttpDelete("my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
     public async Task<IActionResult> DeleteDoctorAvailabilitySlot(Guid doctorId, Guid slotId, CancellationToken cancellationToken)

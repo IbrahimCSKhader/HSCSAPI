@@ -178,6 +178,12 @@ public class ImagingRequestsService : IImagingRequestsService
         };
 
         _dbContext.ImagingTestRequests.Add(imagingRequest);
+        await AddImagingRequestNotificationsAsync(
+            request.RadiologyClinicId,
+            imagingRequest.ImagingTestRequestId,
+            imagingType.Display,
+            patient.User.Name,
+            cancellationToken);
         await _dbContext.SaveChangesAsync(cancellationToken);
 
         var created = await BuildReadableRequestsQuery(currentDoctorId.Value)
@@ -451,6 +457,35 @@ public class ImagingRequestsService : IImagingRequestsService
         return Guid.TryParse(trimmedPatientId, out var patientGuid)
             ? await query.FirstOrDefaultAsync(patient => patient.PatientId == patientGuid, cancellationToken)
             : await query.FirstOrDefaultAsync(patient => patient.UserID == trimmedPatientId, cancellationToken);
+    }
+
+    private async Task AddImagingRequestNotificationsAsync(
+        Guid radiologyClinicId,
+        Guid imagingTestRequestId,
+        string testName,
+        string patientName,
+        CancellationToken cancellationToken)
+    {
+        var technologistIds = await _dbContext.RadiologyTechnologists
+            .AsNoTracking()
+            .Where(technologist => technologist.User.ClinicId == radiologyClinicId && technologist.User.IsActive)
+            .Select(technologist => technologist.RadiologyTechnologistId)
+            .Distinct()
+            .ToListAsync(cancellationToken);
+
+        foreach (var technologistId in technologistIds)
+        {
+            _dbContext.Notifications.Add(new Notification
+            {
+                UserId = technologistId,
+                Title = "New imaging request",
+                Message = $"New imaging request for {patientName}: {testName}.",
+                Category = "Imaging",
+                ActionPath = $"/radiology/my-requests?request={imagingTestRequestId}",
+                IsRead = false,
+                CreatedAt = DateTime.UtcNow
+            });
+        }
     }
 
     private async Task<ResolvedImagingType?> ResolveImagingTypeAsync(

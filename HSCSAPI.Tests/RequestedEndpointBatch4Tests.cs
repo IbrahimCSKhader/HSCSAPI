@@ -15,6 +15,10 @@ public class RequestedEndpointBatch4Tests
     [Fact]
     public void ImagingResultFileEndpoint_IsGet() => AssertRoute<ImagingTestsController>(nameof(ImagingTestsController.DownloadResultFile), "GET", "my-requests/{imagingTestRequestId:guid}/result-file");
     [Fact]
+    public void LaboratoryResultFileUploadEndpoint_IsPost() => AssertRoute<LaboratoryTestsController>(nameof(LaboratoryTestsController.UploadResultFile), "POST", "my-requests/{labTestRequestId:guid}/result-file");
+    [Fact]
+    public void LaboratoryResultFileDownloadEndpoint_IsGet() => AssertRoute<LaboratoryTestsController>(nameof(LaboratoryTestsController.DownloadResultFile), "GET", "my-requests/{labTestRequestId:guid}/result-file");
+    [Fact]
     public void AuthorizedMemberPasswordEndpoint_IsPut() => AssertRoute<AuthorizedMembersController>(nameof(AuthorizedMembersController.ChangeMyPassword), "PUT", "me/password");
 
     private static void AssertRoute<T>(string methodName, string verb, string template)

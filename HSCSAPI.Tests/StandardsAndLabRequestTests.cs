@@ -127,6 +127,10 @@ public class StandardsAndLabRequestTests
         Assert.Equal("58410-2", stored.LoincCode);
         Assert.Equal(doctor.DoctorId, stored.RequestedByDoctorId);
         Assert.Equal(clinic.ClinicId, stored.TestingClinicId);
+
+        var notification = Assert.Single(context.DbContext.Notifications.Where(x => x.UserId == technologist.LaboratoryTechnologistId));
+        Assert.Equal("Lab", notification.Category);
+        Assert.Contains(created.LabTestRequestId.ToString(), notification.ActionPath);
     }
 
     [Fact]
@@ -196,6 +200,10 @@ public class StandardsAndLabRequestTests
 
         var list = OkValue(listResponse);
         Assert.Equal(created.ImagingTestRequestId, Assert.Single(list.Items).ImagingTestRequestId);
+
+        var notification = Assert.Single(context.DbContext.Notifications.Where(x => x.UserId == technologist.RadiologyTechnologistId));
+        Assert.Equal("Imaging", notification.Category);
+        Assert.Contains(created.ImagingTestRequestId.ToString(), notification.ActionPath);
     }
 
     [Fact]

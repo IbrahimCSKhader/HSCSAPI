@@ -28,3 +28,18 @@ public class CreateAvailabilitySlotRequest
     [MaxLength(500)]
     public string? Notes { get; set; }
 }
+
+public class UpdateAvailabilitySlotRequest
+{
+    [Required]
+    public DateOnly SlotDate { get; set; }
+
+    [Required]
+    public TimeOnly StartTime { get; set; }
+
+    [Required]
+    public TimeOnly EndTime { get; set; }
+
+    [MaxLength(500)]
+    public string? Notes { get; set; }
+}

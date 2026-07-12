@@ -5,8 +5,8 @@ namespace HSCSAPI.DTOs.Chat;
 
 public class OpenChatRequest
 {
-    [Required]
-    public Guid RecipientUserId { get; set; }
+    public Guid? RecipientUserId { get; set; }
+    public string? PatientUserId { get; set; }
 }
 
 public class SendChatMessageRequest
@@ -31,6 +31,7 @@ public class ChatResponse
 {
     public Guid ChatId { get; set; }
     public Guid OtherUserId { get; set; }
+    public string? OtherPatientUserId { get; set; }
     public string OtherUserName { get; set; } = string.Empty;
     public string? DoctorSpecialty { get; set; }
     public string? ClinicName { get; set; }
