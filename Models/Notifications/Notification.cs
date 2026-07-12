@@ -10,6 +10,7 @@ public class Notification
     public string? Message { get; set; }
     public bool IsRead { get; set; }
     public string Category { get; set; } = "General";
+    public string? ActionPath { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
     public User User { get; set; } = null!;

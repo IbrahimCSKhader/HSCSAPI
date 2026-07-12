@@ -24,6 +24,9 @@ public class NotificationConfiguration : IEntityTypeConfiguration<Notification>
             .HasDefaultValue(false);
         builder.Property(x => x.Category).HasMaxLength(50).HasDefaultValue("General").IsRequired();
 
+        builder.Property(x => x.ActionPath)
+            .HasMaxLength(300);
+
         builder.Property(x => x.CreatedAt)
             .IsRequired()
             .HasDefaultValueSql("SYSUTCDATETIME()");

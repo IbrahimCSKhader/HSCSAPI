@@ -77,10 +77,14 @@ public class PatientProfileService : IPatientProfileService
                 AppointmentId = appointment.AppointmentId,
                 DoctorId = appointment.DoctorId,
                 DoctorName = appointment.Doctor.User.Name,
+                DoctorSpecialty = appointment.Doctor.Specialty.ToString(),
                 ClinicId = appointment.Doctor.User.ClinicId,
                 ClinicName = appointment.Doctor.User.Clinic != null ? appointment.Doctor.User.Clinic.Name : null,
                 AppointmentDate = appointment.AppointmentDate,
                 AppointmentTime = appointment.AppointmentTime,
+                AppointmentEndTime = appointment.AvailabilitySlot.EndTime,
+                TreatmentId = appointment.TreatmentId,
+                TreatmentName = appointment.TreatmentName,
                 Notes = appointment.Notes
             })
             .ToListAsync(cancellationToken);
@@ -447,7 +451,7 @@ public class PatientProfileService : IPatientProfileService
 
         if (authorizedMember is null)
         {
-            return new NotFoundObjectResult("Authorized member account was not found. Ask the person to register first.");
+            return new BadRequestObjectResult("Email must belong to a registered Care Giver.");
         }
 
         var relationExists = await _dbContext.PatientAuthorizedMembers
@@ -622,6 +626,10 @@ public class PatientProfileService : IPatientProfileService
                     .OrderBy(test => test.TestName)
                     .Select(test => test.TestName)
                     .FirstOrDefault(),
+                DiagnosisCode = file.DiagnosisCode,
+                DiagnosisName = file.DiagnosisName,
+                ActivityCode = file.ActivityCode,
+                ActivityName = file.ActivityName,
                 HasLabResult = file.LabTestRequestsAsResult.Any(),
                 HasImagingResult = file.ImagingTestRequestsAsResult.Any(),
                 HasPendingDownloadRequest = file.FileDownloadRequests.Any(
@@ -733,6 +741,10 @@ public class PatientProfileService : IPatientProfileService
             ClinicId = record.ClinicId,
             ClinicName = record.ClinicName,
             AppointmentDate = record.AppointmentDate,
+            DiagnosisCode = record.DiagnosisCode,
+            DiagnosisName = record.DiagnosisName,
+            ActivityCode = record.ActivityCode,
+            ActivityName = record.ActivityName,
             CanDownloadDirectly = record.SeverityLevel == SeverityLevel.Low,
             HasPendingDownloadRequest = record.HasPendingDownloadRequest
         };
@@ -763,6 +775,10 @@ public class PatientProfileService : IPatientProfileService
             AppointmentDate = record.AppointmentDate,
             AppointmentTime = record.AppointmentTime,
             AppointmentNotes = record.AppointmentNotes,
+            DiagnosisCode = record.DiagnosisCode,
+            DiagnosisName = record.DiagnosisName,
+            ActivityCode = record.ActivityCode,
+            ActivityName = record.ActivityName,
             CanDownloadDirectly = record.SeverityLevel == SeverityLevel.Low,
             HasPendingDownloadRequest = record.HasPendingDownloadRequest,
             Summary = summary,
@@ -942,6 +958,10 @@ public class PatientProfileService : IPatientProfileService
         public string? AppointmentNotes { get; set; }
         public string? LabTestName { get; set; }
         public string? ImagingTestName { get; set; }
+        public string? DiagnosisCode { get; set; }
+        public string? DiagnosisName { get; set; }
+        public string? ActivityCode { get; set; }
+        public string? ActivityName { get; set; }
         public bool HasLabResult { get; set; }
         public bool HasImagingResult { get; set; }
         public bool HasPendingDownloadRequest { get; set; }

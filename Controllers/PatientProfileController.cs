@@ -12,10 +12,14 @@ namespace HSCSAPI.Controllers;
 public class PatientProfileController : ControllerBase
 {
     private readonly IPatientProfileService _patientProfileService;
+    private readonly IExternalProfileSharesService _externalProfileSharesService;
 
-    public PatientProfileController(IPatientProfileService patientProfileService)
+    public PatientProfileController(
+        IPatientProfileService patientProfileService,
+        IExternalProfileSharesService externalProfileSharesService)
     {
         _patientProfileService = patientProfileService;
+        _externalProfileSharesService = externalProfileSharesService;
     }
 
     [HttpGet("dashboard")]
@@ -118,4 +122,36 @@ public class PatientProfileController : ControllerBase
     {
         return await _patientProfileService.ActivateAuthorizedMemberInviteAsync(inviteId, User, cancellationToken);
     }
+
+    // last end point added
+    [HttpPost("external-shares")]
+    public async Task<ActionResult<ExternalProfileShareResponse>> CreateExternalShare(
+        [FromBody] CreateExternalProfileShareRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _externalProfileSharesService.CreateShareAsync(
+            request,
+            User,
+            BuildPublicBaseUrl(),
+            cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("external-shares")]
+    public async Task<ActionResult<List<ExternalProfileShareResponse>>> GetExternalShares(CancellationToken cancellationToken)
+    {
+        return await _externalProfileSharesService.GetMySharesAsync(
+            User,
+            BuildPublicBaseUrl(),
+            cancellationToken);
+    }
+
+    // last end point added
+    [HttpPatch("external-shares/{shareId:guid}/deactivate")]
+    public async Task<IActionResult> DeactivateExternalShare(Guid shareId, CancellationToken cancellationToken)
+    {
+        return await _externalProfileSharesService.DeactivateShareAsync(shareId, User, cancellationToken);
+    }
+
+    private string BuildPublicBaseUrl() => $"{Request.Scheme}://{Request.Host}";
 }

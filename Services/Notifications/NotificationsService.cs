@@ -68,6 +68,7 @@ public class NotificationsService : INotificationsService
                 Message = notification.Message,
                 IsRead = notification.IsRead,
                 Category = GetNotificationCategory(notification),
+                ActionPath = GetNotificationActionPath(notification),
                 CreatedAt = notification.CreatedAt
             })
             .ToListAsync(cancellationToken);
@@ -178,7 +179,25 @@ public class NotificationsService : INotificationsService
             Message = notification.Message,
             IsRead = notification.IsRead,
             Category = GetNotificationCategory(notification),
+            ActionPath = GetNotificationActionPath(notification),
             CreatedAt = notification.CreatedAt
+        };
+    }
+
+    private static string GetNotificationActionPath(Notification notification)
+    {
+        if (!string.IsNullOrWhiteSpace(notification.ActionPath))
+        {
+            return notification.ActionPath.Trim();
+        }
+
+        return GetNotificationCategory(notification) switch
+        {
+            "Lab" => "/doctor/lab-requests",
+            "Imaging" => "/doctor/imaging-requests",
+            "Appointment" => "/doctor/appointments",
+            "Message" => "/doctor/messages",
+            _ => "/notifications"
         };
     }
 

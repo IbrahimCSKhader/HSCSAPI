@@ -181,6 +181,8 @@ public class AppointmentsService : IAppointmentsService
             AvailabilitySlotId = slot.AvailabilitySlotId,
             AppointmentDate = request.AppointmentDate,
             AppointmentTime = request.AppointmentTime,
+            TreatmentId = NormalizeOptional(request.TreatmentId),
+            TreatmentName = NormalizeOptional(request.TreatmentName),
             Notes = NormalizeOptional(request.Notes)
         };
 
@@ -245,6 +247,8 @@ public class AppointmentsService : IAppointmentsService
         appointment.AvailabilitySlotId = slot.AvailabilitySlotId;
         appointment.AppointmentDate = request.AppointmentDate;
         appointment.AppointmentTime = request.AppointmentTime;
+        appointment.TreatmentId = NormalizeOptional(request.TreatmentId);
+        appointment.TreatmentName = NormalizeOptional(request.TreatmentName);
         appointment.Notes = NormalizeOptional(request.Notes);
 
         await _dbContext.SaveChangesAsync(cancellationToken);
@@ -472,6 +476,9 @@ public class AppointmentsService : IAppointmentsService
 
     private IQueryable<AppointmentResponse> BuildAppointmentResponseQuery()
     {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var currentTime = TimeOnly.FromDateTime(DateTime.Now);
+
         return _dbContext.Appointments
             .AsNoTracking()
             .Select(appointment => new AppointmentResponse
@@ -479,6 +486,7 @@ public class AppointmentsService : IAppointmentsService
                 AppointmentId = appointment.AppointmentId,
                 DoctorId = appointment.DoctorId,
                 DoctorName = appointment.Doctor.User.Name,
+                DoctorSpecialty = appointment.Doctor.Specialty.ToString(),
                 PatientId = appointment.PatientId,
                 PatientName = appointment.Patient.User.Name,
                 AvailabilitySlotId = appointment.AvailabilitySlotId,
@@ -487,8 +495,16 @@ public class AppointmentsService : IAppointmentsService
                 AppointmentDate = appointment.AppointmentDate,
                 DayOfWeek = appointment.AvailabilitySlot.DayOfWeek,
                 AppointmentTime = appointment.AppointmentTime,
+                AppointmentEndTime = appointment.AvailabilitySlot.EndTime,
+                TreatmentId = appointment.TreatmentId,
+                TreatmentName = appointment.TreatmentName,
                 Notes = appointment.Notes,
-                Status = appointment.IsActive ? "Scheduled" : "Cancelled",
+                Status = !appointment.IsActive
+                    ? "Cancelled"
+                    : appointment.AppointmentDate < today
+                        || (appointment.AppointmentDate == today && appointment.AvailabilitySlot.EndTime < currentTime)
+                            ? "Completed"
+                            : "Scheduled",
                 IsActive = appointment.IsActive
             });
     }

@@ -5,6 +5,7 @@ using HSCSAPI.Models.Clinics;
 using HSCSAPI.Models.Laboratory;
 using HSCSAPI.Models.MedicalFiles;
 using HSCSAPI.Models.Notifications;
+using HSCSAPI.Models.PatientProfile;
 using HSCSAPI.Models.Profiles;
 using HSCSAPI.Models.Radiology;
 using HSCSAPI.Models.Relations;
@@ -48,6 +49,7 @@ public class AppDbContext : AppIdentityDbContextBase
     public DbSet<Notification> Notifications => Set<Notification>();
     public DbSet<Reminder> Reminders => Set<Reminder>();
     public DbSet<ReminderPreference> ReminderPreferences => Set<ReminderPreference>();
+    public DbSet<ExternalPatientProfileShare> ExternalPatientProfileShares => Set<ExternalPatientProfileShare>();
 
     public DbSet<Report> Reports => Set<Report>();
     public DbSet<ReportInformation> ReportInformations => Set<ReportInformation>();

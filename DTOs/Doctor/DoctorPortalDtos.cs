@@ -54,14 +54,18 @@ public class DoctorScheduleDayResponse
 public class DoctorAppointmentSummaryResponse
 {
     public Guid AppointmentId { get; set; }
+    public string DoctorSpecialty { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public string PatientUserId { get; set; } = string.Empty;
     public DateOnly AppointmentDate { get; set; }
     public string DayOfWeek { get; set; } = string.Empty;
     public TimeOnly AppointmentTime { get; set; }
+    public TimeOnly AppointmentEndTime { get; set; }
     public int DurationMinutes { get; set; }
     public string Status { get; set; } = string.Empty;
+    public string? TreatmentId { get; set; }
+    public string? TreatmentName { get; set; }
     public string? ReasonForVisit { get; set; }
 }
 
@@ -126,6 +130,10 @@ public class DoctorMedicalRecordResponse
     public TimeOnly AppointmentTime { get; set; }
     public string? LabTestName { get; set; }
     public string? ImagingTestName { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public string? ActivityCode { get; set; }
+    public string? ActivityName { get; set; }
     public string FileUrl { get; set; } = string.Empty;
 }
 

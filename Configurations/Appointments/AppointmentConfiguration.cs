@@ -18,6 +18,12 @@ public class AppointmentConfiguration : IEntityTypeConfiguration<Appointment>
         builder.Property(x => x.AppointmentTime)
             .IsRequired();
 
+        builder.Property(x => x.TreatmentId)
+            .HasMaxLength(100);
+
+        builder.Property(x => x.TreatmentName)
+            .HasMaxLength(200);
+
         builder.Property(x => x.Notes)
             .HasMaxLength(1000);
 

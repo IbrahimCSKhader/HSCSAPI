@@ -9,6 +9,10 @@ public class CreateMedicalFileUploadRequest
     public string Category { get; set; } = string.Empty;
     public string? StandardCode { get; set; }
     public string? DisplayName { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public string? ActivityCode { get; set; }
+    public string? ActivityName { get; set; }
     public string? Notes { get; set; }
     public IFormFile? File { get; set; }
 }
@@ -29,6 +33,10 @@ public class MedicalFileUploadResponse
     public string Category { get; set; } = string.Empty;
     public string? StandardCode { get; set; }
     public string? StandardDisplay { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public string? ActivityCode { get; set; }
+    public string? ActivityName { get; set; }
     public string? Notes { get; set; }
     public string FileName { get; set; } = string.Empty;
     public string FileType { get; set; } = string.Empty;

@@ -48,7 +48,8 @@ public class ActivationStateTests
         {
             "{chatId:guid}/messages/{messageId:guid}",
             "{notificationId:guid}",
-            "my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}"
+            "my-clinic/doctors/{doctorId:guid}/availability-slots/{slotId:guid}",
+            "my-clinic/reports/{reportId:guid}"
         }, deleteEndpoints);
     }
 

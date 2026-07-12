@@ -178,6 +178,10 @@ public class MedicalFileUploadsService : IMedicalFileUploadsService
             EncryptedChecksum = savedFile.Checksum,
             FileSizeInBytes = file.Length,
             SeverityLevel = SeverityLevel.Low,
+            DiagnosisCode = category == UploadCategory.Prescription ? Clean(request.DiagnosisCode) : null,
+            DiagnosisName = category == UploadCategory.Prescription ? Clean(request.DiagnosisName) : null,
+            ActivityCode = category == UploadCategory.Prescription ? Clean(request.ActivityCode) : null,
+            ActivityName = category == UploadCategory.Prescription ? Clean(request.ActivityName) : null,
             UploadedAt = uploadedAt
         };
 
@@ -242,6 +246,10 @@ public class MedicalFileUploadsService : IMedicalFileUploadsService
             Category = ToCategoryDisplay(category.Value),
             StandardCode = resolvedStandard.Code,
             StandardDisplay = resolvedStandard.Display,
+            DiagnosisCode = medicalFile.DiagnosisCode,
+            DiagnosisName = medicalFile.DiagnosisName,
+            ActivityCode = medicalFile.ActivityCode,
+            ActivityName = medicalFile.ActivityName,
             Notes = notes,
             FileName = Path.GetFileName(medicalFile.FilePath),
             FileType = medicalFile.FileType.ToString(),

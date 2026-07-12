@@ -16,6 +16,10 @@ public class MedicalFile
     public string EncryptedChecksum { get; set; } = string.Empty;
     public long FileSizeInBytes { get; set; }
     public SeverityLevel SeverityLevel { get; set; }
+    public string? DiagnosisCode { get; set; }
+    public string? DiagnosisName { get; set; }
+    public string? ActivityCode { get; set; }
+    public string? ActivityName { get; set; }
     public DateTime UploadedAt { get; set; }
 
     public Appointment Appointment { get; set; } = null!;

@@ -252,6 +252,7 @@ public class ChatService : IChatService
             Title = $"New message from {currentSenderName}.",
             Message = $"{currentSenderName} sent you a message.",
             Category = "Message",
+            ActionPath = "/doctor/messages",
             IsRead = false
         };
 

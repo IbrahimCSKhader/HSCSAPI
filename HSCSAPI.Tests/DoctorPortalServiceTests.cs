@@ -62,7 +62,7 @@ public class DoctorPortalServiceTests
         var doctor = await context.AddDoctorAsync(clinic.ClinicId);
         var otherDoctor = await context.AddDoctorAsync(clinic.ClinicId, email: "other.doctor@test.local");
         var patient = await context.AddPatientAsync(clinic.ClinicId, "pat-002", "James Mitchell");
-        var fromDate = new DateOnly(2026, 6, 22);
+        var fromDate = DateOnly.FromDateTime(DateTime.Now).AddDays(7);
         var toDate = fromDate.AddDays(2);
 
         context.AddAppointment(doctor.Id, patient.Id, fromDate, new TimeOnly(9, 0), durationMinutes: 45);
@@ -87,6 +87,42 @@ public class DoctorPortalServiceTests
         Assert.Equal(45, schedule.Days[0].Appointments[0].DurationMinutes);
         Assert.Equal("Scheduled", schedule.Days[0].Appointments[0].Status);
         Assert.Equal("pat-002", schedule.Days[0].Appointments[0].PatientUserId);
+    }
+
+    [Fact]
+    public async Task GetMyAppointmentsSchedule_ReturnsSpecialtyEndTimeTreatmentAndCompletedStatus()
+    {
+        using var context = new DoctorPortalTestContext();
+        var clinic = context.AddClinic("Central Clinic");
+        var doctor = await context.AddDoctorAsync(clinic.ClinicId);
+        context.DbContext.Doctors.Single(x => x.DoctorId == doctor.Id).Specialty = DoctorSpecialty.Cardiology;
+        var patient = await context.AddPatientAsync(clinic.ClinicId, "pat-020", "Mira Haddad");
+        var pastDate = DateOnly.FromDateTime(DateTime.Now).AddDays(-1);
+
+        context.AddAppointment(
+            doctor.Id,
+            patient.Id,
+            pastDate,
+            new TimeOnly(9, 0),
+            durationMinutes: 30,
+            notes: "Separate clinical reason",
+            treatmentId: "Cardiology",
+            treatmentName: "Cardiology");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.GetMyAppointmentsScheduleAsync(
+            pastDate,
+            pastDate,
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var appointment = Assert.Single(OkValue(response).Days[0].Appointments);
+        Assert.Equal("Cardiology", appointment.DoctorSpecialty);
+        Assert.Equal(new TimeOnly(9, 30), appointment.AppointmentEndTime);
+        Assert.Equal("Cardiology", appointment.TreatmentId);
+        Assert.Equal("Cardiology", appointment.TreatmentName);
+        Assert.Equal("Separate clinical reason", appointment.ReasonForVisit);
+        Assert.Equal("Completed", appointment.Status);
     }
 
     [Fact]
@@ -150,6 +186,29 @@ public class DoctorPortalServiceTests
     }
 
     [Fact]
+    public async Task UpdateMyProfile_CanUpdateEmailAndSpecialty()
+    {
+        using var context = new DoctorPortalTestContext();
+        var clinic = context.AddClinic("Central Clinic");
+        var doctor = await context.AddDoctorAsync(clinic.ClinicId, email: "old.doctor@test.local");
+
+        var response = await context.Service.UpdateMyProfileAsync(
+            new UpdateMyDoctorProfileRequest
+            {
+                Name = "Dr. Updated",
+                Email = "new.doctor@test.local",
+                Specialty = "Neurology"
+            },
+            DoctorPortalTestContext.Principal(doctor.Id),
+            CancellationToken.None);
+
+        var profile = OkValue(response);
+        Assert.Equal("new.doctor@test.local", profile.Email);
+        Assert.Equal("Neurology", profile.Specialty);
+        Assert.Equal("new.doctor@test.local", (await context.UserManager.FindByIdAsync(doctor.Id.ToString()))!.Email);
+    }
+
+    [Fact]
     public async Task ChangeMyPassword_RejectsWrongCurrentPassword()
     {
         using var context = new DoctorPortalTestContext();
@@ -189,7 +248,11 @@ public class DoctorPortalServiceTests
             new DateOnly(2026, 6, 20),
             new TimeOnly(10, 30),
             "medical-files/follow-up-consultation.pdf",
-            notes: "Patient reports improved energy.");
+            notes: "Patient reports improved energy.",
+            diagnosisCode: "E11.9",
+            diagnosisName: "Type 2 diabetes mellitus without complications",
+            activityCode: "860975",
+            activityName: "Metformin");
         context.AddMedicalRecord(
             doctor.Id,
             patient.Id,
@@ -232,6 +295,10 @@ public class DoctorPortalServiceTests
         Assert.Equal(1, records.TypeCounts.ImagingTest);
         Assert.Equal(1, records.TypeCounts.Visit);
         Assert.All(records.Items, record => Assert.Equal("pat-001", record.PatientUserId));
+        var prescription = records.Items.Single(record => record.DiagnosisCode == "E11.9");
+        Assert.Equal("Type 2 diabetes mellitus without complications", prescription.DiagnosisName);
+        Assert.Equal("860975", prescription.ActivityCode);
+        Assert.Equal("Metformin", prescription.ActivityName);
     }
 
     [Fact]
@@ -439,12 +506,15 @@ internal sealed class DoctorPortalTestContext : IDisposable
         DateOnly date,
         TimeOnly time,
         int durationMinutes = 45,
-        string? notes = "Routine heart checkup and vitals review")
+        string? notes = "Routine heart checkup and vitals review",
+        string? treatmentId = null,
+        string? treatmentName = null)
     {
         var slot = new AvailabilitySlot
         {
             AvailabilitySlotId = Guid.NewGuid(),
             DoctorId = doctorId,
+            SlotDate = date,
             DayOfWeek = date.DayOfWeek,
             StartTime = time,
             EndTime = time.AddMinutes(durationMinutes),
@@ -458,6 +528,8 @@ internal sealed class DoctorPortalTestContext : IDisposable
             AvailabilitySlotId = slot.AvailabilitySlotId,
             AppointmentDate = date,
             AppointmentTime = time,
+            TreatmentId = treatmentId,
+            TreatmentName = treatmentName,
             Notes = notes
         };
 
@@ -476,7 +548,11 @@ internal sealed class DoctorPortalTestContext : IDisposable
         SeverityLevel severityLevel = SeverityLevel.Low,
         string? notes = "Medical record note",
         string? labTestName = null,
-        string? imagingTestName = null)
+        string? imagingTestName = null,
+        string? diagnosisCode = null,
+        string? diagnosisName = null,
+        string? activityCode = null,
+        string? activityName = null)
     {
         var appointment = AddAppointment(
             doctorId,
@@ -494,6 +570,10 @@ internal sealed class DoctorPortalTestContext : IDisposable
             EncryptedChecksum = $"checksum-{Guid.NewGuid():N}",
             FileSizeInBytes = 160 * 1024,
             SeverityLevel = severityLevel,
+            DiagnosisCode = diagnosisCode,
+            DiagnosisName = diagnosisName,
+            ActivityCode = activityCode,
+            ActivityName = activityName,
             UploadedAt = date.ToDateTime(time)
         };
 

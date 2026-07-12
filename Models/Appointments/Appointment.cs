@@ -11,6 +11,8 @@ public class Appointment
     public Guid AvailabilitySlotId { get; set; }
     public DateOnly AppointmentDate { get; set; }
     public TimeOnly AppointmentTime { get; set; }
+    public string? TreatmentId { get; set; }
+    public string? TreatmentName { get; set; }
     public string? Notes { get; set; }
     public bool IsActive { get; set; } = true;
 

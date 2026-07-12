@@ -19,14 +19,14 @@ public class DoctorsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryRoles)]
+    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryOrPatientRoles)]
     public async Task<ActionResult<List<DoctorResponse>>> GetAll([FromQuery] Guid? clinicId, CancellationToken cancellationToken)
     {
         return await _doctorsService.GetAllAsync(clinicId, User, cancellationToken);
     }
 
     [HttpGet("clinic/{clinicId:guid}")]
-    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryRoles)]
+    [Authorize(Roles = DoctorsService.SuperAdminOrSecretaryOrPatientRoles)]
     public async Task<ActionResult<List<DoctorResponse>>> GetByClinic(Guid clinicId, CancellationToken cancellationToken)
     {
         return await _doctorsService.GetByClinicAsync(clinicId, User, cancellationToken);

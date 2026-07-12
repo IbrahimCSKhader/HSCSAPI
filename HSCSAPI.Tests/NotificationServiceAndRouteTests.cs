@@ -60,7 +60,31 @@ public class NotificationServiceAndRouteTests
         Assert.Equal(olderUnread.NotificationId, inbox.Items[1].NotificationId);
         Assert.Equal(read.NotificationId, inbox.Items[2].NotificationId);
         Assert.Equal("Imaging", inbox.Items[0].Category);
+        Assert.Equal("/doctor/imaging-requests", inbox.Items[0].ActionPath);
         Assert.DoesNotContain(inbox.Items, item => item.Title == "Patient-only notification");
+    }
+
+    [Fact]
+    public async Task GetMyNotifications_ReturnsStoredActionPathWhenPresent()
+    {
+        using var context = new NotificationTestContext();
+        var doctor = context.AddUser("Dr. Samer");
+        context.AddNotification(
+            doctor.Id,
+            "Lab result available",
+            "CBC results are ready.",
+            isRead: false,
+            createdAt: DateTime.UtcNow,
+            actionPath: "/doctor/lab-requests?request=lab-1");
+
+        var response = await context.Service.GetMyNotificationsAsync(
+            status: null,
+            page: 1,
+            pageSize: 10,
+            NotificationTestContext.Principal(doctor.Id, UserSystemRole.Doctor));
+
+        var item = Assert.Single(OkValue(response).Items);
+        Assert.Equal("/doctor/lab-requests?request=lab-1", item.ActionPath);
     }
 
     [Fact]
@@ -323,7 +347,8 @@ internal sealed class NotificationTestContext : IDisposable
         string title,
         string? message,
         bool isRead,
-        DateTime createdAt)
+        DateTime createdAt,
+        string? actionPath = null)
     {
         var notification = new Notification
         {
@@ -331,6 +356,7 @@ internal sealed class NotificationTestContext : IDisposable
             Title = title,
             Message = message,
             IsRead = isRead,
+            ActionPath = actionPath,
             CreatedAt = createdAt
         };
 

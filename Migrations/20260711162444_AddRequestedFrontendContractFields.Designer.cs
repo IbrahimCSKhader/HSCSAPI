@@ -4,6 +4,7 @@ using HSCSAPI.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace HSCSAPI.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260711162444_AddRequestedFrontendContractFields")]
+    partial class AddRequestedFrontendContractFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -899,75 +902,6 @@ namespace HSCSAPI.Migrations
                     b.HasIndex("UserId", "IsRead", "CreatedAt");
 
                     b.ToTable("Notifications", (string)null);
-                });
-
-            modelBuilder.Entity("HSCSAPI.Models.PatientProfile.ExternalPatientProfileShare", b =>
-                {
-                    b.Property<Guid>("ExternalPatientProfileShareId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<DateTime?>("AccessSessionExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("AccessSessionTokenHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("DoctorEmail")
-                        .IsRequired()
-                        .HasMaxLength(256)
-                        .HasColumnType("nvarchar(256)");
-
-                    b.Property<string>("DoctorName")
-                        .HasMaxLength(200)
-                        .HasColumnType("nvarchar(200)");
-
-                    b.Property<DateTime>("ExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<bool>("IsActive")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("bit")
-                        .HasDefaultValue(true);
-
-                    b.Property<DateTime?>("LastAccessedAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<DateTime?>("LastCodeSentAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<Guid>("PatientId")
-                        .HasColumnType("uniqueidentifier");
-
-                    b.Property<string>("ShareToken")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("nvarchar(120)");
-
-                    b.Property<string>("ShareTokenHash")
-                        .IsRequired()
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.Property<DateTime?>("VerificationCodeExpiresAt")
-                        .HasColumnType("datetime2");
-
-                    b.Property<string>("VerificationCodeHash")
-                        .HasMaxLength(128)
-                        .HasColumnType("nvarchar(128)");
-
-                    b.HasKey("ExternalPatientProfileShareId");
-
-                    b.HasIndex("ShareTokenHash")
-                        .IsUnique();
-
-                    b.HasIndex("PatientId", "DoctorEmail", "IsActive");
-
-                    b.ToTable("ExternalPatientProfileShares", (string)null);
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Profiles.AuthorizedMember", b =>
@@ -1999,17 +1933,6 @@ namespace HSCSAPI.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
-                });
-
-            modelBuilder.Entity("HSCSAPI.Models.PatientProfile.ExternalPatientProfileShare", b =>
-                {
-                    b.HasOne("HSCSAPI.Models.Profiles.Patient", "Patient")
-                        .WithMany()
-                        .HasForeignKey("PatientId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Patient");
                 });
 
             modelBuilder.Entity("HSCSAPI.Models.Profiles.AuthorizedMember", b =>

@@ -18,14 +18,14 @@ public class PatientsController : ControllerBase
     }
 
     [HttpGet]
-    [Authorize(Roles = PatientsService.SuperAdminOrSecretaryRoles)]
+    [Authorize(Roles = PatientsService.SuperAdminOrSecretaryOrDoctorRoles)]
     public async Task<ActionResult<List<PatientResponse>>> GetAll([FromQuery] Guid? clinicId, CancellationToken cancellationToken)
     {
         return await _patientsService.GetAllAsync(clinicId, User, cancellationToken);
     }
 
     [HttpGet("clinic/{clinicId:guid}")]
-    [Authorize(Roles = PatientsService.SuperAdminOrSecretaryRoles)]
+    [Authorize(Roles = PatientsService.SuperAdminOrSecretaryOrDoctorRoles)]
     public async Task<ActionResult<List<PatientResponse>>> GetByClinic(Guid clinicId, CancellationToken cancellationToken)
     {
         return await _patientsService.GetByClinicAsync(clinicId, User, cancellationToken);

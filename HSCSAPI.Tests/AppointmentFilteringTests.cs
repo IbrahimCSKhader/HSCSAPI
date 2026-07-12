@@ -85,6 +85,38 @@ public class AppointmentFilteringTests
             AppointmentFilteringTestContext.Principal(Guid.NewGuid(), UserSystemRole.Doctor)));
     }
 
+    [Fact]
+    public async Task GetByIdAsync_ReturnsFrontendContractAppointmentFields()
+    {
+        using var context = new AppointmentFilteringTestContext();
+        var clinic = context.AddClinic();
+        var doctor = context.AddDoctor(clinic.ClinicId);
+        doctor.Specialty = DoctorSpecialty.Dermatology;
+        var patient = context.AddPatient(clinic.ClinicId, "pat-030");
+        var appointment = context.AddAppointment(
+            doctor.DoctorId,
+            patient.PatientId,
+            DateOnly.FromDateTime(DateTime.Now).AddDays(-1),
+            new TimeOnly(8, 0),
+            treatmentId: "Dermatology",
+            treatmentName: "Dermatology",
+            notes: "Skin rash review");
+        await context.DbContext.SaveChangesAsync();
+
+        var response = await context.Service.GetByIdAsync(
+            appointment.AppointmentId,
+            AppointmentFilteringTestContext.Principal(patient.PatientId, UserSystemRole.Patient));
+
+        var ok = Assert.IsType<OkObjectResult>(response.Result);
+        var result = Assert.IsType<AppointmentResponse>(ok.Value);
+        Assert.Equal("Dermatology", result.DoctorSpecialty);
+        Assert.Equal(new TimeOnly(8, 45), result.AppointmentEndTime);
+        Assert.Equal("Dermatology", result.TreatmentId);
+        Assert.Equal("Dermatology", result.TreatmentName);
+        Assert.Equal("Skin rash review", result.Notes);
+        Assert.Equal("Completed", result.Status);
+    }
+
     private static List<AppointmentResponse> OkValue(ActionResult<List<AppointmentResponse>> response)
     {
         var ok = Assert.IsType<OkObjectResult>(response.Result);
@@ -158,12 +190,16 @@ internal sealed class AppointmentFilteringTestContext : IDisposable
         Guid doctorId,
         Guid patientId,
         DateOnly appointmentDate,
-        TimeOnly appointmentTime)
+        TimeOnly appointmentTime,
+        string? treatmentId = null,
+        string? treatmentName = null,
+        string? notes = "Follow-up visit")
     {
         var slot = new AvailabilitySlot
         {
             AvailabilitySlotId = Guid.NewGuid(),
             DoctorId = doctorId,
+            SlotDate = appointmentDate,
             DayOfWeek = appointmentDate.DayOfWeek,
             StartTime = appointmentTime,
             EndTime = appointmentTime.AddMinutes(45),
@@ -177,7 +213,9 @@ internal sealed class AppointmentFilteringTestContext : IDisposable
             AvailabilitySlotId = slot.AvailabilitySlotId,
             AppointmentDate = appointmentDate,
             AppointmentTime = appointmentTime,
-            Notes = "Follow-up visit"
+            TreatmentId = treatmentId,
+            TreatmentName = treatmentName,
+            Notes = notes
         };
 
         DbContext.AvailabilitySlots.Add(slot);

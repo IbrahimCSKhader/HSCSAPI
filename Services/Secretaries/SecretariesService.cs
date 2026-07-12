@@ -1,5 +1,6 @@
 using System.Security.Claims;
 using HSCSAPI.Data;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.DTOs.Secretary;
 using HSCSAPI.DTOs.Appointment;
 using HSCSAPI.Models.Appointments;
@@ -20,6 +21,8 @@ public class SecretariesService : ISecretariesService
 {
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
     private const int RecentRegistrationsLimit = 10;
+    private static readonly string[] AllowedReportTypes = ["ClinicOverview", "Appointments", "Users"];
+    private static readonly string[] AllowedPeriods = ["custom", "month", "year"];
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<User> _userManager;
@@ -30,6 +33,129 @@ public class SecretariesService : ISecretariesService
     {
         _dbContext = dbContext;
         _userManager = userManager;
+    }
+
+    public async Task<ActionResult<SecretaryResponse>> GetMyProfileAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        if (currentUserId is null)
+        {
+            return new UnauthorizedObjectResult("Invalid token.");
+        }
+
+        var response = await GetSecretaryResponseAsync(currentUserId.Value, cancellationToken);
+        return response is null
+            ? new NotFoundObjectResult("Secretary not found.")
+            : new OkObjectResult(response);
+    }
+
+    public async Task<ActionResult<SecretaryResponse>> UpdateMyProfileAsync(
+        UpdateSecretaryRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(request.Name))
+        {
+            return new BadRequestObjectResult("Name is required.");
+        }
+
+        if (string.IsNullOrWhiteSpace(request.Email))
+        {
+            return new BadRequestObjectResult("Email is required.");
+        }
+
+        var currentUserId = GetCurrentUserId(user);
+        if (currentUserId is null)
+        {
+            return new UnauthorizedObjectResult("Invalid token.");
+        }
+
+        var secretary = await _dbContext.Secretaries
+            .Include(profile => profile.User)
+            .FirstOrDefaultAsync(profile => profile.SecretaryId == currentUserId.Value, cancellationToken);
+        if (secretary is null)
+        {
+            return new NotFoundObjectResult("Secretary not found.");
+        }
+
+        var normalizedEmail = NormalizeEmail(request.Email);
+        var normalizedLookup = _userManager.NormalizeEmail(normalizedEmail);
+        var emailAlreadyRegistered = await _userManager.Users.AsNoTracking().AnyAsync(
+            existingUser => existingUser.Id != secretary.SecretaryId
+                && existingUser.NormalizedEmail == normalizedLookup,
+            cancellationToken);
+        if (emailAlreadyRegistered)
+        {
+            return new BadRequestObjectResult("Email already registered.");
+        }
+
+        secretary.User.Name = request.Name.Trim();
+        secretary.User.Email = normalizedEmail;
+        secretary.User.UserName = normalizedEmail;
+        secretary.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
+        secretary.User.Address = NormalizeOptional(request.Address);
+        secretary.User.DateOfBirth = request.DateOfBirth;
+
+        var updateResult = await _userManager.UpdateAsync(secretary.User);
+        if (!updateResult.Succeeded)
+        {
+            return new BadRequestObjectResult(string.Join(" ", updateResult.Errors.Select(error => error.Description)));
+        }
+
+        await _dbContext.SaveChangesAsync(cancellationToken);
+
+        var response = await GetSecretaryResponseAsync(secretary.SecretaryId, cancellationToken);
+        return response is null
+            ? new NotFoundObjectResult("Secretary not found.")
+            : new OkObjectResult(response);
+    }
+
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPasswordAsync(
+        ChangePasswordRequest request,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        var account = currentUserId.HasValue
+            ? await _userManager.FindByIdAsync(currentUserId.Value.ToString())
+            : null;
+        if (account is null)
+        {
+            return new UnauthorizedObjectResult(new ChangePasswordResponse { Success = false, Message = "Invalid token." });
+        }
+
+        if (string.IsNullOrWhiteSpace(request.CurrentPassword)
+            || string.IsNullOrWhiteSpace(request.NewPassword)
+            || request.NewPassword != request.ConfirmNewPassword)
+        {
+            return new BadRequestObjectResult(new ChangePasswordResponse
+            {
+                Success = false,
+                Message = "Valid current, new, and matching confirmation passwords are required."
+            });
+        }
+
+        var result = await _userManager.ChangePasswordAsync(account, request.CurrentPassword, request.NewPassword);
+        if (!result.Succeeded)
+        {
+            return new BadRequestObjectResult(new ChangePasswordResponse
+            {
+                Success = false,
+                Message = string.Join(" ", result.Errors.Select(error => error.Description))
+            });
+        }
+
+        account.PasswordLastUpdatedAt = DateTime.UtcNow;
+        await _userManager.UpdateAsync(account);
+
+        return new OkObjectResult(new ChangePasswordResponse
+        {
+            Success = true,
+            Message = "Password changed successfully.",
+            PasswordLastUpdatedIso = account.PasswordLastUpdatedAt
+        });
     }
 
     public async Task<ActionResult<List<AvailabilitySlotResponse>>> GetDoctorAvailabilitySlotsAsync(
@@ -168,6 +294,8 @@ public class SecretariesService : ISecretariesService
             {
                 ReportId = x.ReportId,
                 ReportType = x.ReportType,
+                FromDate = x.FromDate,
+                ToDate = x.ToDate,
                 GeneratedAt = x.GeneratedAt,
                 Files = x.ReportInformations.Select(file => new SecretaryReportFileResponse
                 {
@@ -181,6 +309,19 @@ public class SecretariesService : ISecretariesService
         return new OkObjectResult(reports);
     }
 
+    public Task<ActionResult<SecretaryReportOptionsResponse>> GetReportOptionsAsync(
+        CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+
+        return Task.FromResult<ActionResult<SecretaryReportOptionsResponse>>(new OkObjectResult(new SecretaryReportOptionsResponse
+        {
+            ReportTypes = AllowedReportTypes.ToList(),
+            FileFormats = Enum.GetNames<ReportFileFormat>().ToList(),
+            Periods = AllowedPeriods.ToList()
+        }));
+    }
+
     public async Task<ActionResult<SecretaryReportResponse>> GenerateReportAsync(
         GenerateSecretaryReportRequest request, ClaimsPrincipal user, CancellationToken cancellationToken = default)
     {
@@ -192,18 +333,39 @@ public class SecretariesService : ISecretariesService
 
         if (!Enum.TryParse<ReportFileFormat>(request.FileFormat, true, out var format))
         {
-            return new BadRequestObjectResult("fileFormat must be pdf or csv.");
+            return new BadRequestObjectResult($"fileFormat must be one of: {string.Join(", ", Enum.GetNames<ReportFileFormat>())}.");
         }
 
-        var reportType = NormalizeOptional(request.ReportType) ?? "clinic-summary";
+        if (!TryNormalizeReportType(request.ReportType, out var reportType, out var reportTypeError))
+        {
+            return new BadRequestObjectResult(reportTypeError);
+        }
+
+        if (!TryResolveReportRange(request, out var fromDate, out var toDate, out var rangeLabel, out var rangeError))
+        {
+            return new BadRequestObjectResult(rangeError);
+        }
+
         var clinicName = await _dbContext.Clinics.Where(x => x.ClinicId == scope.Value.ClinicId).Select(x => x.Name).FirstAsync(cancellationToken);
         var patients = await _dbContext.Patients.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
         var doctors = await _dbContext.Doctors.CountAsync(x => x.User.ClinicId == scope.Value.ClinicId, cancellationToken);
-        var appointments = await _dbContext.Appointments.CountAsync(x => x.Doctor.User.ClinicId == scope.Value.ClinicId, cancellationToken);
+        var appointmentsQuery = _dbContext.Appointments
+            .Where(x => x.Doctor.User.ClinicId == scope.Value.ClinicId);
+        if (fromDate.HasValue)
+        {
+            appointmentsQuery = appointmentsQuery.Where(x => x.AppointmentDate >= fromDate.Value);
+        }
+
+        if (toDate.HasValue)
+        {
+            appointmentsQuery = appointmentsQuery.Where(x => x.AppointmentDate <= toDate.Value);
+        }
+
+        var appointments = await appointmentsQuery.CountAsync(cancellationToken);
         var generatedAt = DateTime.UtcNow;
         byte[] bytes = format == ReportFileFormat.Csv
-            ? Encoding.UTF8.GetBytes($"metric,value{Environment.NewLine}clinic,{Csv(clinicName)}{Environment.NewLine}patients,{patients}{Environment.NewLine}doctors,{doctors}{Environment.NewLine}appointments,{appointments}{Environment.NewLine}")
-            : GenerateSummaryPdf(clinicName, patients, doctors, appointments, generatedAt);
+            ? Encoding.UTF8.GetBytes($"metric,value{Environment.NewLine}clinic,{Csv(clinicName)}{Environment.NewLine}reportType,{Csv(reportType)}{Environment.NewLine}period,{Csv(rangeLabel)}{Environment.NewLine}patients,{patients}{Environment.NewLine}doctors,{doctors}{Environment.NewLine}appointments,{appointments}{Environment.NewLine}")
+            : GenerateSummaryPdf(clinicName, reportType, rangeLabel, patients, doctors, appointments, generatedAt);
 
         var extension = format == ReportFileFormat.Csv ? "csv" : "pdf";
         var directory = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "reports", scope.Value.SecretaryId.ToString("N"));
@@ -212,7 +374,14 @@ public class SecretariesService : ISecretariesService
         var physicalPath = Path.Combine(directory, fileName);
         await File.WriteAllBytesAsync(physicalPath, bytes, cancellationToken);
 
-        var report = new Report { SecretaryId = scope.Value.SecretaryId, ReportType = reportType, GeneratedAt = generatedAt };
+        var report = new Report
+        {
+            SecretaryId = scope.Value.SecretaryId,
+            ReportType = reportType,
+            FromDate = fromDate,
+            ToDate = toDate,
+            GeneratedAt = generatedAt
+        };
         var info = new ReportInformation
         {
             ReportId = report.ReportId,
@@ -228,6 +397,8 @@ public class SecretariesService : ISecretariesService
         {
             ReportId = report.ReportId,
             ReportType = report.ReportType,
+            FromDate = report.FromDate,
+            ToDate = report.ToDate,
             GeneratedAt = report.GeneratedAt,
             Files = [new SecretaryReportFileResponse
             {
@@ -238,6 +409,43 @@ public class SecretariesService : ISecretariesService
                 DownloadUrl = $"/api/Secretaries/my-clinic/reports/{report.ReportId}/files/{info.ReportInformationId}"
             }]
         });
+    }
+
+    public async Task<IActionResult> DeleteReportAsync(
+        Guid reportId,
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken = default)
+    {
+        var scope = await GetSecretaryScopeAsync(user, cancellationToken);
+        if (scope is null)
+        {
+            return new ObjectResult("This secretary is not assigned to any clinic.") { StatusCode = 403 };
+        }
+
+        var report = await _dbContext.Reports
+            .Include(item => item.ReportInformations)
+            .FirstOrDefaultAsync(
+                item => item.ReportId == reportId
+                    && item.Secretary.User.ClinicId == scope.Value.ClinicId,
+                cancellationToken);
+        if (report is null)
+        {
+            return new NotFoundObjectResult("Report not found.");
+        }
+
+        var root = Path.GetFullPath(Directory.GetCurrentDirectory());
+        foreach (var file in report.ReportInformations)
+        {
+            var physicalPath = Path.GetFullPath(Path.Combine(root, file.FilePath.Replace('/', Path.DirectorySeparatorChar)));
+            if (physicalPath.StartsWith(root, StringComparison.OrdinalIgnoreCase) && File.Exists(physicalPath))
+            {
+                File.Delete(physicalPath);
+            }
+        }
+
+        _dbContext.Reports.Remove(report);
+        await _dbContext.SaveChangesAsync(cancellationToken);
+        return new NoContentResult();
     }
 
     public async Task<SecretaryReportDownload> DownloadReportAsync(
@@ -745,24 +953,125 @@ public class SecretariesService : ISecretariesService
     private static string Csv(string value) => $"\"{value.Replace("\"", "\"\"")}\"";
 
     private static byte[] GenerateSummaryPdf(
-        string clinicName, int patients, int doctors, int appointments, DateTime generatedAt)
+        string clinicName,
+        string reportType,
+        string rangeLabel,
+        int patients,
+        int doctors,
+        int appointments,
+        DateTime generatedAt)
     {
         QuestPDF.Settings.License = LicenseType.Community;
         return Document.Create(container => container.Page(page =>
         {
             page.Size(PageSizes.A4);
             page.Margin(40);
-            page.Header().Text("Clinic summary report").FontSize(20).Bold();
+            page.Header().Text($"{reportType} report").FontSize(20).Bold();
             page.Content().PaddingVertical(20).Column(column =>
             {
                 column.Spacing(10);
                 column.Item().Text($"Clinic: {clinicName}");
+                column.Item().Text($"Period: {rangeLabel}");
                 column.Item().Text($"Patients: {patients}");
                 column.Item().Text($"Doctors: {doctors}");
                 column.Item().Text($"Appointments: {appointments}");
             });
             page.Footer().Text($"Generated {generatedAt:yyyy-MM-dd HH:mm} UTC").FontSize(9);
         })).GeneratePdf();
+    }
+
+    private static bool TryNormalizeReportType(string? value, out string reportType, out string error)
+    {
+        reportType = string.Empty;
+        error = string.Empty;
+
+        var normalized = NormalizeOptional(value) ?? "ClinicOverview";
+        var match = AllowedReportTypes.FirstOrDefault(
+            item => item.Equals(normalized, StringComparison.OrdinalIgnoreCase));
+        if (match is not null)
+        {
+            reportType = match;
+            return true;
+        }
+
+        error = $"reportType must be one of: {string.Join(", ", AllowedReportTypes)}.";
+        return false;
+    }
+
+    private static bool TryResolveReportRange(
+        GenerateSecretaryReportRequest request,
+        out DateOnly? fromDate,
+        out DateOnly? toDate,
+        out string rangeLabel,
+        out string error)
+    {
+        fromDate = null;
+        toDate = null;
+        rangeLabel = "All time";
+        error = string.Empty;
+
+        var period = NormalizeOptional(request.Period);
+        if (period is null && (request.FromDate.HasValue || request.ToDate.HasValue))
+        {
+            period = "custom";
+        }
+
+        if (period is null)
+        {
+            return true;
+        }
+
+        switch (period.Trim().ToLowerInvariant())
+        {
+            case "custom":
+                if (!request.FromDate.HasValue || !request.ToDate.HasValue)
+                {
+                    error = "fromDate and toDate are required when period is custom.";
+                    return false;
+                }
+
+                fromDate = request.FromDate.Value;
+                toDate = request.ToDate.Value;
+                break;
+            case "month":
+                if (!request.Year.HasValue || !request.Month.HasValue)
+                {
+                    error = "year and month are required when period is month.";
+                    return false;
+                }
+
+                if (request.Month.Value < 1 || request.Month.Value > 12)
+                {
+                    error = "month must be between 1 and 12.";
+                    return false;
+                }
+
+                fromDate = new DateOnly(request.Year.Value, request.Month.Value, 1);
+                toDate = fromDate.Value.AddMonths(1).AddDays(-1);
+                break;
+            case "year":
+                if (!request.Year.HasValue)
+                {
+                    error = "year is required when period is year.";
+                    return false;
+                }
+
+                fromDate = new DateOnly(request.Year.Value, 1, 1);
+                toDate = new DateOnly(request.Year.Value, 12, 31);
+                break;
+            default:
+                error = $"period must be one of: {string.Join(", ", AllowedPeriods)}.";
+                return false;
+        }
+
+        if (fromDate > toDate)
+        {
+            error = "fromDate must be before or equal to toDate.";
+            return false;
+        }
+
+        rangeLabel = $"{fromDate:dd MMM yyyy} - {toDate:dd MMM yyyy}";
+        return true;
     }
 
     private async Task<SecretaryResponse?> GetSecretaryResponseAsync(Guid secretaryId, CancellationToken cancellationToken)

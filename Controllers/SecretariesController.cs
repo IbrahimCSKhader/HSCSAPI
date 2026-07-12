@@ -4,6 +4,7 @@ using HSCSAPI.DTOs.Patient;
 using HSCSAPI.DTOs.LaboratoryTechnologist;
 using HSCSAPI.DTOs.RadiologyTechnologist;
 using HSCSAPI.DTOs.Appointment;
+using HSCSAPI.DTOs.Common;
 using HSCSAPI.Models.Enums;
 using HSCSAPI.Services.Doctors;
 using HSCSAPI.Services.Patients;
@@ -44,6 +45,34 @@ public class SecretariesController : ControllerBase
     public async Task<ActionResult<SecretaryDashboardResponse>> GetDashboard(CancellationToken cancellationToken)
     {
         return await _secretariesService.GetDashboardAsync(User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpGet("me")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<SecretaryResponse>> GetMyProfile(CancellationToken cancellationToken)
+    {
+        return await _secretariesService.GetMyProfileAsync(User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<SecretaryResponse>> UpdateMyProfile(
+        [FromBody] UpdateSecretaryRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _secretariesService.UpdateMyProfileAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpPut("me/password")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<ChangePasswordResponse>> ChangeMyPassword(
+        [FromBody] ChangePasswordRequest request,
+        CancellationToken cancellationToken)
+    {
+        return await _secretariesService.ChangeMyPasswordAsync(request, User, cancellationToken);
     }
 
     [HttpGet]
@@ -250,12 +279,28 @@ public class SecretariesController : ControllerBase
     }
 
     // last end point added
+    [HttpGet("my-clinic/reports/options")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<ActionResult<SecretaryReportOptionsResponse>> GetReportOptions(CancellationToken cancellationToken)
+    {
+        return await _secretariesService.GetReportOptionsAsync(cancellationToken);
+    }
+
+    // last end point added
     [HttpPost("my-clinic/reports")]
     [Authorize(Roles = nameof(UserSystemRole.Secretary))]
     public async Task<ActionResult<SecretaryReportResponse>> GenerateReport(
         [FromBody] GenerateSecretaryReportRequest request, CancellationToken cancellationToken)
     {
         return await _secretariesService.GenerateReportAsync(request, User, cancellationToken);
+    }
+
+    // last end point added
+    [HttpDelete("my-clinic/reports/{reportId:guid}")]
+    [Authorize(Roles = nameof(UserSystemRole.Secretary))]
+    public async Task<IActionResult> DeleteReport(Guid reportId, CancellationToken cancellationToken)
+    {
+        return await _secretariesService.DeleteReportAsync(reportId, User, cancellationToken);
     }
 
     // last end point added

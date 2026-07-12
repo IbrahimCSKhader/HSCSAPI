@@ -5,6 +5,7 @@ public class AppointmentResponse
     public Guid AppointmentId { get; set; }
     public Guid DoctorId { get; set; }
     public string DoctorName { get; set; } = string.Empty;
+    public string DoctorSpecialty { get; set; } = string.Empty;
     public Guid PatientId { get; set; }
     public string PatientName { get; set; } = string.Empty;
     public Guid AvailabilitySlotId { get; set; }
@@ -13,6 +14,9 @@ public class AppointmentResponse
     public DateOnly AppointmentDate { get; set; }
     public DayOfWeek DayOfWeek { get; set; }
     public TimeOnly AppointmentTime { get; set; }
+    public TimeOnly AppointmentEndTime { get; set; }
+    public string? TreatmentId { get; set; }
+    public string? TreatmentName { get; set; }
     public string? Notes { get; set; }
     public string Status { get; set; } = string.Empty;
     public bool IsActive { get; set; }

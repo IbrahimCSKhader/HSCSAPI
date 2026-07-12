@@ -33,6 +33,18 @@ public class MedicalFileConfiguration : IEntityTypeConfiguration<MedicalFile>
             .HasMaxLength(20)
             .IsRequired();
 
+        builder.Property(x => x.DiagnosisCode)
+            .HasMaxLength(50);
+
+        builder.Property(x => x.DiagnosisName)
+            .HasMaxLength(300);
+
+        builder.Property(x => x.ActivityCode)
+            .HasMaxLength(50);
+
+        builder.Property(x => x.ActivityName)
+            .HasMaxLength(300);
+
         builder.Property(x => x.UploadedAt)
             .IsRequired();
 

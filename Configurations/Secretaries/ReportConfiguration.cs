@@ -16,6 +16,10 @@ public class ReportConfiguration : IEntityTypeConfiguration<Report>
             .HasMaxLength(100)
             .IsRequired();
 
+        builder.Property(x => x.FromDate);
+
+        builder.Property(x => x.ToDate);
+
         builder.Property(x => x.GeneratedAt)
             .IsRequired();
 

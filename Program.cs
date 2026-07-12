@@ -175,6 +175,7 @@ namespace HSCSAPI
             });
             builder.Services.AddScoped<ILaboratoryTechnologistsService, LaboratoryTechnologistsService>();
             builder.Services.AddScoped<IPatientProfileService, PatientProfileService>();
+            builder.Services.AddScoped<IExternalProfileSharesService, ExternalProfileSharesService>();
             builder.Services.AddScoped<IPatientsService, PatientsService>();
             builder.Services.AddScoped<IRadiologyTechnologistsService, RadiologyTechnologistsService>();
             builder.Services.AddScoped<IRemindersService, RemindersService>();

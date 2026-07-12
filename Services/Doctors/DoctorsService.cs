@@ -52,6 +52,7 @@ public class DoctorsService : IDoctorsService
 
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
     public const string SuperAdminOrSecretaryOrDoctorRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Doctor);
+    public const string SuperAdminOrSecretaryOrPatientRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Patient);
     private const int MaxPageSize = 100;
 
     private readonly AppDbContext _dbContext;
@@ -84,6 +85,19 @@ public class DoctorsService : IDoctorsService
 
             var doctors = await query.ToListAsync(cancellationToken);
             return new OkObjectResult(doctors);
+        }
+
+        if (user.IsInRole(nameof(UserSystemRole.Patient)))
+        {
+            if (!clinicId.HasValue)
+            {
+                return ForbiddenList("clinicId is required for patient doctor lookup.");
+            }
+
+            var patientDoctors = await query
+                .Where(doctor => doctor.ClinicId == clinicId.Value && doctor.IsActive)
+                .ToListAsync(cancellationToken);
+            return new OkObjectResult(patientDoctors);
         }
 
         var secretaryClinicId = await GetCurrentSecretaryClinicIdAsync(user, cancellationToken);
@@ -124,7 +138,8 @@ public class DoctorsService : IDoctorsService
         }
 
         var doctors = await BuildDoctorResponseQuery()
-            .Where(doctor => doctor.ClinicId == clinicId)
+            .Where(doctor => doctor.ClinicId == clinicId
+                && (!user.IsInRole(nameof(UserSystemRole.Patient)) || doctor.IsActive))
             .ToListAsync(cancellationToken);
 
         return new OkObjectResult(doctors);
@@ -604,6 +619,23 @@ public class DoctorsService : IDoctorsService
             return new BadRequestObjectResult(specialtyError);
         }
 
+        if (!string.IsNullOrWhiteSpace(request.Email))
+        {
+            var normalizedEmail = NormalizeEmail(request.Email);
+            var normalizedLookup = _userManager.NormalizeEmail(normalizedEmail);
+            var emailAlreadyRegistered = await _userManager.Users.AsNoTracking().AnyAsync(
+                existingUser => existingUser.Id != doctor.DoctorId
+                    && existingUser.NormalizedEmail == normalizedLookup,
+                cancellationToken);
+            if (emailAlreadyRegistered)
+            {
+                return new BadRequestObjectResult("Email already registered.");
+            }
+
+            doctor.User.Email = normalizedEmail;
+            doctor.User.UserName = normalizedEmail;
+        }
+
         doctor.User.Name = request.Name.Trim();
         doctor.User.PhoneNumber = NormalizeOptional(request.PhoneNumber);
         doctor.User.Address = NormalizeOptional(request.Address);
@@ -781,6 +813,7 @@ public class DoctorsService : IDoctorsService
                 AppointmentId = appointment.AppointmentId,
                 DoctorId = appointment.DoctorId,
                 DoctorName = appointment.Doctor.User.Name,
+                DoctorSpecialty = appointment.Doctor.Specialty.ToString(),
                 PatientId = appointment.PatientId,
                 PatientName = appointment.Patient.User.Name,
                 PatientUserId = appointment.Patient.UserID,
@@ -790,6 +823,8 @@ public class DoctorsService : IDoctorsService
                 AppointmentTime = appointment.AppointmentTime,
                 SlotStartTime = appointment.AvailabilitySlot.StartTime,
                 SlotEndTime = appointment.AvailabilitySlot.EndTime,
+                TreatmentId = appointment.TreatmentId,
+                TreatmentName = appointment.TreatmentName,
                 Notes = appointment.Notes
             });
     }
@@ -833,6 +868,10 @@ public class DoctorsService : IDoctorsService
                     .OrderBy(test => test.TestName)
                     .Select(test => test.ClinicalNotes)
                     .FirstOrDefault(),
+                DiagnosisCode = file.DiagnosisCode,
+                DiagnosisName = file.DiagnosisName,
+                ActivityCode = file.ActivityCode,
+                ActivityName = file.ActivityName,
                 HasLabResult = file.LabTestRequestsAsResult.Any(),
                 HasImagingResult = file.ImagingTestRequestsAsResult.Any()
             });
@@ -1015,14 +1054,18 @@ public class DoctorsService : IDoctorsService
         return new DoctorAppointmentSummaryResponse
         {
             AppointmentId = appointment.AppointmentId,
+            DoctorSpecialty = appointment.DoctorSpecialty,
             PatientId = appointment.PatientId,
             PatientName = appointment.PatientName,
             PatientUserId = appointment.PatientUserId,
             AppointmentDate = appointment.AppointmentDate,
             DayOfWeek = appointment.AppointmentDate.DayOfWeek.ToString(),
             AppointmentTime = appointment.AppointmentTime,
+            AppointmentEndTime = appointment.SlotEndTime,
             DurationMinutes = CalculateDurationMinutes(appointment.SlotStartTime, appointment.SlotEndTime),
-            Status = "Scheduled",
+            Status = GetAppointmentStatus(appointment.AppointmentDate, appointment.SlotEndTime),
+            TreatmentId = appointment.TreatmentId,
+            TreatmentName = appointment.TreatmentName,
             ReasonForVisit = appointment.Notes
         };
     }
@@ -1035,6 +1078,7 @@ public class DoctorsService : IDoctorsService
             AppointmentId = appointment.AppointmentId,
             DoctorId = appointment.DoctorId,
             DoctorName = appointment.DoctorName,
+            DoctorSpecialty = appointment.DoctorSpecialty,
             PatientId = appointment.PatientId,
             PatientName = appointment.PatientName,
             PatientUserId = appointment.PatientUserId,
@@ -1043,8 +1087,11 @@ public class DoctorsService : IDoctorsService
             AppointmentDate = appointment.AppointmentDate,
             DayOfWeek = appointment.AppointmentDate.DayOfWeek.ToString(),
             AppointmentTime = appointment.AppointmentTime,
+            AppointmentEndTime = appointment.SlotEndTime,
             DurationMinutes = CalculateDurationMinutes(appointment.SlotStartTime, appointment.SlotEndTime),
-            Status = "Scheduled",
+            Status = GetAppointmentStatus(appointment.AppointmentDate, appointment.SlotEndTime),
+            TreatmentId = appointment.TreatmentId,
+            TreatmentName = appointment.TreatmentName,
             ReasonForVisit = appointment.Notes
         };
     }
@@ -1078,6 +1125,10 @@ public class DoctorsService : IDoctorsService
             AppointmentTime = record.AppointmentTime,
             LabTestName = record.LabTestName,
             ImagingTestName = record.ImagingTestName,
+            DiagnosisCode = record.DiagnosisCode,
+            DiagnosisName = record.DiagnosisName,
+            ActivityCode = record.ActivityCode,
+            ActivityName = record.ActivityName,
             FileUrl = $"/api/Doctors/me/medical-records/{record.MedicalFileId}/download"
         };
     }
@@ -1113,6 +1164,10 @@ public class DoctorsService : IDoctorsService
             AppointmentTime = record.AppointmentTime,
             LabTestName = record.LabTestName,
             ImagingTestName = record.ImagingTestName,
+            DiagnosisCode = record.DiagnosisCode,
+            DiagnosisName = record.DiagnosisName,
+            ActivityCode = record.ActivityCode,
+            ActivityName = record.ActivityName,
             FileUrl = $"/api/Doctors/me/medical-records/{record.MedicalFileId}/download",
             AppointmentNotes = record.AppointmentNotes,
             Summary = summary,
@@ -1161,6 +1216,16 @@ public class DoctorsService : IDoctorsService
         return minutes > 0 ? minutes : 45;
     }
 
+    private static string GetAppointmentStatus(DateOnly appointmentDate, TimeOnly appointmentEndTime)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var currentTime = TimeOnly.FromDateTime(DateTime.Now);
+
+        return appointmentDate < today || (appointmentDate == today && appointmentEndTime < currentTime)
+            ? "Completed"
+            : "Scheduled";
+    }
+
     private string ResolvePhysicalFilePath(string filePath)
     {
         if (Path.IsPathRooted(filePath))
@@ -1204,7 +1269,7 @@ public class DoctorsService : IDoctorsService
                 ClinicId = doctor.User.ClinicId,
                 ClinicName = doctor.User.Clinic != null ? doctor.User.Clinic.Name : null,
                 ProfessionalLicenseNumber = doctor.ProfessionalLicenseNumber,
-                DoctorUserCode = "DOC-" + doctor.DoctorId.ToString().Substring(0, 8).ToUpper(),
+                DoctorUserCode = BuildDoctorUserCode(doctor.DoctorId, doctor.User.ClinicId),
                 Specialty = doctor.Specialty.ToString(),
                 EmailConfirmed = doctor.User.EmailConfirmed,
                 IsActive = doctor.User.IsActive,
@@ -1264,6 +1329,13 @@ public class DoctorsService : IDoctorsService
         if (user.IsInRole(nameof(UserSystemRole.SuperAdmin)))
         {
             return true;
+        }
+
+        if (user.IsInRole(nameof(UserSystemRole.Patient)))
+        {
+            return await _dbContext.Clinics
+                .AsNoTracking()
+                .AnyAsync(clinic => clinic.ClinicId == clinicId && clinic.IsActive, cancellationToken);
         }
 
         var secretaryClinicId = await GetCurrentSecretaryClinicIdAsync(user, cancellationToken);
@@ -1330,6 +1402,15 @@ public class DoctorsService : IDoctorsService
         return email.Trim().ToLowerInvariant();
     }
 
+    private static string BuildDoctorUserCode(Guid doctorId, Guid? clinicId)
+    {
+        var prefix = clinicId.HasValue
+            ? clinicId.Value.ToString("N")[..4].ToUpperInvariant()
+            : "DOC";
+
+        return $"{prefix}D{doctorId.ToString("N")[..6].ToUpperInvariant()}";
+    }
+
     private static string? NormalizeOptional(string? value)
     {
         return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
@@ -1372,6 +1453,7 @@ public class DoctorsService : IDoctorsService
         public Guid AppointmentId { get; set; }
         public Guid DoctorId { get; set; }
         public string DoctorName { get; set; } = string.Empty;
+        public string DoctorSpecialty { get; set; } = string.Empty;
         public Guid PatientId { get; set; }
         public string PatientName { get; set; } = string.Empty;
         public string PatientUserId { get; set; } = string.Empty;
@@ -1381,6 +1463,8 @@ public class DoctorsService : IDoctorsService
         public TimeOnly AppointmentTime { get; set; }
         public TimeOnly SlotStartTime { get; set; }
         public TimeOnly SlotEndTime { get; set; }
+        public string? TreatmentId { get; set; }
+        public string? TreatmentName { get; set; }
         public string? Notes { get; set; }
     }
 
@@ -1407,6 +1491,10 @@ public class DoctorsService : IDoctorsService
         public string? LabClinicalNotes { get; set; }
         public string? ImagingTestName { get; set; }
         public string? ImagingClinicalNotes { get; set; }
+        public string? DiagnosisCode { get; set; }
+        public string? DiagnosisName { get; set; }
+        public string? ActivityCode { get; set; }
+        public string? ActivityName { get; set; }
         public bool HasLabResult { get; set; }
         public bool HasImagingResult { get; set; }
     }

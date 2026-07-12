@@ -346,6 +346,7 @@ public class ImagingRequestsService : IImagingRequestsService
                 Title = "Imaging result available",
                 Message = $"Results are available for {imagingRequest.TestName}.",
                 Category = "Imaging",
+                ActionPath = $"/doctor/imaging-requests?request={imagingRequest.ImagingTestRequestId}",
                 IsRead = false,
                 CreatedAt = DateTime.UtcNow
             });
@@ -532,7 +533,7 @@ public class ImagingRequestsService : IImagingRequestsService
             PatientName = patient?.User.Name,
             RequestedByDoctorId = doctor?.DoctorId,
             RequestedByDoctorName = doctor?.User.Name,
-            RequestingDoctorId = doctor is null ? null : $"DOC-{doctor.DoctorId.ToString("N")[..8].ToUpperInvariant()}",
+            RequestingDoctorId = doctor is null ? null : BuildDoctorUserCode(doctor.DoctorId, doctor.User.ClinicId),
             RadiologyClinicId = request.RadiologyClinicId,
             RadiologyClinicName = request.RadiologyClinic?.Name,
             RadiologyTechnologistId = request.RadiologyTechnologistId,
@@ -591,6 +592,15 @@ public class ImagingRequestsService : IImagingRequestsService
     {
         var trimmed = value?.Trim();
         return string.IsNullOrWhiteSpace(trimmed) ? null : trimmed;
+    }
+
+    private static string BuildDoctorUserCode(Guid doctorId, Guid? clinicId)
+    {
+        var prefix = clinicId.HasValue
+            ? clinicId.Value.ToString("N")[..4].ToUpperInvariant()
+            : "DOC";
+
+        return $"{prefix}D{doctorId.ToString("N")[..6].ToUpperInvariant()}";
     }
 
     private static (int Page, int PageSize) NormalizePaging(int page, int pageSize)

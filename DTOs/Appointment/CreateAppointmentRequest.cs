@@ -19,6 +19,12 @@ public class CreateAppointmentRequest
     [Required]
     public TimeOnly AppointmentTime { get; set; }
 
+    [MaxLength(100)]
+    public string? TreatmentId { get; set; }
+
+    [MaxLength(200)]
+    public string? TreatmentName { get; set; }
+
     [MaxLength(1000)]
     public string? Notes { get; set; }
 }

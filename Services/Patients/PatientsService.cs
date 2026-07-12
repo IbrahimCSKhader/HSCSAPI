@@ -15,6 +15,7 @@ public class PatientsService : IPatientsService
 {
     public const string SuperAdminOrSecretaryRoles = nameof(UserSystemRole.SuperAdmin) + "," + nameof(UserSystemRole.Secretary);
     public const string SuperAdminOrSecretaryOrPatientRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Patient);
+    public const string SuperAdminOrSecretaryOrDoctorRoles = SuperAdminOrSecretaryRoles + "," + nameof(UserSystemRole.Doctor);
 
     private readonly AppDbContext _dbContext;
     private readonly UserManager<User> _userManager;
@@ -46,6 +47,25 @@ public class PatientsService : IPatientsService
 
             var patients = await query.ToListAsync(cancellationToken);
             return new OkObjectResult(patients);
+        }
+
+        if (user.IsInRole(nameof(UserSystemRole.Doctor)))
+        {
+            var doctorClinicId = await GetCurrentDoctorClinicIdAsync(user, cancellationToken);
+            if (doctorClinicId is null)
+            {
+                return ForbiddenList("This doctor is not assigned to any clinic.");
+            }
+
+            if (clinicId.HasValue && clinicId.Value != doctorClinicId.Value)
+            {
+                return ForbiddenList("You are not allowed to access patients outside your clinic.");
+            }
+
+            var doctorClinicPatients = await query
+                .Where(patient => patient.ClinicId == doctorClinicId.Value && patient.IsActive)
+                .ToListAsync(cancellationToken);
+            return new OkObjectResult(doctorClinicPatients);
         }
 
         var secretaryClinicId = await GetCurrentSecretaryClinicIdAsync(user, cancellationToken);
@@ -463,8 +483,31 @@ public class PatientsService : IPatientsService
             return true;
         }
 
+        if (user.IsInRole(nameof(UserSystemRole.Doctor)))
+        {
+            var doctorClinicId = await GetCurrentDoctorClinicIdAsync(user, cancellationToken);
+            return doctorClinicId.HasValue && doctorClinicId.Value == clinicId;
+        }
+
         var secretaryClinicId = await GetCurrentSecretaryClinicIdAsync(user, cancellationToken);
         return secretaryClinicId.HasValue && secretaryClinicId.Value == clinicId;
+    }
+
+    private async Task<Guid?> GetCurrentDoctorClinicIdAsync(
+        ClaimsPrincipal user,
+        CancellationToken cancellationToken)
+    {
+        var currentUserId = GetCurrentUserId(user);
+        if (currentUserId is null)
+        {
+            return null;
+        }
+
+        return await _dbContext.Doctors
+            .AsNoTracking()
+            .Where(doctor => doctor.DoctorId == currentUserId.Value && doctor.User.IsActive)
+            .Select(doctor => doctor.User.ClinicId)
+            .FirstOrDefaultAsync(cancellationToken);
     }
 
     private async Task<Guid?> GetCurrentSecretaryClinicIdAsync(
