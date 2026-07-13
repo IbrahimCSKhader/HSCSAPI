@@ -189,9 +189,26 @@ public class LaboratoryResultsServiceTests
 
         var workItem = Ok<LabWorkItemResponse>(response);
         Assert.Equal("Completed", workItem.Status);
+        Assert.NotNull(workItem.ResultMedicalFileId);
         Assert.Equal("CBC result uploaded.", workItem.ResultSummary);
         Assert.EndsWith(".pdf", workItem.ResultFileName);
         Assert.Equal($"/api/LaboratoryTests/my-requests/{setup.Request.LabTestRequestId}/result-file", workItem.ResultFileUrl);
+
+        var detail = Ok<LabWorkItemResponse>(await context.Service.GetMyWorkItemAsync(
+            setup.Request.LabTestRequestId,
+            LaboratoryResultTestContext.Principal(setup.Technologist.LaboratoryTechnologistId),
+            CancellationToken.None));
+        Assert.Equal("Completed", detail.Status);
+        Assert.Equal(workItem.ResultMedicalFileId, detail.ResultMedicalFileId);
+        Assert.Equal(workItem.ResultFileUrl, detail.ResultFileUrl);
+
+        var download = await context.Service.DownloadResultFileAsync(
+            setup.Request.LabTestRequestId,
+            LaboratoryResultTestContext.Principal(setup.Technologist.LaboratoryTechnologistId),
+            CancellationToken.None);
+        var file = Assert.IsType<PhysicalFileResult>(download);
+        Assert.Equal("application/pdf", file.ContentType);
+        Assert.True(file.EnableRangeProcessing);
 
         var stored = await context.DbContext.LabTestRequests.Include(x => x.ResultMedicalFile).SingleAsync();
         Assert.NotNull(stored.ResultMedicalFile);

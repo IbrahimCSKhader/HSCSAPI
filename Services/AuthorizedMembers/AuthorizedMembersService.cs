@@ -394,11 +394,6 @@ public class AuthorizedMembersService : IAuthorizedMembersService
             return new NotFoundObjectResult("Medical record not found.");
         }
 
-        if (record.SeverityLevel == SeverityLevel.High)
-        {
-            return new BadRequestObjectResult("High-severity records require an approved download request.");
-        }
-
         var filePath = ResolvePhysicalFilePath(record.FilePath);
         if (!File.Exists(filePath))
         {

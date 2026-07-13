@@ -292,7 +292,8 @@ public class AuthorizedMembersServiceAndRouteTests
         var physicalFile = Assert.IsType<PhysicalFileResult>(downloadResponse);
         Assert.Equal("application/pdf", physicalFile.ContentType);
         Assert.Equal("cbc-layla.pdf", physicalFile.FileDownloadName);
-        Assert.IsType<BadRequestObjectResult>(highDownload);
+        var highFile = Assert.IsType<PhysicalFileResult>(highDownload);
+        Assert.Equal("high-risk.pdf", highFile.FileDownloadName);
         Assert.IsType<NotFoundObjectResult>(unlinkedDetail.Result);
         Assert.IsType<UnauthorizedObjectResult>(missingIdentity.Result);
     }

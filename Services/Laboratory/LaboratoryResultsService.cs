@@ -572,6 +572,7 @@ public partial class LaboratoryResultsService : ILaboratoryResultsService
             TestingClinicName = request.TestingClinic?.Name,
             SuggestedTemplateCode = suggestedTemplateCode,
             LabTestResultId = request.StructuredResult?.LabTestResultId,
+            ResultMedicalFileId = request.ResultMedicalFileId,
             ClinicalNotes = request.ClinicalNotes,
             CompletedAtIso = request.StructuredResult?.CompletedAt,
             ResultSummary = request.StructuredResult?.Comments ?? request.ClinicalNotes,

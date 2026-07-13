@@ -56,6 +56,7 @@ public class LabWorkItemResponse
     public string? TestingClinicName { get; set; }
     public string? SuggestedTemplateCode { get; set; }
     public Guid? LabTestResultId { get; set; }
+    public Guid? ResultMedicalFileId { get; set; }
     public string? ClinicalNotes { get; set; }
     public string? RequestingDoctorId { get; set; }
     public DateTime? CompletedAtIso { get; set; }
